@@ -4,8 +4,10 @@ ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
 ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
 session_set_cookie_params(86400); // 24 hours
 session_start();
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+require_once __DIR__ . '/../env.php';
+$appDebug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN);
+ini_set('display_errors', $appDebug ? '1' : '0');
+ini_set('display_startup_errors', $appDebug ? '1' : '0');
 error_reporting(E_ALL);
 ini_set('log_errors', 1); // Log errors to file
 ini_set('error_log', __DIR__ . '/php-errors.log');
