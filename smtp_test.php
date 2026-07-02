@@ -1,5 +1,12 @@
 <?php
 require_once __DIR__ . '/env.php';
+// Diagnostic endpoint: require an authenticated session so it can't be
+// triggered anonymously to send mail or probe SMTP.
+session_start();
+if (empty($_SESSION['sessionWriter']) && empty($_SESSION['odmsaid'])) {
+    http_response_code(403);
+    exit('Forbidden');
+}
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
