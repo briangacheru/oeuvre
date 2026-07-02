@@ -40,6 +40,7 @@ if (isset($_SESSION['alert'])) {
                     <div class="tab-pane preview-tab-pane active" role="tabpanel">
                         <div class="card shadow-none">
                             <form id="tasksForm" method="post">
+<?= csrf_field() ?>
                                 <div class="card-header">
                                     <div class="row flex-between-center">
                                         <div class="col-6 col-sm-auto d-flex align-items-center pe-0">

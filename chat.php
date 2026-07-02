@@ -160,6 +160,7 @@ usort($users, function($a, $b) {
                 </div>
             <?php endforeach; ?>
             <form class="chat-editor-area" method="post" action="send_message" enctype="multipart/form-data" onsubmit="return submitMessage();">
+<?= csrf_field() ?>
                 <div class="emojiarea-editor outline-none scrollbar" contenteditable="true" id="messageInput"></div>
                 <input type="hidden" name="message" id="messageField">
                 <input type="hidden" name="receiver_id" id="receiverIdField">

@@ -113,6 +113,7 @@ if ($row = mysqli_fetch_array($result)) {
             <div class="tab-content">
                 <div class="tab-pane preview-tab-pane active" >
                     <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="update-task" enctype="multipart/form-data">
+<?= csrf_field() ?>
                         <div class="card mb-3">
                             <div class="card-header bg-body-tertiary">
                                 <h6 class="mb-0">Basic information</h6>

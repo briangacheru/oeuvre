@@ -184,3 +184,57 @@ function formatSizeUnits($bytes) {
 }
 }
 
+
+// ---- CSRF protection ----
+// A single per-session token is generated once and reused for every form
+// rendered during that session, so multiple open tabs/forms all validate.
+if (!function_exists('csrf_token')) {
+function csrf_token() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+}
+
+if (!function_exists('csrf_field')) {
+function csrf_field() {
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
+}
+}
+
+if (!function_exists('csrf_verify')) {
+function csrf_verify() {
+    return isset($_POST['csrf_token'])
+        && !empty($_SESSION['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
+}
+}
+
+if (!function_exists('csrf_verify_or_redirect')) {
+    // For traditional HTML form pages that render a Bootstrap alert via
+    // $_SESSION['alert'] and redirect back to themselves after a POST.
+    function csrf_verify_or_redirect() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_verify()) {
+            $_SESSION['alert'] = '<div class="alert alert-danger border-0 d-flex align-items-center" role="alert">
+                <div class="bg-danger me-3 icon-item"><span class="fas fa-times-circle text-white fs-6"></span></div>
+                <p class="mb-0 flex-1">Your request could not be verified (invalid or expired security token). Please try again.</p>
+                <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>';
+            header('Location: ' . basename($_SERVER['PHP_SELF']));
+            exit;
+        }
+    }
+}
+
+if (!function_exists('csrf_verify_or_json_die')) {
+    // For AJAX/JSON endpoints.
+    function csrf_verify_or_json_die() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_verify()) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Invalid or expired security token. Please refresh and try again.']);
+            exit;
+        }
+    }
+}

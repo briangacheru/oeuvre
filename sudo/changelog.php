@@ -1,4 +1,5 @@
 <?php include "head.php";?>
+<?php csrf_verify_or_redirect(); ?>
     <title>Version Update |iTasker</title>
 <?php include "navi.php";?><div id="alert-container"></div>
 <?php
@@ -60,6 +61,7 @@ $formattedDate = date('F j, Y', strtotime($lastUpdated));
                                 <p class="mb-3">Description: <strong><?php echo htmlspecialchars($description); ?></strong></p>
 
                                 <form method="post">
+<?= csrf_field() ?>
                                     <div class="form-group mb-3">
                                         <label>Update Type:</label>
                                         <select name="update_type" class="form-control">

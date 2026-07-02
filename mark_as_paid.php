@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_redirect();
 check_login();
 
 if(isset($_POST['task_ids']) && is_array($_POST['task_ids'])) {

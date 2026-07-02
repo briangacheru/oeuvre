@@ -329,6 +329,7 @@ if (isset($_GET['export'])) {
 }
 ?>
 <?php include "head.php"; ?>
+<?php csrf_verify_or_redirect(); ?>
 <title>iTasker | Todo List</title>
 <?php include "navi.php"; ?>
 
@@ -838,6 +839,7 @@ function buildPaginationUrl($page) {
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form action="add-todo" method="POST" enctype="multipart/form-data" class="modal-content">
+<?= csrf_field() ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="addTaskModalLabel">Add New Task</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -916,6 +918,7 @@ function buildPaginationUrl($page) {
 <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form action="edit-todo" method="POST" enctype="multipart/form-data" class="modal-content">
+<?= csrf_field() ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1130,6 +1133,7 @@ function buildPaginationUrl($page) {
             <div class="modal-body">
                 <!-- Add New Category Form -->
                 <form action="manage-categories" method="POST" class="mb-4">
+<?= csrf_field() ?>
                     <input type="hidden" name="action" value="add">
                     <div class="row">
                         <div class="col-md-6">
@@ -1153,6 +1157,7 @@ function buildPaginationUrl($page) {
                                 <?php echo htmlspecialchars($category['name']); ?>
                             </div>
                             <form action="manage-categories" method="POST" class="d-inline">
+<?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="id" value="<?php echo $category['id']; ?>">
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this category?')">

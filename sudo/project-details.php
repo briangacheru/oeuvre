@@ -445,6 +445,7 @@ function formatBytes(int $bytes): string {
                                 <span class="text-500 fs-11"><?php echo date("M j, Y g:i A", strtotime($n['created_at'])); ?></span>
                             </div>
                             <form method="POST" action="delete_project_note" class="ms-2">
+<?= csrf_field() ?>
                                 <input type="hidden" name="noteID" value="<?php echo $n['noteID']; ?>">
                                 <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
                                 <button type="submit" class="btn btn-link text-300 p-0 fs-11" title="Delete note"
@@ -538,6 +539,7 @@ function formatBytes(int $bytes): string {
                                     </a>
                                 <?php endif; ?>
                                 <form method="POST" action="delete_project_attachment" class="d-inline mb-0">
+<?= csrf_field() ?>
                                     <input type="hidden" name="attachmentID" value="<?php echo $f['attachmentID']; ?>">
                                     <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
                                     <button type="submit"
@@ -597,6 +599,7 @@ function formatBytes(int $bytes): string {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="add_project_transaction">
+<?= csrf_field() ?>
                 <input type="hidden" name="projectID" value="<?php echo $projectID; ?>">
                 <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                     <div class="position-relative z-1"><h4 class="mb-0 text-white">Add Transaction</h4></div>
@@ -645,6 +648,7 @@ function formatBytes(int $bytes): string {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="edit_project_transaction">
+<?= csrf_field() ?>
                 <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
                 <input type="hidden" id="editTxnID" name="transactionID">
                 <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
@@ -694,6 +698,7 @@ function formatBytes(int $bytes): string {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="delete_project_transaction">
+<?= csrf_field() ?>
                 <input type="hidden" id="deleteTxnProjectID" name="projectID">
                 <input type="hidden" id="deleteTxnID" name="transactionID">
                 <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
@@ -717,6 +722,7 @@ function formatBytes(int $bytes): string {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="add_project_note">
+<?= csrf_field() ?>
                 <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
                 <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                     <div class="position-relative z-1"><h4 class="mb-0 text-white">Add Note</h4></div>
@@ -742,6 +748,7 @@ function formatBytes(int $bytes): string {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="upload_project_attachment" enctype="multipart/form-data">
+<?= csrf_field() ?>
                 <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
                 <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                     <div class="position-relative z-1"><h4 class="mb-0 text-white">Upload Attachment</h4></div>

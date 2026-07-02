@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_redirect();
 
 session_start();
 

@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_redirect();
 check_login();
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['task_ids'])) {

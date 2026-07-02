@@ -139,6 +139,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                                                 </div>
                                             <?php endif; ?>
                                             <form class="mb-3" method="post" role="form" action="" onsubmit="return validateForm()">
+<?= csrf_field() ?>
                                                 <div class="form-floating mb-3">
                                                     <input type="password" class="form-control" id="new_password" name="new_password" value="<?= htmlspecialchars($_POST['new_password'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required="required">
                                                     <label for="floatingPassword">New Password</label>

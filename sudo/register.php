@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../shared-functions.php';
 require_once __DIR__ . '/../env.php';
 include "check-login.php";
+csrf_verify_or_redirect();
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -250,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     }
                                     ?>
                                     <form class="needs-validation" novalidate="novalidate" role="form" method="post">
+<?= csrf_field() ?>
 
                                         <div class="form-floating mb-3">
                                             <input class="form-control" id="floatingUsername" type="text" placeholder="username" name="username" value="<?= htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required="required" />

@@ -256,6 +256,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form method="POST" action="add_project">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="addProjectModalLabel">New Project</h4>
@@ -294,6 +295,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form id="editProjectForm" method="POST" action="edit_project">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="editProjectModalLabel">Edit Project</h4>
@@ -347,6 +349,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form id="deleteProjectForm" method="POST" action="delete_project">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="deleteProjectModalLabel">Delete Project</h4>

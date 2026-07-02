@@ -1,5 +1,6 @@
 <?php
 include_once('head.php');
+csrf_verify_or_redirect();
 
 // Handle level updates
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
@@ -235,6 +236,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST">
+<?= csrf_field() ?>
                     <div class="modal-body">
                         <input type="hidden" name="action" value="add_level">
 
@@ -330,6 +332,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST">
+<?= csrf_field() ?>
                     <div class="modal-body">
                         <input type="hidden" name="action" value="update_level">
                         <input type="hidden" name="level_id" id="edit_level_id">

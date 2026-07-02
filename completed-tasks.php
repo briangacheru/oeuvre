@@ -42,6 +42,7 @@ $msg = "";
                         <div class="tab-pane preview-tab-pane active" role="tabpanel" aria-labelledby="tab-dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0" id="dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0">
                             <div class="card shadow-none">
                                 <form id="tasksForm" method="post">
+<?= csrf_field() ?>
                                 <div class="card-header">
                                     <div class="row flex-between-center">
                                         <div class="col-6 col-sm-auto d-flex align-items-center pe-0">

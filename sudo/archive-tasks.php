@@ -1,5 +1,6 @@
 <?php
 include "head.php";
+csrf_verify_or_redirect();
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {
 

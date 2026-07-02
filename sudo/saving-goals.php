@@ -260,6 +260,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
             <form id="addGoalForm" method="POST" action="add_goal">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="addGoalModalLabel">Add New Savings Goal</h4>
@@ -298,6 +299,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form id="editGoalForm" method="POST" action="edit_goal">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="editGoalModalLabel">Edit Savings Goal</h4>
@@ -347,6 +349,7 @@ if (isset($_SESSION['alert'])) {
     <div class="modal fade" id="deleteGoalModal" tabindex="-1" aria-labelledby="deleteGoalModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <form id="deleteGoalForm" method="POST" action="delete_goal">
+<?= csrf_field() ?>
                 <div class="modal-content">
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">

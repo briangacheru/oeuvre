@@ -1,4 +1,5 @@
 <?php include "head.php";?>
+<?php csrf_verify_or_redirect(); ?>
     <title>iTasker | Overdraft</title>
 <?php include "navi.php";
 
@@ -295,6 +296,7 @@ if (isset($_SESSION['alert'])) {
             <div class="tab-content">
                 <div class="tab-pane preview-tab-pane active show" role="tabpanel" aria-labelledby="tab-add" id="add-tab">
                     <form method="post" id="overdraftForm">
+<?= csrf_field() ?>
                         <div class="mb-3 row">
                             <label class="col-sm-2 col-form-label" for="record_type">Record Type</label>
                             <div class="col-sm-10">
@@ -419,6 +421,7 @@ if (isset($_SESSION['alert'])) {
                     <div class="tab-pane preview-tab-pane active" role="tabpanel">
                         <div class="card shadow-none">
                             <form id="tasksForm" method="post">
+<?= csrf_field() ?>
                                 <div class="card-header">
                                     <div class="row flex-between-center">
                                         <div class="col-6 col-sm-auto d-flex align-items-center pe-0">

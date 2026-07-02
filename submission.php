@@ -447,6 +447,7 @@ if (isset($_SESSION['alert'])) {
 
     <div id="alertPlaceholder"></div>
     <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submission_upload" enctype="multipart/form-data">
+<?= csrf_field() ?>
         <div class="card mb-3" id="filesSubmission">
             <div class="card-header bg-body-tertiary">
                 <h6 class="mb-0">Submit file(s)</h6>

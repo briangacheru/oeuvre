@@ -378,6 +378,7 @@ try {
 
                 <!-- Enhanced message input form with better validation -->
                 <form class="chat-editor-area" method="post" enctype="multipart/form-data" onsubmit="return submitMessage(event);">
+<?= csrf_field() ?>
                     <!-- CSRF token for security -->
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 

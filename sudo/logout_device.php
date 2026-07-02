@@ -1,5 +1,6 @@
 <?php
 require_once 'check-login.php';        // session + $con + $dbh + auth context
+csrf_verify_or_redirect();
 require_once 'session_tracker.php';
 
 if (!isset($_SESSION['odmsaid'])) { header('Location: login'); exit; }

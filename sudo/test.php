@@ -273,7 +273,8 @@ if ($isWritable && $dirExists) {
     echo '<h2>🛠️ How to Fix</h2>';
 
     echo '<h3>Option 1: Automatic Fix (Try First)</h3>';
-    echo '<form method="post">';
+    echo '<form method="post">
+<?= csrf_field() ?>';
     echo '<button type="submit" name="auto_fix" class="btn">🔧 Try Automatic Fix</button>';
     echo '</form>';
     echo '<p><small>This will attempt to create the directory and set proper permissions.</small></p>';

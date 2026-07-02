@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../env.php'; include "head.php";?>
+<?php csrf_verify_or_redirect(); ?>
     <title>iTasker | Writer Management</title>
 <?php include "navi.php";
 
@@ -526,6 +527,7 @@ if (isset($_SESSION['alert'])) {
                     <div class="tab-pane preview-tab-pane active" role="tabpanel" aria-labelledby="tab-dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0" id="dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0">
                         <div class="card shadow-none">
                             <form id="tasksForm" method="post">
+<?= csrf_field() ?>
                                 <div class="card-header">
                                     <div class="row flex-between-center">
                                         <div class="col-6 col-sm-auto d-flex align-items-center pe-0">
@@ -808,6 +810,7 @@ if (isset($_SESSION['alert'])) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" action="usermanagement">
+<?= csrf_field() ?>
                     <div class="modal-body">
                         <input type="hidden" name="writer_id" id="deactivate-writer-id">
                         <input type="hidden" name="deactivate_writer" value="1">

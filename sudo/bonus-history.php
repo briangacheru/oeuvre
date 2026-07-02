@@ -1,5 +1,6 @@
 <?php
 include_once('head.php');
+csrf_verify_or_redirect();
 
 // Handle bonus payment updates
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
@@ -295,6 +296,7 @@ $totalPages = ceil($totalCount / $limit);
         <div class="card-body p-0">
             <?php if ($bonusResult->num_rows > 0): ?>
                 <form id="bulkPaymentForm" method="POST">
+<?= csrf_field() ?>
                     <input type="hidden" name="action" value="bulk_mark_paid">
 
                     <div class="table-responsive">

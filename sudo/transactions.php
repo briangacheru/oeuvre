@@ -435,6 +435,7 @@ if (isset($_POST['bulk_delete'])) {
 }
 ?>
 <?php include "head.php";?>
+<?php csrf_verify_or_redirect(); ?>
     <title>Transactions Management</title>
 <?php include "navi.php";
 $status = "OK";
@@ -480,6 +481,7 @@ if (isset($_SESSION['alert'])) {
                     </div>
                     <div class="col-sm-auto pt-lg-0">
                         <form method="post" enctype="multipart/form-data" class="row flex-lg-column flex-xxl-row align-items-center align-items-lg-start align-items-xxl-center">
+<?= csrf_field() ?>
                             <div class="card-body">
                                 <div class="mb-1">
                                     <label for="transaction_file" class="form-label">Select CSV File</label>
@@ -508,6 +510,7 @@ if (isset($_SESSION['alert'])) {
                         <div class="tab-pane preview-tab-pane active" role="tabpanel" aria-labelledby="tab-dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0" id="dom-41cf422d-2a1d-40e2-b92a-ceac8cdfaca0">
                             <div class="card shadow-none">
                                 <form id="tasksForm" method="post">
+<?= csrf_field() ?>
                                     <div class="card-header">
                                         <div class="row flex-between-center">
                                             <div class="col-6 col-sm-auto d-flex align-items-center pe-0">
@@ -524,6 +527,7 @@ if (isset($_SESSION['alert'])) {
                                                 </div>
                                                 <div class="d-flex align-items-center" id="table-simple-pagination-replace-element">
                                                     <form method="post" action="">
+<?= csrf_field() ?>
                                                         <button type="submit" name="export_csv" data-bs-toggle="tooltip" data-bs-placement="top" title="Export all transactions as CSV" class="btn btn-falcon-default btn-sm"><span class="fas fa-external-link-alt" data-fa-transform="shrink-3 down-2"></span><span class="d-none d-sm-inline-block ms-1">Export</span></button>
                                                         <a class="btn btn-falcon-info btn-sm mx-2" data-bs-toggle="modal" data-bs-target="#addTransactionModal" data-bs-toggle="tooltip" data-bs-placement="top" title="Add a new transaction" type="button"><span class="fas fa-plus" data-fa-transform="shrink-3 down-2"></span><span class="d-none d-sm-inline-block ms-1">Add Transaction</span></a>
                                                     </form>
@@ -761,6 +765,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form action="add-transaction" method="post">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="addTransactionModalLabel">Add Transaction</h4>
@@ -897,6 +902,7 @@ if (isset($_SESSION['alert'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form id="editTransactionForm" method="POST" action="edit-transaction">
+<?= csrf_field() ?>
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">
                             <h4 class="mb-0 text-white" id="editTransactionModalLabel">Edit Transaction</h4>
@@ -952,6 +958,7 @@ if (isset($_SESSION['alert'])) {
     <div class="modal fade" id="deleteTransactionModal" tabindex="-1" aria-labelledby="deleteTransactionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <form id="deleteTransactionForm" method="POST" action="delete-transaction">
+<?= csrf_field() ?>
                 <div class="modal-content">
                     <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
                         <div class="position-relative z-1">

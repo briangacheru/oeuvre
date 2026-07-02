@@ -1,5 +1,6 @@
 <?php
 require 'check-login.php';
+csrf_verify_or_redirect();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = intval($_POST['budgetID']); // Use the generic id passed from the frontend

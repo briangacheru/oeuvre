@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $encodedId = $_POST['task_id'];
     $taskId = (int) base64_decode($encodedId);
