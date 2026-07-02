@@ -156,6 +156,13 @@ usort($users, function($a, $b) {
 </div>
 
 <script>
+    // Escape untrusted text before inserting into innerHTML (prevents stored XSS via chat messages)
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     function setReceiver(id, type, index) {
         document.getElementById('receiverIdField').value = id;
         document.getElementById('receiverTypeField').value = type;
@@ -200,7 +207,7 @@ usort($users, function($a, $b) {
                         <div class="w-100 w-xxl-75">
                             <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-200'} p-2 rounded-2">
-                                    ${message.message}
+                                    ${escapeHtml(message.message)}
                                     ${message.file_url ? `
                                     <a href="taskfiles/${message.file_url}" class="glightbox" data-gallery="gallery-3">
                                         <img class="rounded" src="taskfiles/${message.file_url}" alt="" width="150">

@@ -177,6 +177,13 @@ usort($users, function($a, $b) {
 </div>
 
 <script>
+    // Escape untrusted text before inserting into innerHTML (prevents stored XSS via chat messages)
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     let lastTimestamp = '0000-00-00 00:00:00'; // Initialize last timestamp
 
     function setReceiver(id, type, index) {
@@ -245,7 +252,7 @@ usort($users, function($a, $b) {
             <div class="w-100 w-xxl-75">
                 <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                        ${message.message}
+                        ${escapeHtml(message.message)}
                         ${message.file_url ? `
                         <a href="taskfiles/${message.file_url}" class="glightbox" data-gallery="gallery-3">
                             <img class="rounded" src="taskfiles/${message.file_url}" alt="" width="150">
@@ -291,7 +298,7 @@ usort($users, function($a, $b) {
                         <div class="w-100 w-xxl-75">
                             <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                                    ${message.message}
+                                    ${escapeHtml(message.message)}
                                     ${message.file_url ? `
                                     <a href="taskfiles/${message.file_url}" class="glightbox" data-gallery="gallery-3">
                                         <img class="rounded" src="taskfiles/${message.file_url}" alt="" width="150">
@@ -386,7 +393,7 @@ usort($users, function($a, $b) {
                     <div class="w-100 w-xxl-75">
                         <div class="hover-actions-trigger d-flex flex-end-center">
                             <div class="chat-message bg-primary text-white p-2 rounded-2">
-                                ${decodeURIComponent(encodedMessageContent)}
+                                ${escapeHtml(decodeURIComponent(encodedMessageContent))}
             `;
 
                     if (fileInput.files.length > 0) {
