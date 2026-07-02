@@ -1,5 +1,6 @@
 <?php
 include "check-login.php"; // Include your database connection file
+csrf_verify_or_json_die();
 
 if (isset($_POST['message_ids'])) {
     $messageIds = $_POST['message_ids'];

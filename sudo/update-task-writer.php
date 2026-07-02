@@ -1,6 +1,7 @@
 <?php
 ob_start();
 include "head.php";
+csrf_verify_or_json_die();
 ob_end_clean();
 header('Content-Type: application/json');
 

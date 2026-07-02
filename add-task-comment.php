@@ -2,6 +2,7 @@
 require_once __DIR__ . '/shared-functions.php';
 ob_start();
 include 'check-login.php';
+csrf_verify_or_json_die();
 ob_clean();
 header('Content-Type: application/json');
 

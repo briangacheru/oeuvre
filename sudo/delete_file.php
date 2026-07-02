@@ -1,5 +1,6 @@
 <?php
 include "check-login.php";
+csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'deleteFile') {

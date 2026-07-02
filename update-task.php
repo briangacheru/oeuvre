@@ -1,5 +1,6 @@
 <?php
 include "check-login.php";
+csrf_verify_or_json_die();
 
 // Assuming $con is a valid mysqli connection object established in "check-login.php" or elsewhere
 if ($_POST['action'] == 'submitForm') {

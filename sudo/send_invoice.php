@@ -9,6 +9,7 @@ require_once __DIR__ . '/../env.php';
 ob_start();
 
 include "head.php";
+csrf_verify_or_json_die();
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;

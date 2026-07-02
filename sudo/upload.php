@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../shared-functions.php';
 include "check-login.php";
+csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
 
 // Sanitize filename to remove problematic characters

@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_json_die();
 
 // Check if user is logged in and is admin
 if (!isset($_SESSION['odmsaid'])) {

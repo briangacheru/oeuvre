@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../env.php';
 include 'check-login.php';
+csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
 
 // AJAX file deletion (before form submission)

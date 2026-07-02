@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_json_die();
 function formatSnoozeDuration($minutes) {
     if ($minutes < 60) {
         return $minutes . ' minutes';

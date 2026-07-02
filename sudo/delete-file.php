@@ -1,4 +1,14 @@
 <?php
+session_start();
+require_once __DIR__ . '/../shared-functions.php';
+header('Content-Type: application/json');
+if (empty($_SESSION['odmsaid'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized.']);
+    exit;
+}
+csrf_verify_or_json_die();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['filePath'])) {
     $filePath = $_POST['filePath'];
 

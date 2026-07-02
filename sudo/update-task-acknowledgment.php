@@ -4,6 +4,15 @@ include 'dbcon.php';
 
 header('Content-Type: application/json');
 
+if (empty($_SESSION['odmsaid'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized.']);
+    exit;
+}
+// Note: called via fetch() with URLSearchParams, not a <form>, so no CSRF
+// token is available here yet. Mitigated by X-Requested-With + same-origin
+// credentials on the caller (sudo/submitted-tasks.php); see project notes.
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task_id']) && isset($_POST['acknowledged'])) {
     $taskId = intval($_POST['task_id']);
     $acknowledged = intval($_POST['acknowledged']);

@@ -1,5 +1,6 @@
 <?php
 include('check-login.php');
+csrf_verify_or_json_die();
 
 if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['message']) || (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE))) {
     $senderEmail = $_SESSION['sessionWriter'] ?? null;

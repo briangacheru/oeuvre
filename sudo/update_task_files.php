@@ -1,5 +1,14 @@
 <?php
 require_once __DIR__ . '/../env.php';
+require_once __DIR__ . '/../shared-functions.php';
+session_start();
+header('Content-Type: application/json');
+if (empty($_SESSION['odmsaid'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized.']);
+    exit;
+}
+csrf_verify_or_json_die();
 
 if (isset($_POST['task_id']) && !empty($_FILES['task_files'])) {
     $taskID = intval($_POST['task_id']);
