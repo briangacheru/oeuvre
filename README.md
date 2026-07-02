@@ -23,11 +23,11 @@ tree, and a common set of helper functions.
    composer install
    ```
 
-2. **Create the database** and import your schema, then run the migrations
-   in [`db-migrations/`](db-migrations/) in order, e.g.:
+2. **Create the database** and import your schema, then run every migration
+   in [`db-migrations/`](db-migrations/), in filename order:
 
    ```bash
-   mysql -u root tasker < db-migrations/2026_07_02_add_password_reset_tokens.sql
+   for f in db-migrations/*.sql; do mysql -u root tasker < "$f"; done
    ```
 
 3. **Configure the environment.** Copy the template and fill in real values:
@@ -61,8 +61,8 @@ shared-functions.php  Helpers used by BOTH interfaces (auth/session helpers,
                        CSRF protection, DB-error handling, upload validation, etc.)
 env.php               Loads .env and exposes env()
 db-migrations/         SQL migrations, applied manually in filename order
-profileimages/, taskfiles/, sudo/uploads/   User-uploaded content (git-ignored)
-cron/                 Scheduled scripts (exchange rates, reminders)
+profileimages/, taskfiles/, uploads/   User-uploaded content (git-ignored), shared by both interfaces
+cron/                 Scheduled scripts (exchange rates, reminders — both interfaces' cron jobs live here)
 ```
 
 Files with the same name in the root and in `sudo/` are two independent
@@ -77,6 +77,6 @@ between the two interfaces lives in `shared-functions.php` instead.
 - All state-changing forms and AJAX endpoints are protected by CSRF tokens
   (`shared-functions.php`: `csrf_field()` / `csrf_verify()`).
 - Uploaded files are served from directories with script execution
-  disabled (`.htaccess` in `taskfiles/`, `profileimages/`, `sudo/uploads/`).
+  disabled (`.htaccess` in `taskfiles/`, `profileimages/`, `uploads/`).
 - Rotate any credential that was ever committed to this repository before
   it became private/cleaned, including the SMTP password.
