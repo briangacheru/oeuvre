@@ -1,5 +1,5 @@
 <?php
-require_once('tcpdf/tcpdf.php'); // You'll need to install TCPDF library
+require_once __DIR__ . '/../vendor/autoload.php';
 include_once('dbcon.php');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
