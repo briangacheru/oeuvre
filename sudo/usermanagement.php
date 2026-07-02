@@ -350,7 +350,7 @@ if ($autoDeactivated > 0) {
 $status = "OK";
 $msg = "";
 if (isset($_GET['delid'])) {
-    $cmpid = $_GET['delid'];
+    $cmpid = (int) $_GET['delid'];
     if (is_numeric($cmpid) && !empty($cmpid)) {
         // Perform the delete operation
         $query = mysqli_query($con, "DELETE FROM tblwriters WHERE id='$cmpid'");
@@ -376,7 +376,7 @@ if (isset($_GET['delid'])) {
 
 // Writer verification
 if (isset($_GET['verifyid'])) {
-    $userid = $_GET['verifyid'];
+    $userid = (int) $_GET['verifyid'];
     if (is_numeric($userid) && !empty($userid)) {
         // Get writer details before updating
         $writerQuery = mysqli_query($con, "SELECT username, email, is_verified FROM tblwriters WHERE id='$userid'");
@@ -421,7 +421,7 @@ if (isset($_GET['verifyid'])) {
 
 // Writer deactivation/reactivation
 if (isset($_POST['deactivate_writer'])) {
-    $userid = $_POST['writer_id'];
+    $userid = (int) $_POST['writer_id'];
     $reason = mysqli_real_escape_string($con, $_POST['deactivation_reason']);
 
     if (is_numeric($userid) && !empty($userid) && !empty($reason)) {
@@ -466,7 +466,7 @@ if (isset($_POST['deactivate_writer'])) {
 
 // Writer reactivation
 if (isset($_GET['reactivateid'])) {
-    $userid = $_GET['reactivateid'];
+    $userid = (int) $_GET['reactivateid'];
     if (is_numeric($userid) && !empty($userid)) {
         $query = mysqli_query($con, "UPDATE tblwriters SET is_active = 1, deactivation_reason = NULL, deactivated_at = NULL WHERE id='$userid'");
 

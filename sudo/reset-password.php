@@ -2,7 +2,8 @@
 require_once('auth.php');
 require_once('db.php');
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    extract($_POST);
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
     if($new_password !== $confirm_password){
         $error = "Password does not match.";
     }else{
@@ -14,7 +15,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         if($result->num_rows > 0){
             $data = $result->fetch_assoc();
             $password = password_hash($new_password, PASSWORD_DEFAULT);
-            $update = $con->query("UPDATE `tbladmin` set `password` = '{$password}'");
+            $updateStmt = $con->prepare("UPDATE `tbladmin` set `password` = ? WHERE md5(`id`) = ?");
+            $updateStmt->bind_param('ss', $password, $uid);
+            $update = $updateStmt->execute();
             if($update){
                 $_SESSION['msg']['success'] = "New Password has been saved successfully.";
                 header('location: reset-password.php');

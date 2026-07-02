@@ -2,7 +2,8 @@
 require_once('auth.php');
 require_once('db.php');
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    extract($_POST);
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
 
     // Password validation
     if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/', $new_password)) {
@@ -18,7 +19,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         if($result->num_rows > 0){
             $data = $result->fetch_assoc();
             $password = password_hash($new_password, PASSWORD_DEFAULT);
-            $update = $con->query("UPDATE `tblwriters` set `password` = '{$password}' WHERE md5(`id`) = '{$uid}'");
+            $updateStmt = $con->prepare("UPDATE `tblwriters` set `password` = ? WHERE md5(`id`) = ?");
+            $updateStmt->bind_param('ss', $password, $uid);
+            $update = $updateStmt->execute();
             if($update){
                 $_SESSION['msg']['success'] = "New Password has been saved successfully.";
                 header('location: reset-password.php');

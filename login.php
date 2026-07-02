@@ -209,15 +209,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     if (!empty($loginMessage)) {
                                         echo "<p>$loginMessage</p>";
                                     }
-                                    // Store the submitted values in session variables
-                                    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                                        $_SESSION['email'] = $_POST['email'];
-                                        $_SESSION['password'] = $_POST['password'];
-                                    }
-
-                                    // Retrieve the submitted values from session variables
-                                    $email = isset($_SESSION['email']) ? $_SESSION['email'] : '';
-                                    $password = isset($_SESSION['password']) ? $_SESSION['password'] : '';
+                                    // Refill the form from the failed POST only; credentials must not persist in the session
+                                    $email = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email']) ? $_POST['email'] : '';
+                                    $password = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password']) ? $_POST['password'] : '';
                                     ?>
                                     <div class="row flex-between-center">
                                         <div class="col-auto">

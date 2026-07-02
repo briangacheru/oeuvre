@@ -1,7 +1,7 @@
 <?php
 include "check-login.php";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $goalID = $_POST['goalID'];
+    $goalID = (int) $_POST['goalID'];
     $query = "UPDATE tblsavingsgoals SET is_deleted = 1 WHERE goalID = $goalID";
 
     if (mysqli_query($con, $query)) {
