@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/shared-functions.php';
 function email_exists($email)
 {
     global $con;
@@ -28,116 +29,19 @@ function username_exists($username)
     }
 }
 
-function get_name($email) {
-    global $con;
-
-    $sql = "SELECT username FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["username"];
-}
-
-function get_email($email) {
-    global $con;
-
-    $sql = "SELECT email FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["email"];
-}
-
-function get_picture($email) {
-    global $con;
-
-    $sql = "SELECT profile_picture FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["profile_picture"];
-}
 
 
-function set_message($message)
-{
-    if(!empty($message)){
-        $_SESSION['message'] = $message;
-    }else {
-        $message = "";
-    }
-}
-
-function display_message() {
-    if (isset($_SESSION['message']) && !empty($_SESSION['message'])) {
-        echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <p class="mb-0 flex-1"><strong>Error: </strong>' . $_SESSION['message'] . '</p>
-        <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>';
-        unset($_SESSION['message']);
-    }
-}
-
-function set_alert($alert) {
-    if(!empty($alert)) {
-        $_SESSION['alert'] = $alert;
-    } else {
-        $alert = "";
-    }
-}
-
-function display_alert() {
-    if(isset($_SESSION['alert'])) {
-        echo $_SESSION['alert'];
-        unset($_SESSION['alert']); // Clear the alert after displaying it
-    }
-}
-
-function set_subAlert($subAlert) {
-    if(!empty($subAlert)) {
-        $_SESSION['subAlert'] = $subAlert;
-    } else {
-        $subAlert = "";
-    }
-}
-
-function display_subAlert() {
-    if(isset($_SESSION['subAlert'])) {
-        echo $_SESSION['subAlert'];
-        unset($_SESSION['subAlert']); // Clear the alert after displaying it
-    }
-}
 
 
-function redirect($location){
-    return header("Location: {$location}");
-}
 
-function validation_errors($error_message)
-{
-    $error_message = <<<DELIMITER
 
-<div class="alert alert-danger text-center" role="alert">
-  	<strong>Warning!</strong> $error_message
- </div>
-DELIMITER;
 
-    set_message($error_message);
-}
 
-function logged_in(){
-    if(isset($_SESSION['userSession']) || isset($_COOKIE['email'])){
-        return true;
-    } else {
-        return false;
-    }
-}
+
+
+
+
+
 
 /**
  * Gets the current version number from the sudo/version.json file
@@ -225,26 +129,6 @@ function logout() {
 }
 
 
-function timeAgo($datetime)
-{
-    $commentTime = new DateTime($datetime);
-    $now = new DateTime();
-    $interval = $now->diff($commentTime);
-
-    if ($interval->y > 0) {
-        return $interval->y . ' year' . ($interval->y > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->m > 0) {
-        return $interval->m . ' month' . ($interval->m > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->d > 0) {
-        return $interval->d . ' day' . ($interval->d > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->h > 0) {
-        return $interval->h . ' hour' . ($interval->h > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->i > 0) {
-        return $interval->i . ' minute' . ($interval->i > 1 ? 's' : '') . ' ago';
-    } else {
-        return 'Just now';
-    }
-}
 
 function timeDueIn($datetime, $showFullDateAfter = 31, $returnArray = false) {
     $currentTime = time();
