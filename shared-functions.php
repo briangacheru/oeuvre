@@ -36,48 +36,6 @@ function display_subAlert() {
 }
 }
 
-if (!function_exists('get_email')) {
-function get_email($email) {
-    global $con;
-
-    $sql = "SELECT email FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["email"];
-}
-}
-
-if (!function_exists('get_name')) {
-function get_name($email) {
-    global $con;
-
-    $sql = "SELECT username FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["username"];
-}
-}
-
-if (!function_exists('get_picture')) {
-function get_picture($email) {
-    global $con;
-
-    $sql = "SELECT profile_picture FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["profile_picture"];
-}
-}
-
 if (!function_exists('logged_in')) {
 function logged_in(){
     if(isset($_SESSION['userSession']) || isset($_COOKIE['email'])){
