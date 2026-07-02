@@ -7,16 +7,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     if($new_password !== $confirm_password){
         $error = "Password does not match.";
     }else{
-        $uid = $_GET['uid'] ?? "";
-        $stmt = $con->prepare("SELECT * FROM `tbladmin` where md5(`id`) = ?");
-        $stmt->bind_param('s', $uid);
+        $token = $_GET['token'] ?? "";
+        $tokenHash = hash('sha256', $token);
+        $stmt = $con->prepare("SELECT * FROM `tbladmin` WHERE `reset_token` = ? AND `reset_expires` > NOW()");
+        $stmt->bind_param('s', $tokenHash);
         $stmt->execute();
         $result = $stmt->get_result();
         if($result->num_rows > 0){
             $data = $result->fetch_assoc();
             $password = password_hash($new_password, PASSWORD_DEFAULT);
-            $updateStmt = $con->prepare("UPDATE `tbladmin` set `password` = ? WHERE md5(`id`) = ?");
-            $updateStmt->bind_param('ss', $password, $uid);
+            // Update the password and consume the token so the link can't be reused.
+            $updateStmt = $con->prepare("UPDATE `tbladmin` set `password` = ?, `reset_token` = NULL, `reset_expires` = NULL WHERE `id` = ?");
+            $updateStmt->bind_param('si', $password, $data['id']);
             $update = $updateStmt->execute();
             if($update){
                 $_SESSION['msg']['success'] = "New Password has been saved successfully.";
@@ -26,7 +28,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                 $error = 'Password has failed to update.';
             }
         }else{
-            $error = "User is not registered on this website.";
+            $error = "This reset link is invalid or has expired.";
         }
     }
 }

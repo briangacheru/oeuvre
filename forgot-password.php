@@ -12,7 +12,7 @@ require 'phpmailer/src/PHPMailer.php';
 require 'phpmailer/src/SMTP.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    extract($_POST);
+    $email = $_POST['email'] ?? '';
 
     $stmt = $con->prepare("SELECT * FROM `tblwriters` WHERE `email` = ?");
     $stmt->bind_param('s', $email);
@@ -22,6 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($result->num_rows > 0) {
         $data = $result->fetch_assoc();
         $email = $data['email'];
+
+        // Issue a single-use, expiring reset token. The raw token goes in the
+        // emailed link; only its hash is stored, so a DB read can't be replayed.
+        $resetToken = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $resetToken);
+        $tokenExpires = date('Y-m-d H:i:s', time() + 3600); // 1 hour
+        $tokenStmt = $con->prepare("UPDATE `tblwriters` SET `reset_token` = ?, `reset_expires` = ? WHERE `id` = ?");
+        $tokenStmt->bind_param('ssi', $tokenHash, $tokenExpires, $data['id']);
+        $tokenStmt->execute();
 
         // Initialize PHPMailer
         $mail = new PHPMailer(true);
