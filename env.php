@@ -51,3 +51,19 @@ if (!function_exists('safe_db_error')) {
             : 'A database error occurred. Please try again.';
     }
 }
+
+if (!function_exists('is_allowed_upload')) {
+    /**
+     * Whitelist check for uploaded file names. Rejects anything whose
+     * extension is not on the allow-list (blocks .php, .phtml, .sh, etc.).
+     * $type 'image' allows image types only; 'file' allows images + common
+     * document/archive types used for task attachments.
+     */
+    function is_allowed_upload($fileName, $type = 'file') {
+        $ext = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+        $images = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+        $docs = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'rtf', 'odt', 'ods', 'odp', 'zip', 'rar', '7z'];
+        $allowed = ($type === 'image') ? $images : array_merge($images, $docs);
+        return $ext !== '' && in_array($ext, $allowed, true);
+    }
+}

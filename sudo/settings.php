@@ -16,7 +16,7 @@ if (isset($_POST['upload_cover_image'])) {
 
         // Check if file is an actual image
         $check = getimagesize($_FILES["cover-image"]["tmp_name"]);
-        if ($check !== false) {
+        if ($check !== false && is_allowed_upload($_FILES["cover-image"]["name"], 'image')) {
             if (move_uploaded_file($_FILES["cover-image"]["tmp_name"], $target_file)) {
                 // Update the cover image in the database
                 $sql = "UPDATE tbladmin SET coverImage=:coverImage WHERE email=:aid";
@@ -47,7 +47,7 @@ if (isset($_POST['upload_image'])) {
 
         // Check if file is an actual image
         $check = getimagesize($_FILES["profile-image"]["tmp_name"]);
-        if ($check !== false) {
+        if ($check !== false && is_allowed_upload($_FILES["profile-image"]["name"], 'image')) {
             if (move_uploaded_file($_FILES["profile-image"]["tmp_name"], $target_file)) {
                 // Update the profile image in the database
                 $sql = "UPDATE tbladmin SET Photo=:photo WHERE email=:aid";

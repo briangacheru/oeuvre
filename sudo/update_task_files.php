@@ -10,6 +10,10 @@ if (isset($_POST['task_id']) && !empty($_FILES['task_files'])) {
             $fileName = time() . "_" . $_FILES['task_files']['name'][$key]; // Prefix to avoid name collisions
             $targetFilePath = "uploads/" . $fileName;
 
+            if (!is_allowed_upload($_FILES['task_files']['name'][$key])) {
+                continue;
+            }
+
             if (move_uploaded_file($tmpName, $targetFilePath)) {
                 $filePaths[] = $targetFilePath;
             }

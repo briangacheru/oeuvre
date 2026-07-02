@@ -10,6 +10,11 @@ if (isset($_FILES['file']['name'])) {
     $fileName = basename($_FILES['file']['name']);
     $targetFilePath = $targetDir . $fileName;
 
+    if (!is_allowed_upload($fileName)) {
+        echo json_encode(['status' => 'error', 'message' => 'File type not allowed.']);
+        exit;
+    }
+
     // Move the file to the server directory
     if (move_uploaded_file($_FILES['file']['tmp_name'], $targetFilePath)) {
         $response = ['status' => 'success', 'filePath' => $targetFilePath];
