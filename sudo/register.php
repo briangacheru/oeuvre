@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 set_message("<p>Error sending email: " . $user_mail->ErrorInfo . "</p>");
             }
         } else {
-            set_message("<p>Error: " . $stmt . "<br>" . $con->error . "</p>");
+            set_message("<p>Error: " . $stmt . "<br>" . safe_db_error($con->error) . "</p>");
         }
         $con->close();
     }

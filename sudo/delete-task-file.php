@@ -43,7 +43,7 @@ $stmt = mysqli_prepare($con, $updateQuery);
 
 if (!$stmt) {
     ob_clean();
-    echo json_encode(['success' => false, 'message' => 'Database prepare error: ' . mysqli_error($con)]);
+    echo json_encode(['success' => false, 'message' => 'Database prepare error: ' . safe_db_error(mysqli_error($con))]);
     exit;
 }
 

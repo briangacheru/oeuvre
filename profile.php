@@ -49,7 +49,7 @@ if ($query) {
         $totalPaidFormatted = 'Ksh. 0.00';
     }
 } else {
-    $totalPaidFormatted = "Error: " . mysqli_error($con);
+    $totalPaidFormatted = "Error: " . safe_db_error(mysqli_error($con));
 }
 ?>
 

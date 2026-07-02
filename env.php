@@ -34,3 +34,20 @@ if (!function_exists('env')) {
         return array_key_exists($key, $vars) ? $vars[$key] : $default;
     }
 }
+
+if (!function_exists('safe_db_error')) {
+    /**
+     * Returns a database error string that is safe to send to the browser.
+     * With APP_DEBUG on (local dev) the real detail is returned unchanged;
+     * in production the detail is logged server-side and a generic message
+     * is shown so schema/query internals are not disclosed to users.
+     */
+    function safe_db_error($detail = '') {
+        if ($detail !== '' && $detail !== null) {
+            error_log('DB error: ' . $detail);
+        }
+        return filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN)
+            ? $detail
+            : 'A database error occurred. Please try again.';
+    }
+}

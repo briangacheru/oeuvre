@@ -362,7 +362,7 @@ if (isset($_GET['delid'])) {
             $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-octagon"></i> Error deleting user record.
                                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>';
-            echo "Error: " . mysqli_error($con);
+            echo "Error: " . safe_db_error(mysqli_error($con));
         }
     } else {
         $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-octagon"></i> Invalid or missing ID.

@@ -79,7 +79,7 @@ try {
 
     $stmt = mysqli_prepare($con, $sql);
     if (!$stmt) {
-        throw new Exception("Database prepare error: " . mysqli_error($con));
+        throw new Exception("Database prepare error: " . safe_db_error(mysqli_error($con)));
     }
 
     // Bind parameters and execute statement

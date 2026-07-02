@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $_SESSION['alert'] = '<div class="alert alert-danger border-0 d-flex align-items-center" role="alert">
             <div class="bg-danger me-3 icon-item"><span class="fas fa-times text-white fs-6"></span></div>
-            <p class="mb-0 flex-1">Error: ' . $con->error . '</p>
+            <p class="mb-0 flex-1">Error: ' . safe_db_error($con->error) . '</p>
             <button class="btn-close" type="button" data-bs-dismiss="alert"></button>
         </div>';
     }

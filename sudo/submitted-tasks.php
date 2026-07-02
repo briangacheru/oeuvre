@@ -64,7 +64,7 @@ $msg = "";
                                                         $row = mysqli_fetch_assoc($result);
                                                         echo ($row['total'] !== null ? $row['total'] : 0);
                                                     } else {
-                                                        echo "Error: " . mysqli_error($con);
+                                                        echo "Error: " . safe_db_error(mysqli_error($con));
                                                     }
                                                     ?>
                                                 </span>

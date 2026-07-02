@@ -34,7 +34,7 @@ try {
     ");
 
     if (!$currentUserQuery) {
-        throw new Exception('Database query failed: ' . mysqli_error($con));
+        throw new Exception('Database query failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $currentUser = mysqli_fetch_assoc($currentUserQuery);
@@ -56,7 +56,7 @@ try {
     ");
 
     if (!$updateQuery) {
-        throw new Exception('Database update failed: ' . mysqli_error($con));
+        throw new Exception('Database update failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $affectedRows = mysqli_affected_rows($con);

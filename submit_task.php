@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "Task created successfully. Task ID: " . $task_id;
     } else {
         // Error handling
-        echo "Error: " . $sql . "<br>" . mysqli_error($con);
+        echo "Error: " . $sql . "<br>" . safe_db_error(mysqli_error($con));
     }
 }
 ?>

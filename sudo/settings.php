@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationSubmit'])
     if ($stmt->execute()) {
         $message = "Notification updated successfully.";
     } else {
-        $error_message = "Error updating notification: " . $stmt->error;
+        $error_message = "Error updating notification: " . safe_db_error($stmt->error);
     }
 
     $stmt->close();
@@ -262,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationDelete'])
     if ($stmt->execute()) {
         $message = "Notification deleted successfully.";
     } else {
-        $error_message = "Error deleting notification: " . $stmt->error;
+        $error_message = "Error deleting notification: " . safe_db_error($stmt->error);
     }
 
     $stmt->close();

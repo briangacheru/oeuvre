@@ -80,7 +80,7 @@ try {
     ");
 
     if (!$senderQuery) {
-        throw new Exception('Database query failed: ' . mysqli_error($con));
+        throw new Exception('Database query failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $sender = mysqli_fetch_assoc($senderQuery);
@@ -102,7 +102,7 @@ try {
     ");
 
     if (!$receiverQuery) {
-        throw new Exception('Receiver verification failed: ' . mysqli_error($con));
+        throw new Exception('Receiver verification failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $receiverExists = mysqli_num_rows($receiverQuery) > 0;
@@ -127,7 +127,7 @@ try {
     $result = mysqli_query($con, $insertQuery);
 
     if (!$result) {
-        throw new Exception('Message insert failed: ' . mysqli_error($con));
+        throw new Exception('Message insert failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $messageId = mysqli_insert_id($con);

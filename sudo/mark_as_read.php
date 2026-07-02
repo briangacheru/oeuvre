@@ -10,7 +10,7 @@ if (isset($_POST['message_ids'])) {
     if (mysqli_query($con, $updateQuery)) {
         echo json_encode(['status' => 'success']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => mysqli_error($con)]);
+        echo json_encode(['status' => 'error', 'message' => safe_db_error(mysqli_error($con))]);
     }
 } else {
     echo json_encode(['status' => 'error', 'message' => 'No message IDs provided']);

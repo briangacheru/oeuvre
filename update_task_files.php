@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/env.php';
 
 if (isset($_POST['task_id']) && !empty($_FILES['task_files'])) {
     $taskID = intval($_POST['task_id']);
@@ -22,7 +23,7 @@ if (isset($_POST['task_id']) && !empty($_FILES['task_files'])) {
     if (mysqli_query($con, $sql)) {
         echo "Files uploaded successfully.";
     } else {
-        echo "Error updating task with files: " . mysqli_error($con);
+        echo "Error updating task with files: " . safe_db_error(mysqli_error($con));
     }
 } else {
     echo "No files or task ID provided.";

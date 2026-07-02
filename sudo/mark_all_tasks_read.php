@@ -7,6 +7,6 @@ if ($result) {
     $affected = mysqli_affected_rows($con);
     echo json_encode(['success' => true, 'affected_rows' => $affected]);
 } else {
-    echo json_encode(['success' => false, 'error' => mysqli_error($con)]);
+    echo json_encode(['success' => false, 'error' => safe_db_error(mysqli_error($con))]);
 }
 ?>

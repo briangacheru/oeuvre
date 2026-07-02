@@ -29,11 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task_id']) && isset($
                     echo json_encode(['success' => false, 'error' => 'No task found or no changes made']);
                 }
             } else {
-                echo json_encode(['success' => false, 'error' => 'Database error: ' . mysqli_error($con)]);
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . safe_db_error(mysqli_error($con))]);
             }
             mysqli_stmt_close($stmt);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Database preparation error: ' . mysqli_error($con)]);
+            echo json_encode(['success' => false, 'error' => 'Database preparation error: ' . safe_db_error(mysqli_error($con))]);
         }
     } else {
         echo json_encode(['success' => false, 'error' => 'Invalid task ID']);

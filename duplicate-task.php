@@ -31,7 +31,7 @@ if (isset($_GET['task_id'])) {
             header("Location: view-task.php?task_id=$encodedId&message=Task duplicated successfully"); // Redirect to the new task
             exit;
         } else {
-            echo "Error duplicating task: " . mysqli_error($con);
+            echo "Error duplicating task: " . safe_db_error(mysqli_error($con));
         }
     } else {
         echo "Original task not found.";

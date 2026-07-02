@@ -118,7 +118,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
                 mysqli_stmt_close($fileStmt);
             } else {
-                throw new Exception('File insert database error: ' . mysqli_error($con));
+                throw new Exception('File insert database error: ' . safe_db_error(mysqli_error($con)));
             }
         }
 
@@ -138,7 +138,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
             mysqli_stmt_close($stmt);
         } else {
-            throw new Exception('Database error: ' . mysqli_error($con));
+            throw new Exception('Database error: ' . safe_db_error(mysqli_error($con)));
         }
 
         // Add writer comment to threaded comments system if provided
@@ -154,7 +154,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
                 mysqli_stmt_close($commentStmt);
             } else {
-                throw new Exception('Comment database error: ' . mysqli_error($con));
+                throw new Exception('Comment database error: ' . safe_db_error(mysqli_error($con)));
             }
         }
 

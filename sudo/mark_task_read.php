@@ -22,7 +22,7 @@ if (isset($_POST['task_id'])) {
             echo json_encode(['success' => false, 'error' => 'No rows updated (maybe already acknowledged or invalid ID)']);
         }
     } else {
-        echo json_encode(['success' => false, 'error' => mysqli_error($con)]);
+        echo json_encode(['success' => false, 'error' => safe_db_error(mysqli_error($con))]);
     }
 } else {
     echo json_encode(['success' => false, 'error' => 'No task ID provided']);

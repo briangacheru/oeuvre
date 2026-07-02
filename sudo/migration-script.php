@@ -35,7 +35,7 @@ function migrateTaskFiles($con)
                     $migrated++;
                 } else {
                     $errors++;
-                    echo "Error migrating task file for task ID $taskId: " . mysqli_error($con) . "\n";
+                    echo "Error migrating task file for task ID $taskId: " . safe_db_error(mysqli_error($con)) . "\n";
                 }
                 mysqli_stmt_close($stmt);
             }
@@ -63,7 +63,7 @@ function migrateTaskFiles($con)
                     $migrated++;
                 } else {
                     $errors++;
-                    echo "Error migrating submitted file for task ID $taskId: " . mysqli_error($con) . "\n";
+                    echo "Error migrating submitted file for task ID $taskId: " . safe_db_error(mysqli_error($con)) . "\n";
                 }
                 mysqli_stmt_close($stmt);
             }

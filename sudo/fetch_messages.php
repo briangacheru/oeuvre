@@ -39,7 +39,7 @@ try {
     ");
 
     if (!$currentUserQuery) {
-        throw new Exception('Database query failed: ' . mysqli_error($con));
+        throw new Exception('Database query failed: ' . safe_db_error(mysqli_error($con)));
     }
 
     $currentUser = mysqli_fetch_assoc($currentUserQuery);
@@ -62,7 +62,7 @@ try {
     ");
 
     if (!$messagesQuery) {
-        throw new Exception('Failed to fetch messages: ' . mysqli_error($con));
+        throw new Exception('Failed to fetch messages: ' . safe_db_error(mysqli_error($con)));
     }
 
     $messages = [];

@@ -27,13 +27,13 @@ if (isset($_SESSION['odmsaid'])) {
     $stmt = $con->prepare($updateStatusSql);
 
     if (!$stmt) {
-        echo "Prepare failed: (" . $con->errno . ") " . $con->error;
+        echo "Prepare failed: (" . $con->errno . ") " . safe_db_error($con->error);
         exit;
     }
 
     $stmt->bind_param('ss', $lastSeen, $userEmail);
     if (!$stmt->execute()) {
-        echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+        echo "Execute failed: (" . $stmt->errno . ") " . safe_db_error($stmt->error);
         exit;
     }
     $stmt->close();
@@ -44,13 +44,13 @@ if (isset($_SESSION['odmsaid'])) {
         $stmt = $con->prepare($updateTokenSql);
 
         if (!$stmt) {
-            echo "Prepare failed: (" . $con->errno . ") " . $con->error;
+            echo "Prepare failed: (" . $con->errno . ") " . safe_db_error($con->error);
             exit;
         }
 
         $stmt->bind_param('s', $userEmail);
         if (!$stmt->execute()) {
-            echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+            echo "Execute failed: (" . $stmt->errno . ") " . safe_db_error($stmt->error);
             exit;
         }
         $stmt->close();

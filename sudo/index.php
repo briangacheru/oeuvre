@@ -694,7 +694,7 @@ if ($query->rowCount() > 0) {
                         $totalPaidShortened = 'Ksh. 0.00';
                     }
                 } else {
-                    $totalPaidFormatted = "Error: " . mysqli_error($con);
+                    $totalPaidFormatted = "Error: " . safe_db_error(mysqli_error($con));
                     $totalPaidShortened = "Error";
                 }
                 ?>
@@ -727,7 +727,7 @@ if ($query->rowCount() > 0) {
                         $totalUnPaidFormatted = 'Ksh. 0.00';
                     }
                 } else {
-                    $totalUnPaidFormatted = "Error: " . mysqli_error($con);
+                    $totalUnPaidFormatted = "Error: " . safe_db_error(mysqli_error($con));
                 }
                 ?>
                 <h6>Total Unpaid Amount</h6>

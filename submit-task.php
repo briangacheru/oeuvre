@@ -58,7 +58,7 @@ if ($_POST['action'] == 'submitForm') {
     } else {
         // Handle preparation error
         header('Content-Type: application/json');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_error($con)]);
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . safe_db_error(mysqli_error($con))]);
     }
 } else {
     header('Content-Type: application/json');

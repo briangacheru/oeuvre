@@ -92,7 +92,7 @@ if (isset($_GET['task_id'])) {
             // Set error message
             $_SESSION['alert'] = '<div class="alert alert-danger border-0 d-flex align-items-center" role="alert">
                 <div class="bg-danger me-3 icon-item"><span class="fas fa-times-circle text-white fs-6"></span></div>
-                <p class="mb-0 flex-1">Error duplicating task: ' . mysqli_error($con) . '</p>
+                <p class="mb-0 flex-1">Error duplicating task: ' . safe_db_error(mysqli_error($con)) . '</p>
                 <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>';
 

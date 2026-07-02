@@ -132,7 +132,7 @@ if ($userType == 'writer') {
         }
         mysqli_stmt_close($accessStmt);
     } else {
-        sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+        sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
     }
 } elseif ($userType == 'admin') {
     $accessQuery = 'SELECT id FROM tbltasks WHERE id = ?';
@@ -147,7 +147,7 @@ if ($userType == 'writer') {
         }
         mysqli_stmt_close($accessStmt);
     } else {
-        sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+        sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
     }
 } else {
     sendJsonResponse(false, 'Invalid user type: ' . $userType);
@@ -167,7 +167,7 @@ if ($parentId !== null) {
         }
         mysqli_stmt_close($parentStmt);
     } else {
-        sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+        sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
     }
 }
 
@@ -273,7 +273,7 @@ if ($hasAutoIncrement) {
                 sendJsonResponse(false, 'Failed to add comment: ' . $error);
             }
         } else {
-            sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+            sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
         }
     } else {
         // No file_url column
@@ -290,7 +290,7 @@ if ($hasAutoIncrement) {
                 sendJsonResponse(false, 'Failed to add comment: ' . $error);
             }
         } else {
-            sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+            sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
         }
     }
 } else {
@@ -323,7 +323,7 @@ if ($hasAutoIncrement) {
                 sendJsonResponse(false, 'Failed to add comment: ' . $error);
             }
         } else {
-            sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+            sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
         }
     } else {
         // No file_url column
@@ -340,7 +340,7 @@ if ($hasAutoIncrement) {
                 sendJsonResponse(false, 'Failed to add comment: ' . $error);
             }
         } else {
-            sendJsonResponse(false, 'Database error: ' . mysqli_error($con));
+            sendJsonResponse(false, 'Database error: ' . safe_db_error(mysqli_error($con)));
         }
     }
 }
