@@ -1,12 +1,15 @@
 <?php
 require_once('auth.php');
 require_once('db.php');
+require_once __DIR__ . '/shared-functions.php';
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
     $new_password = $_POST['new_password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
     // Password validation
-    if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/', $new_password)) {
+    if (!csrf_verify()) {
+        $error = "Your request could not be verified (invalid or expired security token). Please try again.";
+    } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/', $new_password)) {
         $error = "Password must be at least 8 characters long, contain at least one number, one lowercase letter, and one uppercase letter.";
     } elseif($new_password !== $confirm_password){
         $error = "Password does not match.";

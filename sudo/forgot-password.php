@@ -8,8 +8,11 @@ use PHPMailer\PHPMailer\Exception;
 
 // Include PHPMailer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../shared-functions.php';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
+    $error = "Your request could not be verified (invalid or expired security token). Please try again.";
+} elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['email'] ?? '';
 
     $stmt = $con->prepare("SELECT * FROM `tbladmin` WHERE `email` = ?");

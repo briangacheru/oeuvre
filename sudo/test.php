@@ -9,6 +9,8 @@ if (empty($_SESSION['odmsaid'])) {
     http_response_code(403);
     exit('Forbidden');
 }
+require_once __DIR__ . '/../shared-functions.php';
+csrf_verify_or_redirect();
 ?>
 <!DOCTYPE html>
 <html>
@@ -273,8 +275,7 @@ if ($isWritable && $dirExists) {
     echo '<h2>🛠️ How to Fix</h2>';
 
     echo '<h3>Option 1: Automatic Fix (Try First)</h3>';
-    echo '<form method="post">
-<?= csrf_field() ?>';
+    echo '<form method="post">' . csrf_field();
     echo '<button type="submit" name="auto_fix" class="btn">🔧 Try Automatic Fix</button>';
     echo '</form>';
     echo '<p><small>This will attempt to create the directory and set proper permissions.</small></p>';

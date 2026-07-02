@@ -1,6 +1,6 @@
 <?php
-session_start();
-include 'dbcon.php';
+include('check-login.php');
+csrf_verify_or_redirect();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['taskIds']) && is_array($_POST['taskIds'])) {
     $taskIds = $_POST['taskIds'];

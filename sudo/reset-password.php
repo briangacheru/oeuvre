@@ -1,10 +1,13 @@
 <?php
 require_once('auth.php');
 require_once('db.php');
+require_once __DIR__ . '/../shared-functions.php';
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
     $new_password = $_POST['new_password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-    if($new_password !== $confirm_password){
+    if (!csrf_verify()) {
+        $error = "Your request could not be verified (invalid or expired security token). Please try again.";
+    } elseif($new_password !== $confirm_password){
         $error = "Password does not match.";
     }else{
         $token = $_GET['token'] ?? "";
