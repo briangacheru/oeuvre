@@ -7,7 +7,7 @@ $msg = "";
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $cmpid = base64_decode($encodedId);
+    $cmpid = (int) base64_decode($encodedId);
 
     // Validate $cmpid to ensure it's numeric and not empty
     if (is_numeric($cmpid) && !empty($cmpid)) {

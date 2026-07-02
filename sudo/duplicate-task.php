@@ -2,7 +2,7 @@
 include 'check-login.php'; // Ensure this includes your database connection settings
 
 if (isset($_GET['task_id'])) {
-    $taskId = base64_decode($_GET['task_id']);
+    $taskId = (int) base64_decode($_GET['task_id']);
 
     // Fetch the original task
     $query = "SELECT * FROM tbltasks WHERE id='$taskId'";

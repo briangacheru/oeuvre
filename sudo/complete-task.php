@@ -2,7 +2,7 @@
 include('check-login.php');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $encodedId = $_POST['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
 
     // Update the task status to 'Completed'
     $sql = "UPDATE tbltasks SET status = 'Completed', completed_on = NOW() WHERE id = ?";

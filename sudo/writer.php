@@ -2,7 +2,7 @@
 include_once('head.php');
 include_once('writer-performance-functions.php');
 
-$writerID = isset($_GET['writerID']) ? base64_decode($_GET['writerID']) : null;
+$writerID = isset($_GET['writerID']) ? (int) base64_decode($_GET['writerID']) : null;
 
 if ($writerID) {
     // Fetch writer details

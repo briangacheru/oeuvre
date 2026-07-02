@@ -30,7 +30,7 @@ if (!function_exists('getFileIconClass')) {
 }
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
 
     $query = "SELECT * FROM tbltasks WHERE id = ? AND email = ?";
     $stmt = $con->prepare($query);

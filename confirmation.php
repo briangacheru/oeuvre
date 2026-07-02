@@ -152,7 +152,7 @@ function sendEmail($writer, $pages, $cpp, $due_date, $writerEmail, $taskId, $act
 
 if (isset($_GET['task_id']) && isset($_GET['action'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
     $action = $_GET['action'];
 
     // Fetch task details

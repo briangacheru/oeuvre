@@ -30,7 +30,7 @@ if (!function_exists('getFileIconClass')) {
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -555,7 +555,7 @@ if ($complexityScore > 70 && $timeRemaining < 3) {
 include_once('task-share-helper.php');
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
 } else {
     $_SESSION['alert'] ='<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>

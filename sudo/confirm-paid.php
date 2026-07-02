@@ -5,7 +5,7 @@ session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $encodedId = $_POST['task_id'];
-    $taskId = base64_decode($encodedId);
+    $taskId = (int) base64_decode($encodedId);
 
     // Update the task status to 'Completed'
     $sql = "UPDATE tbltasks SET  is_paid = 1, paid_on = NOW() WHERE id = ?";
