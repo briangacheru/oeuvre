@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/shared-functions.php';
 ob_start();
 include 'check-login.php';
 ob_clean();
@@ -564,23 +565,6 @@ function generateSecureFilename($originalFilename, $extension) {
 /**
  * Get human-readable upload error message
  */
-function getUploadErrorMessage($errorCode) {
-    switch ($errorCode) {
-        case UPLOAD_ERR_INI_SIZE:
-        case UPLOAD_ERR_FORM_SIZE:
-            return 'File is too large';
-        case UPLOAD_ERR_PARTIAL:
-            return 'File was only partially uploaded';
-        case UPLOAD_ERR_NO_TMP_DIR:
-            return 'Missing temporary folder';
-        case UPLOAD_ERR_CANT_WRITE:
-            return 'Failed to write file to disk';
-        case UPLOAD_ERR_EXTENSION:
-            return 'File upload stopped by extension';
-        default:
-            return 'Unknown upload error';
-    }
-}
 
 ob_end_flush();
 ?>

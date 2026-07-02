@@ -120,3 +120,67 @@ DELIMITER;
 }
 }
 
+
+// ---- Consolidated duplicated helpers (identical across interfaces) ----
+if (!function_exists('sanitizeFileName')) {
+function sanitizeFileName($fileName) {
+    // Replace problematic characters with underscores (excluding space)
+    $fileName = str_replace(['#', '?', '&', '%', '+', '='], '_', $fileName);
+    // Remove any remaining special characters except dots, hyphens, underscores, and spaces
+    $fileName = preg_replace('/[^a-zA-Z0-9._\s-]/', '_', $fileName);
+    // Remove multiple consecutive underscores
+    $fileName = preg_replace('/_+/', '_', $fileName);
+    // Remove leading/trailing underscores
+    $fileName = trim($fileName, '_');
+    return $fileName;
+}
+}
+
+if (!function_exists('getUploadErrorMessage')) {
+function getUploadErrorMessage($errorCode) {
+    switch ($errorCode) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'File is too large';
+        case UPLOAD_ERR_PARTIAL:
+            return 'File was only partially uploaded';
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return 'Missing temporary folder';
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'Failed to write file to disk';
+        case UPLOAD_ERR_EXTENSION:
+            return 'File upload stopped by extension';
+        default:
+            return 'Unknown upload error';
+    }
+}
+}
+
+if (!function_exists('validatePassword')) {
+function validatePassword($password) {
+    // Minimum eight characters, at least one uppercase letter, one lowercase letter, and one number
+    $pattern = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/';
+
+    return preg_match($pattern, $password);
+}
+}
+
+if (!function_exists('formatSizeUnits')) {
+function formatSizeUnits($bytes) {
+    if ($bytes >= 1073741824) {
+        $bytes = number_format($bytes / 1073741824, 2) . ' GB';
+    } elseif ($bytes >= 1048576) {
+        $bytes = number_format($bytes / 1048576, 2) . ' MB';
+    } elseif ($bytes >= 1024) {
+        $bytes = number_format($bytes / 1024, 2) . ' KB';
+    } elseif ($bytes > 1) {
+        $bytes = $bytes . ' bytes';
+    } elseif ($bytes == 1) {
+        $bytes = $bytes . ' byte';
+    } else {
+        $bytes = '0 bytes';
+    }
+    return $bytes;
+}
+}
+

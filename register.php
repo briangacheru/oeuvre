@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/shared-functions.php';
 require_once __DIR__ . '/env.php';
 include "check-login.php";
 
@@ -10,12 +11,6 @@ require 'phpmailer/src/Exception.php';
 require 'phpmailer/src/PHPMailer.php';
 require 'phpmailer/src/SMTP.php';
 
-function validatePassword($password) {
-    // Minimum eight characters, at least one uppercase letter, one lowercase letter, and one number
-    $pattern = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/';
-
-    return preg_match($pattern, $password);
-}
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../shared-functions.php';
 ob_start();
 ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
 ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
@@ -26,22 +27,6 @@ function check_login() {
 }
 
 // Function to format file size
-function formatSizeUnits($bytes) {
-    if ($bytes >= 1073741824) {
-        $bytes = number_format($bytes / 1073741824, 2) . ' GB';
-    } elseif ($bytes >= 1048576) {
-        $bytes = number_format($bytes / 1048576, 2) . ' MB';
-    } elseif ($bytes >= 1024) {
-        $bytes = number_format($bytes / 1024, 2) . ' KB';
-    } elseif ($bytes > 1) {
-        $bytes = $bytes . ' bytes';
-    } elseif ($bytes == 1) {
-        $bytes = $bytes . ' byte';
-    } else {
-        $bytes = '0 bytes';
-    }
-    return $bytes;
-}
 
 function updateUserStatus($email, $userType, $isOnline) {
     global $con;
