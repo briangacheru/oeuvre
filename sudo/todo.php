@@ -558,7 +558,7 @@ if (isset($_SESSION['alert'])) {
         <i class="fas fa-check-circle me-1 text-success"></i>Completed
         <span class="badge bg-success bg-opacity-25 text-success ms-1"><?php echo $stats['completed']; ?></span>
     </a>
-    <a href="<?php echo parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH); ?>" class="todo-stat-pill">
+    <a href="<?php echo htmlspecialchars(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), ENT_QUOTES, 'UTF-8'); ?>" class="todo-stat-pill">
         <i class="fas fa-tasks me-1 text-primary"></i>All
         <span class="badge bg-primary bg-opacity-25 text-primary ms-1"><?php echo $stats['total']; ?></span>
     </a>
@@ -619,7 +619,7 @@ if (isset($_SESSION['alert'])) {
                 <option value="completed"   <?php echo $status_filter === 'completed'   ? 'selected' : ''; ?>>Completed</option>
             </select>
             <?php if (!empty(array_intersect_key($_GET, array_flip(['search','priority','category','due_filter','status'])))): ?>
-                <a href="<?php echo parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH); ?>" class="btn btn-sm btn-link text-decoration-none text-muted">
+                <a href="<?php echo htmlspecialchars(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-link text-decoration-none text-muted">
                     <i class="fas fa-times me-1"></i>Clear
                 </a>
             <?php endif; ?>

@@ -177,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                 </div>
                                             <?php endif; ?>
                                             <form class="mb-3" method="post" role="form" action="">
-                                                <input class="form-control" type="email" id="email" name="email" placeholder="Email address" value="<?= $_POST['email'] ?? "" ?>" required="required" />
+                                                <input class="form-control" type="email" id="email" name="email" placeholder="Email address" value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required="required" />
                                                 <div class="mb-3"></div>
                                                 <button class="btn btn-primary d-block w-100 mt-3" type="submit" name="submit">Send reset link</button>
                                             </form><a class="fs-10 text-600" href="login">Return to your account here.<span class="d-inline-block ms-1">&rarr;</span></a>

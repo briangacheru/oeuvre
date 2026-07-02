@@ -259,13 +259,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <form class="needs-validation" novalidate="novalidate" role="form" method="post">
 
                                         <div class="form-floating mb-3">
-                                            <input class="form-control" id="floatingUsername" type="text" placeholder="username" name="username" value="<?= $_POST['username'] ?? "" ?>" required="required" />
+                                            <input class="form-control" id="floatingUsername" type="text" placeholder="username" name="username" value="<?= htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required="required" />
                                             <label for="floatingUsername">Username</label>
                                             <div class="invalid-feedback">Please choose a username.</div>
                                             <div class="invalid-feedback">Please enter a valid Email adddress!</div>
                                         </div>
                                         <div class="form-floating mb-3">
-                                            <input class="form-control" id="floatingEmail" type="email" placeholder="name@example.com" name="email" value="<?= $_POST['email'] ?? "" ?>" required="required" />
+                                            <input class="form-control" id="floatingEmail" type="email" placeholder="name@example.com" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required="required" />
                                             <label for="floatingInput">Email address</label>
                                             <div class="invalid-feedback">Please enter a valid Email adddress!</div>
                                         </div>
