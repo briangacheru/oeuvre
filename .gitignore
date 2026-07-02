@@ -1,0 +1,23 @@
+# Secrets / environment — never commit; use .env.example as the template
+.env
+
+# OS cruft
+.DS_Store
+
+# Logs
+*.log
+
+# Composer dependencies — regenerate with `composer install` (root and sudo/)
+/vendor/
+/sudo/vendor/
+
+# User-uploaded runtime content (keep folder structure, not the data)
+/profileimages/*
+!/profileimages/1.jpg
+!/profileimages/.gitkeep
+/taskfiles/*
+!/taskfiles/.gitkeep
+/sudo/uploads/*
+!/sudo/uploads/tasks/
+/sudo/uploads/tasks/*
+!/sudo/uploads/tasks/.gitkeep

@@ -1,0 +1,7 @@
+{
+    "require": {
+        "aws/aws-sdk-php": "^3.343",
+        "google/apiclient": "^2.0",
+        "tecnickcom/tcpdf": "^6.10"
+    }
+}
