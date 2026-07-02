@@ -163,7 +163,7 @@ $msg = "";
                                                                     class="text-900 stretched-link view-task-link"
                                                                     href="view-task?task_id=<?php echo $encodedId; ?>"
                                                                     data-task-id="<?php echo $row['id']; ?>"
-                                                                    data-acknowledged="<?php echo $row['admin_acknowledged']; ?>"><?php echo $row['topic']; ?></a>
+                                                                    data-acknowledged="<?php echo $row['admin_acknowledged']; ?>"><?php echo htmlspecialchars($row['topic'], ENT_QUOTES, 'UTF-8'); ?></a>
                                                         </h6>
                                                         <p class="fw-semi-bold mb-0 text-500"><?php echo $row["pages"];?> Page(s) | CPP: <?php echo $row["cpp"];?></p>
                                                     </div>
@@ -238,7 +238,7 @@ $msg = "";
                                             </td>
 
                                             <td class="align-middle white-space-nowrap text-900">
-                                                <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo $row["account"];?></h6>
+                                                <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo htmlspecialchars($row["account"], ENT_QUOTES, 'UTF-8'); ?></h6>
                                                 <p class="fw-semi-bold mb-0 text-500"><?php echo $row["writer"];?></p>
                                                 </td>
                                             <td class="align-middle amount">

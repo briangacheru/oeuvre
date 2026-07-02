@@ -13,7 +13,7 @@ if ($query->rowCount() > 0) {
         if ($rowAdmin->AdminName == "Admin") {
 
 ?>
-<title>iTasker | Dashboard - <?php echo $rowAdmin->username; ?></title>
+<title>iTasker | Dashboard - <?php echo htmlspecialchars($rowAdmin->username, ENT_QUOTES, 'UTF-8'); ?></title>
 <?php include "navi.php";?>
             <?php
             if (isset($_SESSION['alert'])) {
@@ -51,7 +51,7 @@ if ($query->rowCount() > 0) {
                                 <div class="row flex-between-center">
                                     <div class="col">
                                         <div class="d-flex">
-                                            <h3 class="text-primary mb-1"><?php echo $greeting; ?>, <span class="text-info"><?php echo $rowAdmin->username; ?>!</span></h3>
+                                            <h3 class="text-primary mb-1"><?php echo $greeting; ?>, <span class="text-info"><?php echo htmlspecialchars($rowAdmin->username, ENT_QUOTES, 'UTF-8'); ?>!</span></h3>
                                         </div>
                                     </div>
                                     <div class="col-auto d-flex align-items-center">

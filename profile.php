@@ -114,7 +114,7 @@ if($query->rowCount() > 0)
 
                   </h4>
                   <h5 class="fs-9 fw-normal text-primary"><?php  echo $rowProfile->email;?> </h5>
-                  <p class="text-900"><?php  echo $rowProfile->username;?> | <?php  echo $rowProfile->phone;?></p>
+                  <p class="text-900"><?php echo htmlspecialchars($rowProfile->username, ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($rowProfile->phone, ENT_QUOTES, 'UTF-8'); ?></p>
                   <a class="btn btn-outline-primary btn-sm px-3" type="button" href="settings">Edit Profile</a>
                   <div class="border-bottom border-dashed my-4 d-lg-none"></div>
                 </div>

@@ -107,7 +107,7 @@ usort($users, function($a, $b) {
                                 </div>
                                 <div class="flex-1 chat-contact-body ms-2 d-md-none d-lg-block">
                                     <div class="d-flex justify-content-between">
-                                        <h6 class="mb-0 chat-contact-title"><?php echo $user['username']; ?> (<?php echo ucfirst($user['type']); ?>)</h6>
+                                        <h6 class="mb-0 chat-contact-title"><?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo ucfirst($user['type']); ?>)</h6>
                                         <span class="message-time fs-11"><?php echo $user['latest_message_time'] ? (date('Y-m-d') === date('Y-m-d', strtotime($user['latest_message_time'])) ? 'Today' : date('l', strtotime($user['latest_message_time']))) : ''; ?></span>
                                         <span class="<?php echo $tickClass; ?> fas fa-check"></span>
                                     </div>
@@ -146,7 +146,7 @@ usort($users, function($a, $b) {
                             <div class="col-6 col-sm-8 d-flex align-items-center">
                                 <a class="pe-3 text-700 d-md-none contacts-list-show" href="#!"><div class="fas fa-chevron-left"></div></a>
                                 <div class="min-w-0">
-                                    <h5 class="mb-0 text-truncate fs-9"><?php echo $user['username']; ?> (<?php echo ucfirst($user['type']); ?>)</h5>
+                                    <h5 class="mb-0 text-truncate fs-9"><?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo ucfirst($user['type']); ?>)</h5>
                                     <div class="fs-11 text-400"><?php echo $statusText; ?></div>
                                 </div>
                             </div>

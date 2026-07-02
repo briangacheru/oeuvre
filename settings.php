@@ -311,11 +311,11 @@ if (isset($_POST['update_password'])) {
                             <label for="email1">Email</label>
                         </div>
                         <div class="col-lg-6 form-floating">
-                            <input class="form-control" id="email2" type="text" name="mobilenumber" value="<?php echo $row->phone; ?>" />
+                            <input class="form-control" id="email2" type="text" name="mobilenumber" value="<?php echo htmlspecialchars($row->phone, ENT_QUOTES, 'UTF-8'); ?>" />
                             <label for="email2">Phone</label>
                         </div>
                         <div class="col-lg-6 form-floating">
-                            <input class="form-control" id="user-name" type="text" name="username" value="<?php echo $row->username; ?>" readonly />
+                            <input class="form-control" id="user-name" type="text" name="username" value="<?php echo htmlspecialchars($row->username, ENT_QUOTES, 'UTF-8'); ?>" readonly />
                             <label for="user-name">Username</label>
                         </div>
                         <div class="col-12 d-flex justify-content-end">

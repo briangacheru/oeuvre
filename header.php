@@ -584,7 +584,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                                                         </div>
                                                     </div>
                                                     <div class="notification-body">
-                                                        <p class="mb-1 text-primary"><strong>Task <?php echo $task['id']; ?>:</strong> <?php echo $task['topic']; ?></p>
+                                                        <p class="mb-1 text-primary"><strong>Task <?php echo $task['id']; ?>:</strong> <?php echo htmlspecialchars($task['topic'], ENT_QUOTES, 'UTF-8'); ?></p>
                                                         <span class="notification-time text-danger"><span class="me-2" role="img" aria-label="Time">⏰</span><?php echo $task['time_remaining']; ?></span>
                                                     </div>
                                                 </a>

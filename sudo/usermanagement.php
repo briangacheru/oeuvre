@@ -602,7 +602,7 @@ if (isset($_SESSION['alert'])) {
                                                 <td>
                                                     <div class="d-flex align-items-center position-relative">
                                                         <div class="flex-1">
-                                                            <h6 class="mb-1 fw-semi-bold text-nowrap"><a class="text-900 stretched-link"  href="writer?writerID=<?php echo $encodedId;?>"><?php echo $row["username"];?></a></h6>
+                                                            <h6 class="mb-1 fw-semi-bold text-nowrap"><a class="text-900 stretched-link"  href="writer?writerID=<?php echo $encodedId;?>"><?php echo htmlspecialchars($row["username"], ENT_QUOTES, 'UTF-8'); ?></a></h6>
                                                             <p class="fw-semi-bold mb-0 text-500">
                                                                 <?php
                                                                 if (isset($row["last_seen"]) && !empty($row["last_seen"])) {
@@ -678,7 +678,7 @@ if (isset($_SESSION['alert'])) {
                                                 <td class="align-middle white-space-nowrap text-end position-relative">
                                                     <div class="hover-actions bg-100">
                                                         <a class="btn btn-outline-info bg-info icon-item rounded-3 me-2 fs-11 icon-item-sm" href="writer?writerID=<?php echo $encodedId;?>" data-bs-toggle="tooltip" data-bs-placement="top" title="View Writer"><span class="fas fa-eye"></span></a>
-                                                        <a class="btn btn-outline-primary bg-primary icon-item rounded-3 me-2 fs-11 icon-item-sm" data-bs-toggle="modal" href="#user-edit-modal" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Writer" data-writer-id="<?php echo $row['id']; ?>" data-writer="<?php echo $row['username']; ?>" data-email="<?php echo $row['email']; ?>" data-phone="<?php echo $row['phone']; ?>"><span class="far fa-edit"></span></a>
+                                                        <a class="btn btn-outline-primary bg-primary icon-item rounded-3 me-2 fs-11 icon-item-sm" data-bs-toggle="modal" href="#user-edit-modal" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Writer" data-writer-id="<?php echo $row['id']; ?>" data-writer="<?php echo htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8'); ?>" data-email="<?php echo $row['email']; ?>" data-phone="<?php echo htmlspecialchars($row['phone'], ENT_QUOTES, 'UTF-8'); ?>"><span class="far fa-edit"></span></a>
                                                         <button type="button" class="btn btn-outline-danger bg-<?php echo $row['is_verified'] ? 'danger' : 'success'; ?> icon-item rounded-3 me-2 fs-11 icon-item-sm verify-writer-btn"
                                                                 data-writer-id="<?php echo $row['id']; ?>"
                                                                 data-writer-username="<?php echo htmlspecialchars($row['username']); ?>"

@@ -125,7 +125,7 @@ $msg = "";
                                             <td>
                                                 <div class="d-flex align-items-center position-relative">
                                                     <div class="flex-1">
-                                                        <h6 class="mb-1 fw-semi-bold text-nowrap"><a class="text-900 stretched-link"  href="view-task?task_id=<?php echo $encodedId; ?>"><?php echo $row["topic"];?></a></h6>
+                                                        <h6 class="mb-1 fw-semi-bold text-nowrap"><a class="text-900 stretched-link"  href="view-task?task_id=<?php echo $encodedId; ?>"><?php echo htmlspecialchars($row["topic"], ENT_QUOTES, 'UTF-8'); ?></a></h6>
                                                         <p class="fw-semi-bold mb-0 text-500"><?php echo $row["pages"];?> Page(s) | CPP: <?php echo $row["cpp"];?></p>
                                                     </div>
                                                 </div>
@@ -181,10 +181,10 @@ $msg = "";
                                                 </div>
                                             </td>
                                             <td class="align-middle white-space-nowrap text-900">
-                                                <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo $row["account"];?></h6>
+                                                <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo htmlspecialchars($row["account"], ENT_QUOTES, 'UTF-8'); ?></h6>
                                                 <p class="fw-semi-bold mb-0 text-500"><?php echo $row["writer"];?></p>
                                                 </td>
-                                            <td class="align-middle white-space-nowrap text-900"><?php echo $row["subject"];?></td>
+                                            <td class="align-middle white-space-nowrap text-900"><?php echo htmlspecialchars($row["subject"], ENT_QUOTES, 'UTF-8'); ?></td>
                                             <td class="align-middle amount">
                                                 <h6 class="mb-0"><?php echo number_format($totalprice,2); ?></h6>
                                                 <p class="fs-11 mb-0"><?php echo $statusBadgePay;?> |
