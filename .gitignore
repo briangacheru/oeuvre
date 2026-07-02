@@ -11,14 +11,17 @@
 /vendor/
 /sudo/vendor/
 
-# User-uploaded runtime content (keep folder structure, not the data)
+# User-uploaded runtime content (keep folder structure + hardening, not the data)
 /profileimages/*
 !/profileimages/1.jpg
 !/profileimages/default.jpg
 !/profileimages/.gitkeep
+!/profileimages/.htaccess
 /taskfiles/*
 !/taskfiles/.gitkeep
+!/taskfiles/.htaccess
 /sudo/uploads/*
+!/sudo/uploads/.htaccess
 !/sudo/uploads/tasks/
 /sudo/uploads/tasks/*
 !/sudo/uploads/tasks/.gitkeep

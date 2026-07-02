@@ -1,0 +1,18 @@
+# Uploaded files are user-controlled content. Never execute them as scripts.
+php_flag engine off
+AddType text/plain .php .php3 .php4 .php5 .php7 .phtml .pht .phar .cgi .pl .py .asp .aspx .jsp .sh
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule \.(php[0-9]?|phtml|pht|phar|cgi|pl|py|asp|aspx|jsp|sh)$ - [F]
+</IfModule>
+
+<FilesMatch "(?i)\.(php[0-9]?|phtml|pht|phar|cgi|pl|py|asp|aspx|jsp|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
