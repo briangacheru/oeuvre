@@ -14,6 +14,7 @@
 # User-uploaded runtime content (keep folder structure, not the data)
 /profileimages/*
 !/profileimages/1.jpg
+!/profileimages/default.jpg
 !/profileimages/.gitkeep
 /taskfiles/*
 !/taskfiles/.gitkeep
