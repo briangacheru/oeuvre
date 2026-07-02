@@ -9,13 +9,14 @@ if (!isset($_SESSION['sessionWriter'])) {
 $aid = $_SESSION['sessionWriter'];
 
 // Fetch current user information
-$currentUserQuery = mysqli_query($con, "
-    SELECT id, 'admin' as type FROM tbladmin WHERE email = '$aid'
-    UNION 
-    SELECT id, 'writer' as type FROM tblwriters WHERE email = '$aid'
+$currentUserStmt = mysqli_prepare($con, "
+    SELECT id, 'admin' as type FROM tbladmin WHERE email = ?
+    UNION
+    SELECT id, 'writer' as type FROM tblwriters WHERE email = ?
 ");
-
-$currentUser = mysqli_fetch_assoc($currentUserQuery);
+mysqli_stmt_bind_param($currentUserStmt, 'ss', $aid, $aid);
+mysqli_stmt_execute($currentUserStmt);
+$currentUser = mysqli_fetch_assoc(mysqli_stmt_get_result($currentUserStmt));
 $currentUserId = $currentUser['id'];
 $currentUserType = $currentUser['type'];
 
@@ -23,16 +24,19 @@ $currentUserType = $currentUser['type'];
 $lastTimestamp = isset($_GET['last_timestamp']) ? $_GET['last_timestamp'] : '0000-00-00 00:00:00';
 
 // Fetch new messages
-$newMessagesQuery = mysqli_query($con, "
+$newMessagesStmt = mysqli_prepare($con, "
     SELECT sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url
-    FROM chat_messages 
-    WHERE (receiver_id = $currentUserId AND receiver_type = '$currentUserType') 
-      AND timestamp > '$lastTimestamp'
+    FROM chat_messages
+    WHERE (receiver_id = ? AND receiver_type = ?)
+      AND timestamp > ?
     ORDER BY timestamp ASC
 ");
+mysqli_stmt_bind_param($newMessagesStmt, 'iss', $currentUserId, $currentUserType, $lastTimestamp);
+mysqli_stmt_execute($newMessagesStmt);
+$newMessagesResult = mysqli_stmt_get_result($newMessagesStmt);
 
 $newMessages = [];
-while ($message = mysqli_fetch_assoc($newMessagesQuery)) {
+while ($message = mysqli_fetch_assoc($newMessagesResult)) {
     $newMessages[] = $message;
 }
 
