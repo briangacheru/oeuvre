@@ -13,9 +13,7 @@ include "head.php";
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'phpmailer/src/Exception.php';
-require 'phpmailer/src/PHPMailer.php';
-require 'phpmailer/src/SMTP.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 function sendJsonResponse($data) {
     if (ob_get_length()) ob_clean();

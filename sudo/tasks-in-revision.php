@@ -6,9 +6,7 @@ require_once __DIR__ . '/../env.php'; include "head.php";?>
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'phpmailer/src/Exception.php';
-require 'phpmailer/src/PHPMailer.php';
-require 'phpmailer/src/SMTP.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 $status = "OK";
 $msg = "";

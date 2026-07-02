@@ -44,9 +44,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_file') {
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'phpmailer/src/Exception.php';
-require 'phpmailer/src/PHPMailer.php';
-require 'phpmailer/src/SMTP.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 if ($_POST['action'] == 'submitForm') {
     $requiredFields = ['topic', 'subject', 'account', 'description', 'writer', 'email', 'due_date', 'cpp', 'pages'];

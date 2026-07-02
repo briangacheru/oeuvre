@@ -7,9 +7,9 @@
 # Logs
 *.log
 
-# Composer dependencies — regenerate with `composer install` (root and sudo/)
+# Composer dependencies — single shared vendor/ for both interfaces, regenerate with `composer install`
+# composer.lock IS tracked (pins exact versions) — do not ignore it
 /vendor/
-/sudo/vendor/
 
 # User-uploaded runtime content (keep folder structure + hardening, not the data)
 /profileimages/*

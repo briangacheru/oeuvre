@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../shared-functions.php';
 include "check-login.php";
-require 'vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
