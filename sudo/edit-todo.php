@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Handle new file attachments
         if (!empty($_FILES['attachments']['name'][0])) {
-            $uploadDir = 'uploads/tasks/';
+            $uploadDir = '../uploads/tasks/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }

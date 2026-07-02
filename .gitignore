@@ -20,8 +20,11 @@
 /taskfiles/*
 !/taskfiles/.gitkeep
 !/taskfiles/.htaccess
-/sudo/uploads/*
-!/sudo/uploads/.htaccess
-!/sudo/uploads/tasks/
-/sudo/uploads/tasks/*
-!/sudo/uploads/tasks/.gitkeep
+/uploads/*
+!/uploads/.htaccess
+!/uploads/tasks/
+/uploads/tasks/*
+!/uploads/tasks/.gitkeep
+!/uploads/project_attachments/
+/uploads/project_attachments/*
+!/uploads/project_attachments/.gitkeep

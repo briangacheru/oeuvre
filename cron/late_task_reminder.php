@@ -1,11 +1,11 @@
 <?php
-require_once __DIR__ . '/env.php';
-require_once 'db.php';
+require_once __DIR__ . '/../env.php';
+require_once __DIR__ . '/../db.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 // Enhanced features configuration with hour-based thresholds
 $config = [
@@ -371,7 +371,7 @@ function generatePlainTextBody($lateTasksData, $totalTasks, $totalValue) {
 }
 
 // Function to log reminder activity
-function logActivity($message, $logFile = 'late_tasks_log.txt') {
+function logActivity($message, $logFile = __DIR__ . '/late_tasks_log.txt') {
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[{$timestamp}] {$message}\n";
     file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);

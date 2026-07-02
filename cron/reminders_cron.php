@@ -1,5 +1,5 @@
 <?php
-require_once 'reminder_functions.php';
+require_once __DIR__ . '/../sudo/reminder_functions.php';
 
 // Check what type of cron job to run
 $action = $argv[1] ?? $_GET['action'] ?? '';
