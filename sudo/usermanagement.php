@@ -483,6 +483,27 @@ if (isset($_GET['reactivateid'])) {
     header('Location: usermanagement');
     exit;
 }
+
+// Writer account unlock (clears a login lockout before it auto-expires)
+if (isset($_GET['unlockid'])) {
+    $userid = (int) $_GET['unlockid'];
+    if (is_numeric($userid) && !empty($userid)) {
+        $query = mysqli_query($con, "UPDATE tblwriters SET failed_login_attempts = 0, locked_until = NULL WHERE id='$userid'");
+
+        if ($query) {
+            $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert"><i class="bi bi-check-circle"></i> Writer account unlocked successfully.
+                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>';
+        } else {
+            $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert">Error unlocking account.
+                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>';
+        }
+    }
+
+    header('Location: usermanagement');
+    exit;
+}
 ?>
 
     <div class="card shadow-none border mb-3">
@@ -705,6 +726,11 @@ if (isset($_SESSION['alert'])) {
                                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Reactivate Account">
                                                                 <i class="fas fa-undo"></i>
                                                             </button>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($row['locked_until']) && strtotime($row['locked_until']) > time()): ?>
+                                                            <a class="btn btn-outline-secondary bg-secondary icon-item rounded-3 me-2 fs-11 icon-item-sm" href="usermanagement?unlockid=<?php echo $row['id']; ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Unlock Account (locked until <?php echo htmlspecialchars(date('M j, g:i A', strtotime($row['locked_until'])), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                                <i class="fas fa-unlock"></i>
+                                                            </a>
                                                         <?php endif; ?>
                                                         <?php if ($row['is_verified'] == 0) { ?>
                                                             <button type="button" class="btn btn-outline-danger bg-danger icon-item rounded-3 me-2 fs-11 icon-item-sm delete-writer-btn"

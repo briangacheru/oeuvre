@@ -30,8 +30,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($result->num_rows == 1) {
             $row = $result->fetch_assoc();
             $hashedPasswordFromDatabase = $row['password'];
+            $lockedUntil = account_lock_status($con, 'tbladmin', $email);
 
-            if (password_verify($password, $hashedPasswordFromDatabase)) {
+            if ($lockedUntil) {
+                $loginError = "
+                    <div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                        <i class='bi bi-exclamation-circle me-1'></i> " . format_lockout_message($lockedUntil) . "
+                        <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+                    </div>";
+            } elseif (password_verify($password, $hashedPasswordFromDatabase)) {
+                reset_failed_login($con, 'tbladmin', $email);
                 $_SESSION['odmsaid'] = $email;
                 require_once 'session_tracker.php';
                 record_login_session($dbh, $email);
@@ -75,11 +83,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }, 1000); // Redirect after 1 second
                       </script>";
             } else {
-                $loginError = "
-                    <div class='alert alert-danger alert-dismissible fade show' role='alert'>
-                        <i class='bi bi-exclamation-circle me-1'></i> Incorrect Email or password.
-                        <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
-                    </div>";
+                $justLocked = register_failed_login($con, 'tbladmin', $email);
+                $loginError = $justLocked
+                    ? "
+                        <div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                            <i class='bi bi-exclamation-circle me-1'></i> " . format_lockout_message($justLocked, true) . "
+                            <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+                        </div>"
+                    : "
+                        <div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                            <i class='bi bi-exclamation-circle me-1'></i> Incorrect Email or password.
+                            <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+                        </div>";
             }
         } else {
             $loginError = "

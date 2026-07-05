@@ -238,3 +238,78 @@ if (!function_exists('csrf_verify_or_json_die')) {
         }
     }
 }
+
+// ---- Login lockout ----
+// $table must always be a hardcoded literal ('tblwriters' or 'tbladmin')
+// supplied by the calling code, never derived from request input.
+
+if (!function_exists('account_lock_status')) {
+    // Returns the locked_until timestamp (string) if the account is
+    // currently locked, or null if not locked (or lock has expired).
+    function account_lock_status($con, $table, $email) {
+        $stmt = $con->prepare("SELECT locked_until FROM `$table` WHERE email = ?");
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row && !empty($row['locked_until']) && strtotime($row['locked_until']) > time()) {
+            return $row['locked_until'];
+        }
+        return null;
+    }
+}
+
+if (!function_exists('register_failed_login')) {
+    // Increments the failed-attempt counter for $email in $table. Once it
+    // reaches LOGIN_MAX_ATTEMPTS, locks the account for LOGIN_LOCKOUT_HOURS
+    // and resets the counter. Returns the new locked_until timestamp if the
+    // account just became locked, or null if it's just a regular failed
+    // attempt short of the threshold.
+    function register_failed_login($con, $table, $email) {
+        $maxAttempts = (int) env('LOGIN_MAX_ATTEMPTS', 5);
+        $lockoutHours = (float) env('LOGIN_LOCKOUT_HOURS', 1);
+
+        $stmt = $con->prepare("SELECT failed_login_attempts FROM `$table` WHERE email = ?");
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if (!$row) {
+            return null;
+        }
+
+        $attempts = (int) $row['failed_login_attempts'] + 1;
+
+        if ($attempts >= $maxAttempts) {
+            $lockedUntil = date('Y-m-d H:i:s', time() + (int) round($lockoutHours * 3600));
+            $upd = $con->prepare("UPDATE `$table` SET failed_login_attempts = 0, locked_until = ? WHERE email = ?");
+            $upd->bind_param('ss', $lockedUntil, $email);
+            $upd->execute();
+            return $lockedUntil;
+        }
+
+        $upd = $con->prepare("UPDATE `$table` SET failed_login_attempts = ? WHERE email = ?");
+        $upd->bind_param('is', $attempts, $email);
+        $upd->execute();
+        return null;
+    }
+}
+
+if (!function_exists('reset_failed_login')) {
+    // Clears the failed-attempt counter and any lock on successful login.
+    function reset_failed_login($con, $table, $email) {
+        $upd = $con->prepare("UPDATE `$table` SET failed_login_attempts = 0, locked_until = NULL WHERE email = ?");
+        $upd->bind_param('s', $email);
+        $upd->execute();
+    }
+}
+
+if (!function_exists('format_lockout_message')) {
+    // Consistent lockout copy for both interfaces.
+    function format_lockout_message($lockedUntil, $justLocked = false) {
+        $when = date('g:i A', strtotime($lockedUntil));
+        $intro = $justLocked
+            ? 'Too many failed login attempts.'
+            : 'This account is locked due to too many failed login attempts.';
+        return $intro . ' Please try again after ' . $when
+            . ', or contact the administrator at ' . htmlspecialchars(env('ADMIN_EMAIL'), ENT_QUOTES, 'UTF-8') . ' for help.';
+    }
+}
