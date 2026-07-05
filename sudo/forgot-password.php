@@ -59,17 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
 
             // Send email
             $mail->send();
-            session_start();
-            $_SESSION['msg']['success'] = "We have sent you an email with a link to reset your password.";
-            header('location: forgot-password.php');
-            exit;
         } catch (Exception $e) {
-            // Handle exception, e.g., log the error
-            echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+            // Don't surface mailer errors to the page (would leak that the
+            // email is registered); log server-side for the admin instead.
+            error_log("Password reset email failed to send to {$email}: " . $mail->ErrorInfo);
         }
-    } else {
-        $error = "Email is not registered.";
     }
+
+    // Same message whether or not the email was found/sent — otherwise an
+    // attacker could enumerate which emails have accounts here.
+    session_start();
+    $_SESSION['msg']['success'] = "If an account exists for that email address, a password reset link has been sent.";
+    header('location: forgot-password.php');
+    exit;
 }
 ?>
 <!DOCTYPE html>
