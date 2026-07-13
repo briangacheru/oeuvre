@@ -22,8 +22,8 @@ $currentUserType = $currentUser['type'];
 $lastSeen = $currentUser['last_seen'];
 $isOnline = isRecentlyOnline($lastSeen);
 
-// Determine online status or last seen
-$statusText = $isOnline ? 'Online' : ($lastSeen ? 'Last seen ' . date('M j, Y, g:i a', strtotime($lastSeen)) : 'Offline');
+// Determine online status or last seen (matches sudo/writer.php's wording/timezone handling)
+$statusText = $isOnline ? 'Online' : getLastSeenText($lastSeen);
 
 // Fetch users for chat excluding the current user
 $users = [];
@@ -88,6 +88,14 @@ usort($users, function($a, $b) {
     .card-chat {
         height: calc(80vh - var(--falcon-top-nav-height) - 0.625rem - 5rem);
     }
+
+    /* Presence tiers beyond the theme's built-in status-online/status-offline,
+       bucketed by how long ago last_seen was (see getPresenceStatusClass()). */
+    .avatar.status-day:before { background-color: var(--falcon-info); }
+    .avatar.status-week:before { background-color: var(--falcon-warning); }
+    .avatar.status-fortnight:before { background-color: #c1440e; }
+    .avatar.status-month:before { background-color: var(--falcon-danger); }
+    .avatar.status-year:before { background-color: var(--falcon-secondary); }
 </style>
 <div class="card card-chat overflow-hidden">
     <div class="card-body d-flex p-0 h-100">
@@ -99,8 +107,8 @@ usort($users, function($a, $b) {
                         <?php
                         $isOnline = isset($user['is_online']) ? $user['is_online'] : false;
                         $lastSeen = isset($user['last_seen']) ? $user['last_seen'] : null;
-                        $statusText = $isOnline ? 'Online' : ($lastSeen ? 'Last seen ' . date('M j, Y, g:i a', strtotime($lastSeen)) : 'Offline');
-                        $statusClass = $isOnline ? 'status-online' : 'status-offline';
+                        $statusText = $isOnline ? 'Online' : getLastSeenText($lastSeen);
+                        $statusClass = getPresenceStatusClass($isOnline, $lastSeen);
                         $tickClass = $user['is_read'] ? 'text-success' : 'text-muted';
                         $photo = $user['photo']; // Assume 'Photo' field is always set
                         $avatarSrc = 'profileimages/' . htmlspecialchars($photo, ENT_QUOTES, 'UTF-8');
@@ -113,7 +121,10 @@ usort($users, function($a, $b) {
                                 <div class="flex-1 chat-contact-body ms-2 d-md-none d-lg-block">
                                     <div class="d-flex justify-content-between">
                                         <h6 class="mb-0 chat-contact-title"><?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo ucfirst($user['type']); ?>)</h6>
-                                        <span class="message-time fs-11"><?php echo $user['latest_message_time'] ? (date('Y-m-d') === date('Y-m-d', strtotime($user['latest_message_time'])) ? 'Today' : date('l', strtotime($user['latest_message_time']))) : ''; ?></span>
+                                        <span class="message-time fs-11"><?php
+                                            $latestMsgTs = $user['latest_message_time'] ? utcToNairobiTimestamp($user['latest_message_time']) : false;
+                                            echo $latestMsgTs ? (date('Y-m-d') === date('Y-m-d', $latestMsgTs) ? 'Today' : date('l', $latestMsgTs)) : '';
+                                        ?></span>
                                         <span class="<?php echo $tickClass; ?> fas fa-check"></span>
                                     </div>
                                     <div class="min-w-0">
@@ -155,6 +166,14 @@ usort($users, function($a, $b) {
                                     <div class="fs-11 text-400"><?php echo $statusText; ?></div>
                                 </div>
                             </div>
+                            <div class="col-6 col-sm-4 text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Shared files" onclick="openSharedFiles(<?php echo $user['id']; ?>)">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" title="Link to task" onclick="openLinkTaskModal(<?php echo $user['id']; ?>)">
+                                    <i class="fas fa-tasks"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="chat-content-body" style="display: inherit;">
@@ -164,13 +183,20 @@ usort($users, function($a, $b) {
                     </div>
                 </div>
             <?php endforeach; ?>
-            <form class="chat-editor-area" method="post" action="send_message" enctype="multipart/form-data" onsubmit="return submitMessage();">
+            <div id="typing-indicator" class="fs-11 text-muted fst-italic px-3 d-none"></div>
+
+            <div id="linked-task-banner" class="fs-11 px-3 py-1 bg-info-subtle d-none d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-tasks me-1"></i><span id="linked-task-label"></span></span>
+                <button type="button" class="btn-close btn-close-sm" onclick="clearLinkedTask()" title="Unlink task"></button>
+            </div>
+
+            <form class="chat-editor-area d-none" method="post" action="send_message" enctype="multipart/form-data" onsubmit="return submitMessage();">
 <?= csrf_field() ?>
                 <div class="emojiarea-editor outline-none scrollbar" contenteditable="true" id="messageInput"></div>
                 <input type="hidden" name="message" id="messageField">
                 <input type="hidden" name="receiver_id" id="receiverIdField">
                 <input type="hidden" name="receiver_type" id="receiverTypeField">
-                <input type="file" id="chat-file-upload" name="file" class="d-none" accept="image/*">
+                <input type="file" id="chat-file-upload" name="file" class="d-none" accept="image/*,.heic,.heif,.avif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
                 <label class="chat-file-upload cursor-pointer" for="chat-file-upload"><span class="fas fa-paperclip"></span></label>
                 <div id="file-preview" class="file-preview"></div> <!-- Preview area -->
                 <div class="chat-emoji-picker">
@@ -178,6 +204,36 @@ usort($users, function($a, $b) {
                 </div>
                 <button class="btn btn-sm btn-send shadow-none" type="submit">Send</button>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Shared Files/Media modal (single instance, reused for whichever chat is open) -->
+<div class="modal fade" id="sharedFilesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-paperclip me-2"></i>Shared Files</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="sharedFilesModalBody">
+                <div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Link to Task modal (single instance, reused for whichever chat is open) -->
+<div class="modal fade" id="linkTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tasks me-2"></i>Link to Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="linkTaskModalBody">
+                <div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>
+            </div>
         </div>
     </div>
 </div>
@@ -190,7 +246,97 @@ usort($users, function($a, $b) {
         div.textContent = text;
         return div.innerHTML;
     }
-    let lastTimestamp = '0000-00-00 00:00:00'; // Initialize last timestamp
+
+    // Single muted tick = sent; double green tick = read by the recipient.
+    function readReceiptTicksHtml(isRead) {
+        return isRead
+            ? '<span class="text-success fas fa-check-double ms-1" title="Read"></span>'
+            : '<span class="text-muted fas fa-check ms-1" title="Sent"></span>';
+    }
+
+    // Edit/delete hover buttons, shown only on the sender's own messages.
+    function messageActionsHtml(messageId) {
+        return `
+        <div class="hover-actions me-1">
+            <button type="button" class="btn btn-tertiary border-300 btn-sm p-1 me-1" onclick="editMessage(${messageId}, this)" title="Edit"><i class="fas fa-pen fs-11"></i></button>
+            <button type="button" class="btn btn-tertiary border-300 btn-sm p-1" onclick="deleteMessage(${messageId}, this)" title="Delete"><i class="fas fa-trash fs-11"></i></button>
+        </div>
+    `;
+    }
+
+    function editMessage(messageId, btn) {
+        if (!messageId) return;
+        const bubble = btn.closest('.hover-actions-trigger').querySelector('.message-text');
+        if (!bubble) return;
+
+        const currentText = bubble.textContent;
+        const newText = prompt('Edit your message:', currentText);
+        if (newText === null || newText.trim() === '' || newText === currentText) return;
+
+        const formData = new FormData();
+        formData.append('message_id', messageId);
+        formData.append('message', newText);
+        formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+        fetch('edit_message', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    bubble.textContent = newText;
+                    const chatMessage = btn.closest('.hover-actions-trigger').querySelector('.chat-message');
+                    if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
+                        const tag = document.createElement('span');
+                        tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
+                        tag.textContent = '(edited)';
+                        bubble.insertAdjacentElement('afterend', tag);
+                    }
+                } else {
+                    alert('Failed to edit message: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => alert('Error editing message: ' + error.message));
+    }
+
+    function deleteMessage(messageId, btn) {
+        if (!messageId) return;
+        if (!confirm('Delete this message?')) return;
+
+        const formData = new FormData();
+        formData.append('message_id', messageId);
+        formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+        fetch('delete_message', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const messageRow = btn.closest('[data-message-id]');
+                    if (messageRow) messageRow.remove();
+                } else {
+                    alert('Failed to delete message: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => alert('Error deleting message: ' + error.message));
+    }
+
+    // chat_messages.timestamp is stored in UTC (MySQL's NOW() reflects the DB
+    // server's own timezone). A bare `new Date("YYYY-MM-DD HH:mm:ss")` is
+    // parsed by the browser as LOCAL time, not UTC, which threw every
+    // displayed time off by the Nairobi UTC+3 offset. Marking it as UTC
+    // explicitly lets the browser correctly convert to the viewer's own
+    // local time from there.
+    function parseDbTimestamp(ts) {
+        if (!ts) return new Date();
+        return new Date(ts.replace(' ', 'T') + 'Z');
+    }
+
+    // Starts at "now" rather than the epoch, so the first poll cycle doesn't
+    // fire a desktop notification for every already-unread message (those
+    // are already reflected by the sidebar's unread indicators from the
+    // initial page load).
+    let lastTimestamp = '<?php echo gmdate('Y-m-d H:i:s'); ?>';
+    let linkedTaskId = null;
+
+    const CONTACT_NAMES = <?php echo json_encode(array_column($users, 'username', 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
     function setReceiver(id, type, index) {
         document.getElementById('receiverIdField').value = id;
@@ -204,6 +350,21 @@ usort($users, function($a, $b) {
             pane.classList.remove('active');
         });
         document.getElementById(`chat-${id}`).classList.add('active');
+
+        // Only show the message editor once a chat is actually selected
+        const editorArea = document.querySelector('.chat-editor-area');
+        if (editorArea) {
+            editorArea.classList.remove('d-none');
+        }
+
+        // Reset stale typing indicator from whatever was open before
+        const typingIndicator = document.getElementById('typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.classList.add('d-none');
+        }
+
+        // A linked task is specific to the conversation it was set in
+        clearLinkedTask();
 
         fetchMessages(id, type, index);
     }
@@ -230,7 +391,7 @@ usort($users, function($a, $b) {
         let lastDate = '';
 
         messages.forEach(message => {
-            const messageDate = new Date(message.timestamp);
+            const messageDate = parseDbTimestamp(message.timestamp);
             const messageDateString = messageDate.toLocaleDateString();
 
             // Check if the date has changed
@@ -253,12 +414,17 @@ usort($users, function($a, $b) {
             const isCurrentUser = message.sender_id == <?php echo $currentUser['id']; ?>;
             const messageElement = document.createElement('div');
             messageElement.classList.add('d-flex', 'p-3', isCurrentUser ? 'justify-content-end' : 'justify-content-start');
+            if (message.id) {
+                messageElement.dataset.messageId = message.id;
+            }
             messageElement.innerHTML = `
         <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
             <div class="w-100 w-xxl-75">
                 <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
+                    ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                        ${escapeHtml(message.message)}
+                        ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                        ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                         ${message.file_url ? `
                         <a href="taskfiles/${message.file_url}" class="glightbox" data-gallery="gallery-3">
                             <img class="rounded" src="taskfiles/${message.file_url}" alt="" width="150">
@@ -267,7 +433,7 @@ usort($users, function($a, $b) {
                 </div>
                 <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''}">
                     <span>${messageDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
-                    <span class="${message.is_read ? 'text-success' : 'text-muted'} fas fa-check"></span>
+                    ${isCurrentUser ? readReceiptTicksHtml(message.is_read) : ''}
                 </div>
             </div>
         </div>
@@ -284,6 +450,8 @@ usort($users, function($a, $b) {
     }
 
     function pollMessages() {
+        refreshTypingIndicator();
+
         fetch(`poll_messages?last_timestamp=${lastTimestamp}`)
             .then(response => {
                 if (!response.ok) {
@@ -294,42 +462,65 @@ usort($users, function($a, $b) {
             .then(messages => {
                 if (messages.length > 0) {
                     const receiverId = document.getElementById('receiverIdField').value;
-                    const chatContent = document.getElementById(`chat-content-${receiverId}`);
+                    const chatContent = receiverId ? document.getElementById(`chat-content-${receiverId}`) : null;
+                    let sawMessageFromOpenReceiver = false;
+
                     messages.forEach(message => {
+                        // Desktop notification regardless of which (if any)
+                        // conversation is currently open.
+                        notifyNewMessage(message);
+
+                        // Only render into the DOM if this message actually
+                        // belongs to the conversation that's currently open -
+                        // otherwise a message from someone else would land
+                        // inside the wrong thread.
+                        if (!receiverId || message.sender_id != receiverId) {
+                            return;
+                        }
+                        sawMessageFromOpenReceiver = true;
+
                         const messageElement = document.createElement('div');
                         const isCurrentUser = message.sender_id == <?php echo $currentUser['id']; ?>;
                         messageElement.classList.add('d-flex', 'p-3', isCurrentUser ? 'justify-content-end' : 'justify-content-start');
+                        if (message.id) {
+                            messageElement.dataset.messageId = message.id;
+                        }
                         messageElement.innerHTML = `
                     <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
                         <div class="w-100 w-xxl-75">
                             <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                                    ${escapeHtml(message.message)}
+                                    ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                                    ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                                     ${message.file_url ? `
                                     <a href="taskfiles/${message.file_url}" class="glightbox" data-gallery="gallery-3">
                                         <img class="rounded" src="taskfiles/${message.file_url}" alt="" width="150">
                                     </a>` : ''}
-                                    <span class="${message.is_read ? 'text-success' : 'text-muted'} fas fa-check"></span>
                                 </div>
                             </div>
                             <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''}">
-                                <span>${new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                                <span>${parseDbTimestamp(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                                ${isCurrentUser ? readReceiptTicksHtml(message.is_read) : ''}
                             </div>
                         </div>
                     </div>
                 `;
-                        chatContent.appendChild(messageElement);
-                        chatContent.scrollTop = chatContent.scrollHeight;
+                        if (chatContent) {
+                            chatContent.appendChild(messageElement);
+                            chatContent.scrollTop = chatContent.scrollHeight;
+                        }
                     });
+
                     lastTimestamp = messages[messages.length - 1].timestamp;
 
-                    // Play ding sound
-                    const dingSound = document.getElementById('dingSound');
-                    dingSound.play();
-
-                    // Update the read status of messages
-                    updateReadStatus(receiverId);
+                    if (sawMessageFromOpenReceiver) {
+                        const dingSound = document.getElementById('dingSound');
+                        if (dingSound) dingSound.play().catch(() => {});
+                        updateReadStatus(receiverId);
+                    }
                 }
+
+                refreshReadReceipts();
                 setTimeout(pollMessages, 3000); // Poll every 3 seconds
             })
             .catch(error => {
@@ -338,23 +529,224 @@ usort($users, function($a, $b) {
             });
     }
 
+    // Flips single ticks to double green ticks on my own sent messages once
+    // the currently-open partner has read them.
+    // Desktop notification for an incoming message, unless the viewer is
+    // already actively looking at that exact conversation.
+    function notifyNewMessage(message) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        const receiverId = document.getElementById('receiverIdField').value;
+        if (document.hasFocus() && receiverId && message.sender_id == receiverId) return;
+
+        const senderName = CONTACT_NAMES[message.sender_id] || 'Someone';
+        const body = message.message ? message.message : (message.file_url ? 'Sent a file' : 'New message');
+
+        const notification = new Notification(`New message from ${senderName}`, {
+            body: body,
+            icon: 'assets/img/favicons/favicon-32x32.png',
+            tag: `chat-message-${message.sender_id}`
+        });
+        notification.onclick = function() {
+            window.focus();
+            notification.close();
+        };
+    }
+
+    function refreshReadReceipts() {
+        const receiverId = document.getElementById('receiverIdField').value;
+        if (!receiverId) return;
+
+        fetch(`get_sent_read_status?partner_id=${encodeURIComponent(receiverId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.status !== 'success' || !Array.isArray(data.read_ids)) return;
+
+                data.read_ids.forEach(id => {
+                    const messageEl = document.querySelector(`[data-message-id="${id}"]`);
+                    if (!messageEl) return;
+                    const tick = messageEl.querySelector('.fa-check, .fa-check-double');
+                    if (tick && !tick.classList.contains('fa-check-double')) {
+                        tick.outerHTML = readReceiptTicksHtml(true);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error refreshing read receipts:', error);
+            });
+    }
+
+    function sendTypingSignal() {
+        const receiverId = document.getElementById('receiverIdField').value;
+        const receiverType = document.getElementById('receiverTypeField').value;
+        if (!receiverId || !receiverType) return;
+
+        const formData = new FormData();
+        formData.append('receiver_id', receiverId);
+        formData.append('receiver_type', receiverType);
+
+        fetch('set_typing_status', { method: 'POST', body: formData })
+            .catch(error => console.error('Error sending typing signal:', error));
+    }
+
+    function refreshTypingIndicator() {
+        const receiverId = document.getElementById('receiverIdField').value;
+        const indicator = document.getElementById('typing-indicator');
+        if (!receiverId || !indicator) return;
+
+        fetch(`get_typing_status?partner_id=${encodeURIComponent(receiverId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.status === 'success' && data.typing) {
+                    indicator.textContent = 'Typing...';
+                    indicator.classList.remove('d-none');
+                } else {
+                    indicator.classList.add('d-none');
+                }
+            })
+            .catch(error => console.error('Error checking typing status:', error));
+    }
+
+    // File-type icon for non-image shared files (same map used for the
+    // attachment preview before sending).
+    const SHARED_FILE_ICON_MAP = {
+        pdf: 'fa-file-pdf text-danger',
+        doc: 'fa-file-word text-primary', docx: 'fa-file-word text-primary',
+        xls: 'fa-file-excel text-success', xlsx: 'fa-file-excel text-success',
+        ppt: 'fa-file-powerpoint text-warning', pptx: 'fa-file-powerpoint text-warning',
+        zip: 'fa-file-archive text-secondary'
+    };
+    const SHARED_FILE_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'bmp', 'tiff', 'tif'];
+
+    function openSharedFiles(partnerId) {
+        const modalBody = document.getElementById('sharedFilesModalBody');
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+
+        const modalEl = document.getElementById('sharedFilesModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        fetch(`get_shared_files?partner_id=${encodeURIComponent(partnerId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    modalBody.innerHTML = '<p class="text-danger text-center">Failed to load shared files.</p>';
+                    return;
+                }
+
+                if (!data.files || data.files.length === 0) {
+                    modalBody.innerHTML = '<p class="text-muted text-center py-4">No files shared yet.</p>';
+                    return;
+                }
+
+                const grid = document.createElement('div');
+                grid.className = 'row g-3';
+
+                data.files.forEach(file => {
+                    const extension = (file.file_url.split('.').pop() || '').toLowerCase();
+                    const isImage = SHARED_FILE_IMAGE_EXTENSIONS.includes(extension);
+                    const fileHref = `taskfiles/${encodeURIComponent(file.file_url)}`;
+                    const dateText = parseDbTimestamp(file.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                    const col = document.createElement('div');
+                    col.className = 'col-6 col-md-4';
+
+                    const previewHtml = isImage
+                        ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="Shared file" loading="lazy"></a>`
+                        : `<a href="${fileHref}" target="_blank" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
+
+                    col.innerHTML = `
+                <div class="border rounded p-2 h-100">
+                    ${previewHtml}
+                    <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(file.file_url)}</div>
+                    <div class="fs-11 text-400">${dateText}</div>
+                </div>
+            `;
+                    grid.appendChild(col);
+                });
+
+                modalBody.innerHTML = '';
+                modalBody.appendChild(grid);
+
+                if (typeof GLightbox !== 'undefined') {
+                    GLightbox({ selector: '#sharedFilesModalBody .glightbox' });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading shared files:', error);
+                modalBody.innerHTML = '<p class="text-danger text-center">Failed to load shared files.</p>';
+            });
+    }
+
+    function openLinkTaskModal(partnerId) {
+        const modalBody = document.getElementById('linkTaskModalBody');
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+
+        const modalEl = document.getElementById('linkTaskModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        fetch(`get_linkable_tasks?partner_id=${encodeURIComponent(partnerId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    modalBody.innerHTML = '<p class="text-danger text-center">Failed to load tasks.</p>';
+                    return;
+                }
+
+                if (!data.tasks || data.tasks.length === 0) {
+                    modalBody.innerHTML = '<p class="text-muted text-center py-4">No tasks found.</p>';
+                    return;
+                }
+
+                const list = document.createElement('div');
+                list.className = 'list-group';
+                data.tasks.forEach(task => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.textContent = `#${task.id} - ${task.topic}`;
+                    item.onclick = function() {
+                        selectLinkedTask(task.id, task.topic);
+                        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    };
+                    list.appendChild(item);
+                });
+
+                modalBody.innerHTML = '';
+                modalBody.appendChild(list);
+            })
+            .catch(error => {
+                console.error('Error loading linkable tasks:', error);
+                modalBody.innerHTML = '<p class="text-danger text-center">Failed to load tasks.</p>';
+            });
+    }
+
+    function selectLinkedTask(taskId, topic) {
+        linkedTaskId = taskId;
+        const banner = document.getElementById('linked-task-banner');
+        const label = document.getElementById('linked-task-label');
+        if (label) label.textContent = `Discussing: Task #${taskId} - ${topic}`;
+        if (banner) banner.classList.remove('d-none');
+    }
+
+    function clearLinkedTask() {
+        linkedTaskId = null;
+        const banner = document.getElementById('linked-task-banner');
+        if (banner) banner.classList.add('d-none');
+    }
+
+    // Small chip linking a message back to the task it was sent about.
+    function taskChipHtml(relatedTaskId) {
+        if (!relatedTaskId) return '';
+        const encodedId = btoa(String(relatedTaskId));
+        return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-dark text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
+    }
+
     function updateReadStatus(userId) {
         fetch(`update_read_status?user_id=${userId}`)
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    // Update the UI to reflect that messages have been read
-                    const chatContent = document.getElementById(`chat-content-${userId}`);
-                    const messageElements = chatContent.querySelectorAll('.chat-message');
-
-                    messageElements.forEach(messageElement => {
-                        const readIndicator = messageElement.querySelector('.fas.fa-check');
-                        if (readIndicator) {
-                            readIndicator.classList.remove('text-muted');
-                            readIndicator.classList.add('text-success');
-                        }
-                    });
-                } else {
+                if (data.status !== 'success') {
                     console.error(data.message);
                 }
             })
@@ -371,6 +763,7 @@ usort($users, function($a, $b) {
         const receiverId = document.getElementById('receiverIdField').value;
         const receiverType = document.getElementById('receiverTypeField').value;
         const formData = new FormData();
+        formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
 
         if (encodedMessageContent) {
             formData.append('message', encodedMessageContent); // Append the encoded message
@@ -383,6 +776,10 @@ usort($users, function($a, $b) {
             formData.append('file', fileInput.files[0]);
         }
 
+        if (linkedTaskId) {
+            formData.append('related_task_id', linkedTaskId);
+        }
+
         fetch('send_message', {
             method: 'POST',
             body: formData
@@ -393,13 +790,17 @@ usort($users, function($a, $b) {
                     const chatContent = document.getElementById(`chat-content-${receiverId}`);
                     const messageElement = document.createElement('div');
                     messageElement.classList.add('d-flex', 'p-3', 'justify-content-end');
+                    if (data.message_id) {
+                        messageElement.dataset.messageId = data.message_id;
+                    }
 
                     let messageHTML = `
                 <div class="flex-1 d-flex justify-content-end">
                     <div class="w-100 w-xxl-75">
                         <div class="hover-actions-trigger d-flex flex-end-center">
+                            ${data.message_id ? messageActionsHtml(data.message_id) : ''}
                             <div class="chat-message bg-primary text-white p-2 rounded-2">
-                                ${escapeHtml(decodeURIComponent(encodedMessageContent))}
+                                ${taskChipHtml(linkedTaskId)}<span class="message-text">${escapeHtml(decodeURIComponent(encodedMessageContent))}</span>
             `;
 
                     if (fileInput.files.length > 0) {
@@ -416,7 +817,7 @@ usort($users, function($a, $b) {
                     </div>
                     <div class="text-400 fs-11 text-end">
                         <span>${new Date().toLocaleTimeString()}</span>
-                        <span class="text-muted fas fa-check"></span>
+                        ${readReceiptTicksHtml(false)}
                     </div>
                 </div>
             </div>
@@ -440,18 +841,63 @@ usort($users, function($a, $b) {
     }
 
 
+    // Allowed: office docs, zip, pdf, and photos (matches
+    // validateChatAttachment() in shared-functions.php). Extension-based
+    // rather than file.type, since browsers commonly report an empty MIME
+    // type for newer photo formats like heic/avif.
+    const ALLOWED_CHAT_FILE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'bmp', 'tiff', 'tif',
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip'];
+    const MAX_CHAT_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     document.getElementById('chat-file-upload').addEventListener('change', function(event) {
         const file = event.target.files[0];
         const previewContainer = document.getElementById('file-preview');
-        previewContainer.innerHTML = ''; // Clear existing preview
-        const spinner = document.createElement('div');
-        spinner.className = 'spinner-border';
-        previewContainer.appendChild(spinner); // Show loading spinner
+        previewContainer.innerHTML = '';
 
-        if (file && file.type.startsWith('image/')) {
+        if (!file) {
+            return;
+        }
+
+        if (file.size > MAX_CHAT_FILE_SIZE) {
+            alert('File size must be less than 50MB');
+            event.target.value = '';
+            return;
+        }
+
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (!ALLOWED_CHAT_FILE_EXTENSIONS.includes(extension)) {
+            alert('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.');
+            event.target.value = '';
+            return;
+        }
+
+        const browserRenderableImages = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+        const iconMap = {
+            pdf: 'fa-file-pdf text-danger',
+            doc: 'fa-file-word text-primary', docx: 'fa-file-word text-primary',
+            xls: 'fa-file-excel text-success', xlsx: 'fa-file-excel text-success',
+            ppt: 'fa-file-powerpoint text-warning', pptx: 'fa-file-powerpoint text-warning',
+            zip: 'fa-file-archive text-secondary',
+            heic: 'fa-file-image text-info', heif: 'fa-file-image text-info', avif: 'fa-file-image text-info',
+            tiff: 'fa-file-image text-info', tif: 'fa-file-image text-info'
+        };
+
+        if (browserRenderableImages.includes(extension)) {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border';
+            previewContainer.appendChild(spinner);
+
             const reader = new FileReader();
             reader.onload = function(e) {
-                previewContainer.innerHTML = ''; // Clear spinner
+                previewContainer.innerHTML = '';
                 const img = document.createElement('img');
                 img.src = e.target.result;
                 img.alt = 'Preview';
@@ -460,8 +906,16 @@ usort($users, function($a, $b) {
             };
             reader.readAsDataURL(file);
         } else {
-            previewContainer.innerHTML = ''; // Clear spinner
-            alert('Please select an image file.');
+            const iconClass = iconMap[extension] || 'fa-file text-secondary';
+            previewContainer.innerHTML = `
+                <div class="d-flex align-items-center border rounded p-2 mb-2">
+                    <i class="fas ${iconClass} fa-2x me-2"></i>
+                    <div class="flex-1">
+                        <div class="fw-bold">${escapeHtml(file.name)}</div>
+                        <small class="text-muted">${formatFileSize(file.size)}</small>
+                    </div>
+                </div>
+            `;
         }
     });
 
@@ -480,10 +934,25 @@ usort($users, function($a, $b) {
     });
 
     document.addEventListener('DOMContentLoaded', function() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
         pollMessages(); // Start polling messages
 
         // Show the default content when the page loads
         document.getElementById('default-content').classList.add('active');
+
+        // Typing indicator: debounced poke while actively typing
+        const messageInputEl = document.getElementById('messageInput');
+        if (messageInputEl) {
+            let typingDebounce = null;
+            messageInputEl.addEventListener('input', function() {
+                if (typingDebounce) return;
+                sendTypingSignal();
+                typingDebounce = setTimeout(() => { typingDebounce = null; }, 1500);
+            });
+        }
     });
 </script>
 

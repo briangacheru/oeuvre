@@ -48,11 +48,12 @@ try {
 
     // Fetch new messages
     $newMessagesQuery = mysqli_query($con, "
-        SELECT sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url, is_read
-        FROM chat_messages 
-        WHERE receiver_id = $currentUserId 
-          AND receiver_type = '$currentUserType' 
+        SELECT id, sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url, is_read, is_edited, related_task_id
+        FROM chat_messages
+        WHERE receiver_id = $currentUserId
+          AND receiver_type = '$currentUserType'
           AND timestamp > '$escapedTimestamp'
+          AND is_deleted = 0
         ORDER BY timestamp ASC
         LIMIT 50
     ");
@@ -64,6 +65,7 @@ try {
     $newMessages = [];
     while ($message = mysqli_fetch_assoc($newMessagesQuery)) {
         $newMessages[] = [
+            'id' => intval($message['id']),
             'sender_id' => intval($message['sender_id']),
             'sender_type' => $message['sender_type'],
             'receiver_id' => intval($message['receiver_id']),
@@ -71,7 +73,9 @@ try {
             'message' => $message['message'] ?? '',
             'timestamp' => $message['timestamp'],
             'file_url' => $message['file_url'],
-            'is_read' => intval($message['is_read']) ? true : false
+            'is_read' => intval($message['is_read']) ? true : false,
+            'is_edited' => intval($message['is_edited']) ? true : false,
+            'related_task_id' => $message['related_task_id'] ? intval($message['related_task_id']) : null
         ];
     }
 

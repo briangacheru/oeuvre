@@ -25,10 +25,11 @@ $lastTimestamp = isset($_GET['last_timestamp']) ? $_GET['last_timestamp'] : '000
 
 // Fetch new messages
 $newMessagesStmt = mysqli_prepare($con, "
-    SELECT sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url
+    SELECT id, sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url, is_read, is_edited, related_task_id
     FROM chat_messages
     WHERE (receiver_id = ? AND receiver_type = ?)
       AND timestamp > ?
+      AND is_deleted = 0
     ORDER BY timestamp ASC
 ");
 mysqli_stmt_bind_param($newMessagesStmt, 'iss', $currentUserId, $currentUserType, $lastTimestamp);

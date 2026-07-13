@@ -9,30 +9,29 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
     $receiverType = trim($_POST['receiver_type']);
     $fileUrl = null;
 
-    if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+    if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $validation = validateChatAttachment($_FILES['file']);
+        if (!$validation['success']) {
+            echo json_encode(['status' => 'error', 'message' => $validation['message']]);
+            exit;
+        }
+
         $fileTmpPath = $_FILES['file']['tmp_name'];
-        $fileName = basename($_FILES['file']['name']);
+        // Random filename rather than the original - the allow-list now
+        // covers many more types than just images, so name collisions
+        // between different senders' files are far more likely.
+        $fileName = bin2hex(random_bytes(16)) . '_' . time() . '.' . $validation['extension'];
         $uploadDir = 'taskfiles/'; // Ensure this directory exists and is writable
         $destPath = $uploadDir . $fileName;
 
-        // Check if the file is an image
-        $fileType = mime_content_type($fileTmpPath);
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-
-        if (in_array($fileType, $allowedTypes)) {
-            if (move_uploaded_file($fileTmpPath, $destPath)) {
-                $fileUrl = $fileName; // Only store the file name
-            } else {
-                error_log('File upload failed.');
-                echo json_encode(['status' => 'error', 'message' => 'File upload failed.']);
-                exit;
-            }
+        if (move_uploaded_file($fileTmpPath, $destPath)) {
+            chmod($destPath, 0644);
+            $fileUrl = $fileName; // Only store the file name
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Only jpeg, png, jpg, and gif files are allowed.']);
+            error_log('File upload failed.');
+            echo json_encode(['status' => 'error', 'message' => 'File upload failed.']);
             exit;
         }
-    } else if (isset($_FILES['file'])) {
-        error_log('File upload error: ' . $_FILES['file']['error']);
     }
 
     error_log('File URL: ' . $fileUrl); // Debugging: log the file URL
@@ -48,11 +47,16 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
         $senderId = $sender['id'];
         $senderType = $sender['type'];
 
+        $relatedTaskId = filter_var($_POST['related_task_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($relatedTaskId === false || $relatedTaskId <= 0) {
+            $relatedTaskId = null;
+        }
+
         $insertQuery = mysqli_prepare($con, "
-            INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, timestamp, is_read) 
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), 0)
+            INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, related_task_id, timestamp, is_read)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0)
         ");
-        mysqli_stmt_bind_param($insertQuery, 'isisss', $senderId, $senderType, $receiverId, $receiverType, $message, $fileUrl);
+        mysqli_stmt_bind_param($insertQuery, 'isisssi', $senderId, $senderType, $receiverId, $receiverType, $message, $fileUrl, $relatedTaskId);
 
         // Error logging can be done by manually creating a string of the query and parameters
         $logMessage = sprintf(
@@ -67,7 +71,7 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
         error_log('Insert Query: ' . $logMessage); // Debugging: log the query
 
         if (mysqli_stmt_execute($insertQuery)) {
-            echo json_encode(['status' => 'success']);
+            echo json_encode(['status' => 'success', 'message_id' => mysqli_insert_id($con), 'file_url' => $fileUrl]);
         } else {
             error_log('Database insert failed: ' . mysqli_error($con));
             echo json_encode(['status' => 'error', 'message' => 'Database insert failed.']);

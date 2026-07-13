@@ -109,7 +109,7 @@ function getChatUsers($con, $currentUserId, $currentUserType) {
             ) ranked_messages
             WHERE rn = 1
         ) latest ON w.id = latest.user_id
-        WHERE w.id != ?
+        WHERE w.id != ? AND w.is_deleted = 0 AND w.is_active = 1 AND w.is_verified = 1
         ORDER BY latest.latest_timestamp DESC, w.username ASC
     ");
 
@@ -146,28 +146,15 @@ function getChatUsers($con, $currentUserId, $currentUserType) {
 }
 
 /**
- * Enhanced status text generation
+ * Enhanced status text generation - last_seen wording/timezone handling
+ * matches sudo/writer.php (see getLastSeenText() in shared-functions.php)
  */
 function getStatusText($isOnline, $lastSeen) {
     if ($isOnline) {
         return 'Online';
     }
 
-    if (!$lastSeen || $lastSeen === '0000-00-00 00:00:00') {
-        return 'Offline';
-    }
-
-    $timeDiff = time() - strtotime($lastSeen);
-
-    if ($timeDiff < 300) { // 5 minutes
-        return 'Just now';
-    } elseif ($timeDiff < 3600) { // 1 hour
-        return floor($timeDiff / 60) . ' minutes ago';
-    } elseif ($timeDiff < 86400) { // 1 day
-        return floor($timeDiff / 3600) . ' hours ago';
-    } else {
-        return 'Last seen ' . date('M j, Y, g:i a', strtotime($lastSeen));
-    }
+    return getLastSeenText($lastSeen);
 }
 
 // Main execution with error handling
@@ -196,9 +183,8 @@ try {
                     <h4 class="mb-0 text-primary fw-bold">My <span class="text-info fw-medium">Chats</span></h4>
                 </div>
                 <div class="col-lg-auto">
-                    <small class="text-muted">
-                        <?php echo count(array_filter($users, function($u) { return $u['is_online']; })); ?> online
-                    </small>
+                    <?php $onlineCount = count(array_filter($users, function($u) { return $u['is_online']; })); ?>
+                    <span class="badge rounded-pill ms-2 badge-subtle-success"><?php echo $onlineCount; ?> online</span>
                 </div>
             </div>
         </div>
@@ -208,6 +194,14 @@ try {
         .card-chat {
             height: calc(80vh - var(--falcon-top-nav-height) - 0.625rem - 5rem);
         }
+
+        /* Presence tiers beyond the theme's built-in status-online/status-offline,
+           bucketed by how long ago last_seen was (see getPresenceStatusClass()). */
+        .avatar.status-day:before { background-color: var(--falcon-info); }
+        .avatar.status-week:before { background-color: var(--falcon-warning); }
+        .avatar.status-fortnight:before { background-color: #c1440e; }
+        .avatar.status-month:before { background-color: var(--falcon-danger); }
+        .avatar.status-year:before { background-color: var(--falcon-secondary); }
     </style>
     <div class="card card-chat overflow-hidden">
         <div class="card-body d-flex p-0 h-100">
@@ -224,7 +218,7 @@ try {
                         <?php foreach ($users as $index => $user): ?>
                             <?php
                             $statusText = getStatusText($user['is_online'], $user['last_seen']);
-                            $statusClass = $user['is_online'] ? 'status-online' : 'status-offline';
+                            $statusClass = getPresenceStatusClass($user['is_online'], $user['last_seen']);
                             $avatarSrc = '../profileimages/' . htmlspecialchars($user['photo'], ENT_QUOTES, 'UTF-8');
                             $unreadCount = $user['unread_count'];
 
@@ -263,7 +257,7 @@ try {
                                                 <span class="message-time fs-11">
                                                 <?php
                                                 if ($user['latest_message_time']) {
-                                                    $messageTime = strtotime($user['latest_message_time']);
+                                                    $messageTime = utcToNairobiTimestamp($user['latest_message_time']);
                                                     echo date('Y-m-d') === date('Y-m-d', $messageTime) ?
                                                         date('g:i A', $messageTime) :
                                                         date('M j', $messageTime);
@@ -340,7 +334,9 @@ try {
                                     </a>
                                     <div class="min-w-0">
                                         <h5 class="mb-0 text-truncate fs-9">
-                                            <?php echo htmlspecialchars($user['username']); ?>
+                                            <a class="text-900" href="writer.php?writerID=<?php echo base64_encode($user['id']); ?>">
+                                                <?php echo htmlspecialchars($user['username']); ?>
+                                            </a>
                                             <small class="text-muted">(<?php echo ucfirst($user['type']); ?>)</small>
                                         </h5>
                                         <div class="fs-11 text-400" id="user-status-<?php echo $user['id']; ?>">
@@ -363,6 +359,18 @@ try {
                                                     <i class="fas fa-sync-alt me-2"></i>Refresh
                                                 </a>
                                             </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#!"
+                                                   onclick="openSharedFiles(<?php echo $user['id']; ?>)">
+                                                    <i class="fas fa-paperclip me-2"></i>Shared Files
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#!"
+                                                   onclick="openLinkTaskModal(<?php echo $user['id']; ?>)">
+                                                    <i class="fas fa-tasks me-2"></i>Link to Task
+                                                </a>
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>
@@ -381,8 +389,15 @@ try {
                     </div>
                 <?php endforeach; ?>
 
+                <div id="typing-indicator" class="fs-11 text-muted fst-italic px-3 d-none"></div>
+
+                <div id="linked-task-banner" class="fs-11 px-3 py-1 bg-info-subtle d-none d-flex align-items-center justify-content-between">
+                    <span><i class="fas fa-tasks me-1"></i><span id="linked-task-label"></span></span>
+                    <button type="button" class="btn-close btn-close-sm" onclick="clearLinkedTask()" title="Unlink task"></button>
+                </div>
+
                 <!-- Enhanced message input form with better validation -->
-                <form class="chat-editor-area" method="post" enctype="multipart/form-data" onsubmit="return submitMessage(event);">
+                <form class="chat-editor-area d-none" method="post" enctype="multipart/form-data" onsubmit="return submitMessage(event);">
 <?= csrf_field() ?>
                     <!-- CSRF token for security -->
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
@@ -402,7 +417,7 @@ try {
                            id="chat-file-upload"
                            name="file"
                            class="d-none"
-                           accept="image/*"
+                           accept="image/*,.heic,.heif,.avif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
                            onchange="handleFileUpload(this)">
 
                     <label class="chat-file-upload cursor-pointer" for="chat-file-upload">
@@ -431,14 +446,51 @@ try {
         </div>
     </div>
 
+    <!-- Shared Files/Media modal (single instance, reused for whichever chat is open) -->
+    <div class="modal fade" id="sharedFilesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-paperclip me-2"></i>Shared Files</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="sharedFilesModalBody">
+                    <div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link to Task modal (single instance, reused for whichever chat is open) -->
+    <div class="modal fade" id="linkTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-tasks me-2"></i>Link to Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="linkTaskModalBody">
+                    <div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // FIXED Chat JavaScript - Simplified and more compatible
 
-        let lastTimestamp = '0000-00-00 00:00:00';
+        // Starts at "now" rather than the epoch, so the first poll cycle
+        // doesn't fire a desktop notification for every already-unread
+        // message (those are already reflected by the sidebar's unread
+        // badges from the initial page load).
+        let lastTimestamp = '<?php echo gmdate('Y-m-d H:i:s'); ?>';
         let currentReceiver = null;
         let currentReceiverType = null;
         let currentIndex = null;
         let pollInterval = null;
+        let linkedTaskId = null;
+
+        const CONTACT_NAMES = <?php echo json_encode(array_column($users, 'username', 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
         function setReceiver(id, type, index) {
             currentReceiver = id;
@@ -472,6 +524,21 @@ try {
             if (selectedChat) {
                 selectedChat.classList.add('active');
             }
+
+            // Only show the message editor once a chat is actually selected
+            const editorArea = document.querySelector('.chat-editor-area');
+            if (editorArea) {
+                editorArea.classList.remove('d-none');
+            }
+
+            // Reset stale typing indicator from whatever was open before
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.classList.add('d-none');
+            }
+
+            // A linked task is specific to the conversation it was set in
+            clearLinkedTask();
 
             fetchMessages(id, type, index);
             updateReadStatus(id);
@@ -543,7 +610,7 @@ try {
 
             messages.forEach(message => {
                 try {
-                    const messageDate = new Date(message.timestamp);
+                    const messageDate = parseDbTimestamp(message.timestamp);
                     const messageDateString = messageDate.toLocaleDateString();
 
                     // Add date separator
@@ -577,8 +644,11 @@ try {
                     const isCurrentUser = message.sender_id == currentUserId;
                     const messageElement = document.createElement('div');
                     messageElement.className = `d-flex p-3 ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`;
+                    if (message.id) {
+                        messageElement.dataset.messageId = message.id;
+                    }
 
-                    const messageTime = new Date(message.timestamp);
+                    const messageTime = parseDbTimestamp(message.timestamp);
                     const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
                     let fileHtml = '';
@@ -596,14 +666,16 @@ try {
                 <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
                     <div class="w-100 w-xxl-75">
                         <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
+                            ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                             <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                                ${escapeHtml(message.message)}
+                                ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                                ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                                 ${fileHtml}
                             </div>
                         </div>
                         <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''} mt-1">
                             <span>${timeString}</span>
-                            ${isCurrentUser ? `<span class="${message.is_read ? 'text-success' : 'text-muted'} fas fa-check ms-1"></span>` : ''}
+                            ${isCurrentUser ? readReceiptTicksHtml(message.is_read) : ''}
                         </div>
                     </div>
                 </div>
@@ -684,6 +756,10 @@ try {
                 formData.append('file', fileInput.files[0]);
             }
 
+            if (linkedTaskId) {
+                formData.append('related_task_id', linkedTaskId);
+            }
+
             fetch('send_message', {
                 method: 'POST',
                 body: formData
@@ -708,18 +784,18 @@ try {
                             const chatContent = document.getElementById(`chat-content-${receiverId}`);
                             if (chatContent) {
                                 const messageElement = createMessageElement({
+                                    id: data.message_id || null,
                                     sender_id: <?php echo isset($currentUserId) ? $currentUserId : '0'; ?>,
                                     message: messageContent,
                                     timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
                                     file_url: data.file_url || null,
-                                    is_read: false
+                                    is_read: false,
+                                    related_task_id: linkedTaskId
                                 });
 
                                 chatContent.appendChild(messageElement);
                                 chatContent.scrollTop = chatContent.scrollHeight;
                             }
-
-                            showMessage('Message sent successfully', 'success');
 
                         } else {
                             throw new Error(data.message || 'Failed to send message');
@@ -748,8 +824,11 @@ try {
             const isCurrentUser = message.sender_id == <?php echo isset($currentUserId) ? $currentUserId : '0'; ?>;
             const messageElement = document.createElement('div');
             messageElement.className = `d-flex p-3 ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`;
+            if (message.id) {
+                messageElement.dataset.messageId = message.id;
+            }
 
-            const messageTime = new Date(message.timestamp);
+            const messageTime = parseDbTimestamp(message.timestamp);
             const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
             let fileHtml = '';
@@ -767,14 +846,16 @@ try {
         <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
             <div class="w-100 w-xxl-75">
                 <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
+                    ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                        ${escapeHtml(message.message)}
+                        ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                        ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                         ${fileHtml}
                     </div>
                 </div>
                 <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''} mt-1">
                     <span>${timeString}</span>
-                    ${isCurrentUser ? `<span class="${message.is_read ? 'text-success' : 'text-muted'} fas fa-check ms-1"></span>` : ''}
+                    ${isCurrentUser ? readReceiptTicksHtml(message.is_read) : ''}
                 </div>
             </div>
         </div>
@@ -784,7 +865,11 @@ try {
         }
 
         function pollMessages() {
-            if (!currentReceiver) return;
+            // poll_messages returns everything addressed to me, regardless of
+            // which conversation (if any) is currently open, so a message
+            // from someone other than the open contact still surfaces here.
+            refreshReadReceipts();
+            refreshTypingIndicator();
 
             fetch(`poll_messages?last_timestamp=${encodeURIComponent(lastTimestamp)}`)
                 .then(response => {
@@ -796,7 +881,7 @@ try {
                 .then(messages => {
                     if (messages.length > 0) {
                         messages.forEach(message => {
-                            if (message.sender_id == currentReceiver) {
+                            if (currentReceiver && message.sender_id == currentReceiver) {
                                 const chatContent = document.getElementById(`chat-content-${currentReceiver}`);
                                 if (chatContent) {
                                     const messageElement = createMessageElement(message);
@@ -804,6 +889,7 @@ try {
                                     chatContent.scrollTop = chatContent.scrollHeight;
                                 }
                             }
+                            notifyNewMessage(message);
                         });
 
                         lastTimestamp = messages[messages.length - 1].timestamp;
@@ -818,6 +904,216 @@ try {
                 .catch(error => {
                     console.error('Error polling messages:', error);
                 });
+        }
+
+        // Desktop notification for an incoming message, unless the viewer is
+        // already actively looking at that exact conversation.
+        function notifyNewMessage(message) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            if (document.hasFocus() && currentReceiver && message.sender_id == currentReceiver) return;
+
+            const senderName = CONTACT_NAMES[message.sender_id] || 'Someone';
+            const body = message.message ? message.message : (message.file_url ? 'Sent a file' : 'New message');
+
+            const notification = new Notification(`New message from ${senderName}`, {
+                body: body,
+                icon: '../assets/img/favicons/favicon-32x32.png',
+                tag: `chat-message-${message.sender_id}`
+            });
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+            };
+        }
+
+        // Flips single ticks to double green ticks on my own sent messages
+        // once the currently-open partner has read them.
+        function refreshReadReceipts() {
+            if (!currentReceiver) return;
+
+            fetch(`get_sent_read_status?partner_id=${encodeURIComponent(currentReceiver)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.status !== 'success' || !Array.isArray(data.read_ids)) return;
+
+                    data.read_ids.forEach(id => {
+                        const messageEl = document.querySelector(`[data-message-id="${id}"]`);
+                        if (!messageEl) return;
+                        const tick = messageEl.querySelector('.fa-check, .fa-check-double');
+                        if (tick && !tick.classList.contains('fa-check-double')) {
+                            tick.outerHTML = readReceiptTicksHtml(true);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error refreshing read receipts:', error);
+                });
+        }
+
+        function sendTypingSignal() {
+            if (!currentReceiver || !currentReceiverType) return;
+
+            const formData = new FormData();
+            formData.append('receiver_id', currentReceiver);
+            formData.append('receiver_type', currentReceiverType);
+
+            fetch('set_typing_status', { method: 'POST', body: formData })
+                .catch(error => console.error('Error sending typing signal:', error));
+        }
+
+        function refreshTypingIndicator() {
+            if (!currentReceiver) return;
+
+            const indicator = document.getElementById('typing-indicator');
+            if (!indicator) return;
+
+            fetch(`get_typing_status?partner_id=${encodeURIComponent(currentReceiver)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.status === 'success' && data.typing) {
+                        indicator.textContent = 'Typing...';
+                        indicator.classList.remove('d-none');
+                    } else {
+                        indicator.classList.add('d-none');
+                    }
+                })
+                .catch(error => console.error('Error checking typing status:', error));
+        }
+
+        // File-type icon for non-image shared files (same map used for the
+        // attachment preview before sending).
+        const SHARED_FILE_ICON_MAP = {
+            pdf: 'fa-file-pdf text-danger',
+            doc: 'fa-file-word text-primary', docx: 'fa-file-word text-primary',
+            xls: 'fa-file-excel text-success', xlsx: 'fa-file-excel text-success',
+            ppt: 'fa-file-powerpoint text-warning', pptx: 'fa-file-powerpoint text-warning',
+            zip: 'fa-file-archive text-secondary'
+        };
+        const SHARED_FILE_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'bmp', 'tiff', 'tif'];
+
+        function openSharedFiles(partnerId) {
+            const modalBody = document.getElementById('sharedFilesModalBody');
+            modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            const modalEl = document.getElementById('sharedFilesModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            fetch(`get_shared_files?partner_id=${encodeURIComponent(partnerId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.status !== 'success') {
+                        modalBody.innerHTML = '<p class="text-danger text-center">Failed to load shared files.</p>';
+                        return;
+                    }
+
+                    if (!data.files || data.files.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted text-center py-4">No files shared yet.</p>';
+                        return;
+                    }
+
+                    const grid = document.createElement('div');
+                    grid.className = 'row g-3';
+
+                    data.files.forEach(file => {
+                        const extension = (file.file_url.split('.').pop() || '').toLowerCase();
+                        const isImage = SHARED_FILE_IMAGE_EXTENSIONS.includes(extension);
+                        const fileHref = `../taskfiles/${encodeURIComponent(file.file_url)}`;
+                        const dateText = parseDbTimestamp(file.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                        const col = document.createElement('div');
+                        col.className = 'col-6 col-md-4';
+
+                        const previewHtml = isImage
+                            ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="Shared file" loading="lazy"></a>`
+                            : `<a href="${fileHref}" target="_blank" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
+
+                        col.innerHTML = `
+                    <div class="border rounded p-2 h-100">
+                        ${previewHtml}
+                        <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(file.file_url)}</div>
+                        <div class="fs-11 text-400">${dateText}</div>
+                    </div>
+                `;
+                        grid.appendChild(col);
+                    });
+
+                    modalBody.innerHTML = '';
+                    modalBody.appendChild(grid);
+
+                    if (typeof GLightbox !== 'undefined') {
+                        GLightbox({ selector: '#sharedFilesModalBody .glightbox' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading shared files:', error);
+                    modalBody.innerHTML = '<p class="text-danger text-center">Failed to load shared files.</p>';
+                });
+        }
+
+        function openLinkTaskModal(partnerId) {
+            const modalBody = document.getElementById('linkTaskModalBody');
+            modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            const modalEl = document.getElementById('linkTaskModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            fetch(`get_linkable_tasks?partner_id=${encodeURIComponent(partnerId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.status !== 'success') {
+                        modalBody.innerHTML = '<p class="text-danger text-center">Failed to load tasks.</p>';
+                        return;
+                    }
+
+                    if (!data.tasks || data.tasks.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted text-center py-4">No tasks found for this writer.</p>';
+                        return;
+                    }
+
+                    const list = document.createElement('div');
+                    list.className = 'list-group';
+                    data.tasks.forEach(task => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = `#${task.id} - ${task.topic}`;
+                        item.onclick = function() {
+                            selectLinkedTask(task.id, task.topic);
+                            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                        };
+                        list.appendChild(item);
+                    });
+
+                    modalBody.innerHTML = '';
+                    modalBody.appendChild(list);
+                })
+                .catch(error => {
+                    console.error('Error loading linkable tasks:', error);
+                    modalBody.innerHTML = '<p class="text-danger text-center">Failed to load tasks.</p>';
+                });
+        }
+
+        function selectLinkedTask(taskId, topic) {
+            linkedTaskId = taskId;
+            const banner = document.getElementById('linked-task-banner');
+            const label = document.getElementById('linked-task-label');
+            if (label) label.textContent = `Discussing: Task #${taskId} - ${topic}`;
+            if (banner) banner.classList.remove('d-none');
+        }
+
+        function clearLinkedTask() {
+            linkedTaskId = null;
+            const banner = document.getElementById('linked-task-banner');
+            if (banner) banner.classList.add('d-none');
+        }
+
+        // Small chip linking a message back to the task it was sent about.
+        function taskChipHtml(relatedTaskId) {
+            if (!relatedTaskId) return '';
+            const encodedId = btoa(String(relatedTaskId));
+            return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-dark text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
         }
 
         function updateReadStatus(userId) {
@@ -839,6 +1135,14 @@ try {
         }
 
         // File upload handling
+        // Allowed: office docs, zip, pdf, and photos (matches
+        // validateChatAttachment() in shared-functions.php). Extension-based
+        // rather than file.type, since browsers commonly report an empty
+        // MIME type for newer photo formats like heic/avif.
+        const ALLOWED_CHAT_FILE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'bmp', 'tiff', 'tif',
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip'];
+        const MAX_CHAT_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
         function handleFileUpload(input) {
             const file = input.files[0];
             if (!file) {
@@ -846,18 +1150,18 @@ try {
                 return;
             }
 
-            // Validate file size (10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                showMessage('File size must be less than 10MB', 'error');
+            if (file.size > MAX_CHAT_FILE_SIZE) {
+                showMessage('File size must be less than 50MB', 'error');
                 input.value = '';
+                hideFilePreview();
                 return;
             }
 
-            // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            if (!allowedTypes.includes(file.type)) {
-                showMessage('Only image files are allowed', 'error');
+            const extension = file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED_CHAT_FILE_EXTENSIONS.includes(extension)) {
+                showMessage('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.', 'error');
                 input.value = '';
+                hideFilePreview();
                 return;
             }
 
@@ -867,11 +1171,40 @@ try {
         function showFilePreview(file) {
             const previewContainer = document.getElementById('file-preview');
             previewContainer.style.display = 'block';
-            previewContainer.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Processing...';
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const browserRenderableImages = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+            const iconMap = {
+                pdf: 'fa-file-pdf text-danger',
+                doc: 'fa-file-word text-primary', docx: 'fa-file-word text-primary',
+                xls: 'fa-file-excel text-success', xlsx: 'fa-file-excel text-success',
+                ppt: 'fa-file-powerpoint text-warning', pptx: 'fa-file-powerpoint text-warning',
+                zip: 'fa-file-archive text-secondary',
+                heic: 'fa-file-image text-info', heif: 'fa-file-image text-info', avif: 'fa-file-image text-info',
+                tiff: 'fa-file-image text-info', tif: 'fa-file-image text-info'
+            };
+
+            function renderWithIcon() {
+                const iconClass = iconMap[extension] || 'fa-file text-secondary';
                 previewContainer.innerHTML = `
+            <div class="d-flex align-items-center border rounded p-2 mb-2">
+                <i class="fas ${iconClass} fa-2x me-2"></i>
+                <div class="flex-1">
+                    <div class="fw-bold">${escapeHtml(file.name)}</div>
+                    <small class="text-muted">${formatFileSize(file.size)}</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFilePreview()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+            }
+
+            if (browserRenderableImages.includes(extension)) {
+                previewContainer.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Processing...';
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `
             <div class="d-flex align-items-center border rounded p-2 mb-2">
                 <img src="${e.target.result}" alt="Preview" style="width: 50px; height: 50px; object-fit: cover;" class="me-2 rounded">
                 <div class="flex-1">
@@ -883,8 +1216,11 @@ try {
                 </button>
             </div>
         `;
-            };
-            reader.readAsDataURL(file);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                renderWithIcon();
+            }
         }
 
         function hideFilePreview() {
@@ -904,6 +1240,88 @@ try {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Single muted tick = sent; double green tick = read by the recipient.
+        function readReceiptTicksHtml(isRead) {
+            return isRead
+                ? '<span class="text-success fas fa-check-double ms-1" title="Read"></span>'
+                : '<span class="text-muted fas fa-check ms-1" title="Sent"></span>';
+        }
+
+        // Edit/delete hover buttons, shown only on the sender's own messages.
+        function messageActionsHtml(messageId) {
+            return `
+            <div class="hover-actions me-1">
+                <button type="button" class="btn btn-tertiary border-300 btn-sm p-1 me-1" onclick="editMessage(${messageId}, this)" title="Edit"><i class="fas fa-pen fs-11"></i></button>
+                <button type="button" class="btn btn-tertiary border-300 btn-sm p-1" onclick="deleteMessage(${messageId}, this)" title="Delete"><i class="fas fa-trash fs-11"></i></button>
+            </div>
+        `;
+        }
+
+        function editMessage(messageId, btn) {
+            if (!messageId) return;
+            const bubble = btn.closest('.hover-actions-trigger').querySelector('.message-text');
+            if (!bubble) return;
+
+            const currentText = bubble.textContent;
+            const newText = prompt('Edit your message:', currentText);
+            if (newText === null || newText.trim() === '' || newText === currentText) return;
+
+            const formData = new FormData();
+            formData.append('message_id', messageId);
+            formData.append('message', newText);
+            formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+            fetch('edit_message', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        bubble.textContent = newText;
+                        const chatMessage = btn.closest('.hover-actions-trigger').querySelector('.chat-message');
+                        if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
+                            const tag = document.createElement('span');
+                            tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
+                            tag.textContent = '(edited)';
+                            bubble.insertAdjacentElement('afterend', tag);
+                        }
+                    } else {
+                        alert('Failed to edit message: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => alert('Error editing message: ' + error.message));
+        }
+
+        function deleteMessage(messageId, btn) {
+            if (!messageId) return;
+            if (!confirm('Delete this message?')) return;
+
+            const formData = new FormData();
+            formData.append('message_id', messageId);
+            formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+            fetch('delete_message', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const messageRow = btn.closest('[data-message-id]');
+                        if (messageRow) messageRow.remove();
+                    } else {
+                        alert('Failed to delete message: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => alert('Error deleting message: ' + error.message));
+        }
+
+        // chat_messages.timestamp is stored in UTC (MySQL's NOW() reflects the
+        // DB server's own timezone). A bare `new Date("YYYY-MM-DD HH:mm:ss")`
+        // is parsed by the browser as LOCAL time, not UTC, which threw every
+        // displayed time off by the Nairobi UTC+3 offset. Marking it as UTC
+        // explicitly lets the browser correctly convert to the viewer's own
+        // local time from there.
+        function parseDbTimestamp(ts) {
+            if (!ts) return new Date();
+            return new Date(ts.replace(' ', 'T') + 'Z');
         }
 
         function truncateText(text, maxLength) {
@@ -966,6 +1384,10 @@ try {
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Chat system initializing...');
 
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
             // Set up contact search
             setupContactSearch();
 
@@ -974,6 +1396,17 @@ try {
             if (fileInput) {
                 fileInput.addEventListener('change', function() {
                     handleFileUpload(this);
+                });
+            }
+
+            // Typing indicator: debounced poke while actively typing
+            const messageInputEl = document.getElementById('messageInput');
+            if (messageInputEl) {
+                let typingDebounce = null;
+                messageInputEl.addEventListener('input', function() {
+                    if (typingDebounce) return;
+                    sendTypingSignal();
+                    typingDebounce = setTimeout(() => { typingDebounce = null; }, 1500);
                 });
             }
 

@@ -45,7 +45,7 @@ if (!in_array($receiverType, ['admin', 'writer'])) {
 }
 
 // Check if message or file is provided
-$hasFiles = isset($_FILES['attachments']) && !empty($_FILES['attachments']['name'][0]);
+$hasFiles = isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE;
 if (empty($message) && !$hasFiles) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Message or file required']);
@@ -118,12 +118,17 @@ try {
     // Escape message content for database insertion
     $escapedMessage = mysqli_real_escape_string($con, $message);
     $escapedFileUrl = $fileUrl ? mysqli_real_escape_string($con, $fileUrl) : null;
+    $relatedTaskId = filter_var($_POST['related_task_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($relatedTaskId === false || $relatedTaskId <= 0) {
+        $relatedTaskId = null;
+    }
 
     // Insert message
     $insertQuery = "
-        INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, timestamp, is_read) 
+        INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, related_task_id, timestamp, is_read)
         VALUES ($senderId, '$senderType', $receiverId, '$receiverType', '$escapedMessage', " .
-        ($escapedFileUrl ? "'$escapedFileUrl'" : 'NULL') . ", NOW(), 0)
+        ($escapedFileUrl ? "'$escapedFileUrl'" : 'NULL') . ', ' .
+        ($relatedTaskId ? (int)$relatedTaskId : 'NULL') . ", NOW(), 0)
     ";
 
     $result = mysqli_query($con, $insertQuery);
@@ -153,70 +158,17 @@ try {
 }
 
 /**
- * Enhanced file upload function with comprehensive security checks
+ * File upload handler - type/size policy lives in validateChatAttachment()
+ * (shared-functions.php) so both interfaces enforce the same rules.
  */
 function handleFileUpload($file) {
-    // Check for upload errors
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'message' => 'File upload error: ' . getUploadErrorMessage($file['error'])];
-    }
-
-    // File size validation (10MB limit)
-    $maxFileSize = 10 * 1024 * 1024; // 10MB
-    if ($file['size'] > $maxFileSize) {
-        return ['success' => false, 'message' => 'File size exceeds 10MB limit'];
-    }
-
-    // Get real MIME type using finfo (more reliable than $_FILES['type'])
-    if (function_exists('finfo_open')) {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
-    } else {
-        // Fallback for older PHP versions
-        $mimeType = mime_content_type($file['tmp_name']);
-    }
-
-    // Define allowed file types
-    $allowedTypes = [
-        'image/jpeg' => ['jpg', 'jpeg'],
-        'image/png' => ['png'],
-        'image/gif' => ['gif'],
-        'image/webp' => ['webp']
-    ];
-
-    // Validate MIME type
-    if (!array_key_exists($mimeType, $allowedTypes)) {
-        return ['success' => false, 'message' => 'File type not allowed. Only images are permitted.'];
-    }
-
-    // Validate file extension
-    $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (!in_array($fileExtension, $allowedTypes[$mimeType])) {
-        return ['success' => false, 'message' => 'File extension does not match file type'];
-    }
-
-    // Additional validation for images
-    if (strpos($mimeType, 'image/') === 0) {
-        // Verify it's a valid image
-        $imageInfo = getimagesize($file['tmp_name']);
-        if ($imageInfo === false) {
-            return ['success' => false, 'message' => 'Invalid image file'];
-        }
-
-        // Check for embedded PHP code or scripts (security check)
-        $imageContent = file_get_contents($file['tmp_name'], false, null, 0, 1024); // Check first 1KB
-        $suspiciousPatterns = ['<?php', '<?', '<script', 'javascript:', 'vbscript:'];
-
-        foreach ($suspiciousPatterns as $pattern) {
-            if (stripos($imageContent, $pattern) !== false) {
-                return ['success' => false, 'message' => 'File contains suspicious content'];
-            }
-        }
+    $validation = validateChatAttachment($file);
+    if (!$validation['success']) {
+        return $validation;
     }
 
     // Generate secure filename
-    $filename = generateSecureFilename($fileExtension);
+    $filename = generateSecureFilename($validation['extension']);
 
     // Set upload directory
     $uploadDir = '../taskfiles/';

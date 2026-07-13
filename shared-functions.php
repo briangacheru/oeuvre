@@ -156,6 +156,83 @@ function getUploadErrorMessage($errorCode) {
 }
 }
 
+if (!function_exists('validateChatAttachment')) {
+    // Shared allow-list for chat attachments (both interfaces): office docs,
+    // zip, pdf, and photos (including formats getimagesize()/finfo commonly
+    // misreport, like heic/avif - hence the extra fallback mime entries).
+    // Only validates - does not move/store the file, so each caller can keep
+    // its own upload-directory/filename logic.
+    function validateChatAttachment($file, $maxBytes = 52428800) { // 50MB
+        if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+            $code = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+            return ['success' => false, 'message' => 'File upload error: ' . getUploadErrorMessage($code)];
+        }
+
+        if ($file['size'] > $maxBytes) {
+            return ['success' => false, 'message' => 'File size exceeds the 50MB limit'];
+        }
+
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+        } else {
+            $mimeType = mime_content_type($file['tmp_name']);
+        }
+
+        $allowedExtensions = [
+            // Documents
+            'pdf'  => ['application/pdf'],
+            'doc'  => ['application/msword'],
+            'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+            'xls'  => ['application/vnd.ms-excel'],
+            'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+            'ppt'  => ['application/vnd.ms-powerpoint'],
+            'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip'],
+            'zip'  => ['application/zip', 'application/x-zip-compressed'],
+            // Photos
+            'jpg'  => ['image/jpeg'],
+            'jpeg' => ['image/jpeg'],
+            'png'  => ['image/png'],
+            'gif'  => ['image/gif'],
+            'webp' => ['image/webp'],
+            'heic' => ['image/heic', 'image/heif', 'application/octet-stream'],
+            'heif' => ['image/heif', 'image/heic', 'application/octet-stream'],
+            'avif' => ['image/avif', 'application/octet-stream'],
+            'bmp'  => ['image/bmp', 'image/x-ms-bmp'],
+            'tiff' => ['image/tiff'],
+            'tif'  => ['image/tiff'],
+        ];
+
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+        if (!array_key_exists($extension, $allowedExtensions)) {
+            return ['success' => false, 'message' => 'File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.'];
+        }
+
+        if (!in_array($mimeType, $allowedExtensions[$extension], true)) {
+            return ['success' => false, 'message' => 'File content does not match its extension'];
+        }
+
+        // getimagesize()/embedded-script sniffing only applies to the formats
+        // it can actually parse - heic/avif aren't reliably supported here.
+        $knownImageMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/x-ms-bmp', 'image/tiff'];
+        if (in_array($mimeType, $knownImageMimes, true)) {
+            if (getimagesize($file['tmp_name']) === false) {
+                return ['success' => false, 'message' => 'Invalid image file'];
+            }
+            $sample = file_get_contents($file['tmp_name'], false, null, 0, 1024);
+            foreach (['<?php', '<?', '<script', 'javascript:', 'vbscript:'] as $pattern) {
+                if (stripos($sample, $pattern) !== false) {
+                    return ['success' => false, 'message' => 'File contains suspicious content'];
+                }
+            }
+        }
+
+        return ['success' => true, 'extension' => $extension, 'mimeType' => $mimeType];
+    }
+}
+
 if (!function_exists('validatePassword')) {
 function validatePassword($password) {
     // Minimum eight characters, at least one uppercase letter, one lowercase letter, and one number
@@ -184,6 +261,21 @@ function formatSizeUnits($bytes) {
 }
 }
 
+if (!function_exists('utcToNairobiTimestamp')) {
+    // chat_messages.timestamp (and last_seen) are stored in UTC. A bare
+    // strtotime() on that string is parsed using PHP's default timezone
+    // (Africa/Nairobi, set in check-login.php), throwing it off by the
+    // UTC+3 offset. Parsing as UTC explicitly gives the correct absolute
+    // Unix timestamp - date()/strtotime()-style formatting from there
+    // already renders in Africa/Nairobi via the process default timezone.
+    function utcToNairobiTimestamp($mysqlDatetime) {
+        if (!$mysqlDatetime || $mysqlDatetime === '0000-00-00 00:00:00') {
+            return false;
+        }
+        return (new DateTime($mysqlDatetime, new DateTimeZone('UTC')))->getTimestamp();
+    }
+}
+
 if (!function_exists('isRecentlyOnline')) {
     // Presence is derived from last_seen rather than the is_online DB column,
     // since is_online only flips back to 0 on an explicit logout - a closed
@@ -191,11 +283,82 @@ if (!function_exists('isRecentlyOnline')) {
     // last_seen gets refreshed by check-login.php on every authenticated
     // request, including the ~30s background poll in admin-task-notification.js,
     // so a short threshold reliably reflects an actively open session.
+    //
+    // last_seen is stored in UTC (MySQL's NOW() reflects the DB server's own
+    // timezone, not PHP's date_default_timezone_set('Africa/Nairobi')), so it
+    // must be parsed as UTC explicitly rather than with a bare strtotime(),
+    // which would interpret the string in the process's default timezone and
+    // throw the comparison off by the Nairobi UTC+3 offset.
     function isRecentlyOnline($lastSeen, $thresholdSeconds = 120) {
         if (!$lastSeen || $lastSeen === '0000-00-00 00:00:00') {
             return false;
         }
-        return (time() - strtotime($lastSeen)) <= $thresholdSeconds;
+        $lastSeenTimestamp = (new DateTime($lastSeen, new DateTimeZone('UTC')))->getTimestamp();
+        return (time() - $lastSeenTimestamp) <= $thresholdSeconds;
+    }
+}
+
+if (!function_exists('getLastSeenText')) {
+    // Mirrors the relative "last seen" wording used on sudo/writer.php.
+    // See isRecentlyOnline() above for why last_seen must be parsed as UTC.
+    function getLastSeenText($lastSeen) {
+        if (!$lastSeen || $lastSeen === '0000-00-00 00:00:00') {
+            return 'Offline';
+        }
+
+        $lastSeenDt = new DateTime($lastSeen, new DateTimeZone('UTC'));
+        $lastSeenDt->setTimezone(new DateTimeZone('Africa/Nairobi'));
+        $now = new DateTime('now', new DateTimeZone('Africa/Nairobi'));
+        $diff = $now->diff($lastSeenDt);
+
+        if ($diff->y > 0) {
+            return $diff->y . ' year' . ($diff->y > 1 ? 's' : '') . ' ago';
+        } elseif ($diff->m > 0) {
+            return $diff->m . ' month' . ($diff->m > 1 ? 's' : '') . ' ago';
+        } elseif ($diff->days >= 7) {
+            $weeks = floor($diff->days / 7);
+            return $weeks . ' week' . ($weeks > 1 ? 's' : '') . ' ago';
+        } elseif ($diff->days > 0) {
+            return $diff->days . ' day' . ($diff->days > 1 ? 's' : '') . ' ago';
+        } elseif ($diff->h > 0) {
+            return $diff->h . ' hour' . ($diff->h > 1 ? 's' : '') . ' ago';
+        } elseif ($diff->i > 0) {
+            return $diff->i . ' minute' . ($diff->i > 1 ? 's' : '') . ' ago';
+        } else {
+            return 'Just now';
+        }
+    }
+}
+
+if (!function_exists('getPresenceStatusClass')) {
+    // Presence indicator tier for the chat contact avatar dot. status-online
+    // comes from isRecentlyOnline(); the rest bucket by how long ago
+    // last_seen was, from "seen today" down to "seen a month+ ago". See
+    // isRecentlyOnline() above for why last_seen must be parsed as UTC.
+    function getPresenceStatusClass($isOnline, $lastSeen) {
+        if ($isOnline) {
+            return 'status-online';
+        }
+        if (!$lastSeen || $lastSeen === '0000-00-00 00:00:00') {
+            return 'status-year';
+        }
+
+        $lastSeenDt = new DateTime($lastSeen, new DateTimeZone('UTC'));
+        $lastSeenDt->setTimezone(new DateTimeZone('Africa/Nairobi'));
+        $now = new DateTime('now', new DateTimeZone('Africa/Nairobi'));
+        $daysAgo = $now->diff($lastSeenDt)->days;
+
+        if ($daysAgo < 1) {
+            return 'status-day';
+        } elseif ($daysAgo < 7) {
+            return 'status-week';
+        } elseif ($daysAgo < 14) {
+            return 'status-fortnight';
+        } elseif ($daysAgo < 30) {
+            return 'status-month';
+        } else {
+            return 'status-year';
+        }
     }
 }
 
