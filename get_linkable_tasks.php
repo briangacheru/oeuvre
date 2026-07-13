@@ -13,6 +13,7 @@ $email = $_SESSION['sessionWriter'];
 $stmt = mysqli_prepare($con, "
     SELECT id, topic FROM tbltasks
     WHERE email = ? AND is_deleted = 0
+      AND status IN ('In Progress', 'In Revision', 'Unconfirmed')
     ORDER BY create_date DESC
     LIMIT 50
 ");

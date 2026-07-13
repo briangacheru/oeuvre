@@ -11,6 +11,8 @@
 </footer>
 </div>
 
+<div id="csrf-data" data-token="<?php echo htmlspecialchars(csrf_token()); ?>" style="display:none;"></div>
+
 <!--View Overdraft Modal-->
 <div class="modal fade" id="overdraft-view-modal" tabindex="-1" role="dialog" aria-labelledby="authentication-modal-label" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -153,17 +155,15 @@
 <script src="vendors/flatpickr/flatpickr.min.js"></script>
 <script src="vendors/fontawesome/all.min.js"></script>
 <script src="vendors/lodash/lodash.min.js"></script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=window.scroll"></script>
 <script src="vendors/list.js/list.min.js"></script>
 <script src="assets/js/theme.js"></script>
 <script src="assets/js/myjs.js"></script>
 <script src="assets/js/sessiontimeout.js"></script>
-<script>const GLOBAL_CSRF_TOKEN = '<?php echo csrf_token(); ?>';</script>
+<script>const GLOBAL_CSRF_TOKEN = document.getElementById('csrf-data').dataset.token;</script>
 <script src="assets/js/task-notification.js"></script>
 <script src="vendors/tinymce/tinymce.min.js"></script>
 <script src="vendors/dropzone/dropzone-min.js"></script>
 <script src="vendors/inputmask/inputmask.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script>
     function updatetheTime() {

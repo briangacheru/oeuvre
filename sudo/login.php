@@ -199,6 +199,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     if (!empty($loginMessage)) {
                                         echo "<p>$loginMessage</p>";
                                     }
+                                    if (isset($_SESSION['alert'])) {
+                                        echo $_SESSION['alert'];
+                                        unset($_SESSION['alert']);
+                                    }
                                     // Refill the form from the failed POST only; credentials must not persist in the session
                                     $email = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email']) ? $_POST['email'] : '';
                                     $password = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password']) ? $_POST['password'] : '';

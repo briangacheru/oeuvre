@@ -202,6 +202,13 @@ try {
         .avatar.status-fortnight:before { background-color: #c1440e; }
         .avatar.status-month:before { background-color: var(--falcon-danger); }
         .avatar.status-year:before { background-color: var(--falcon-secondary); }
+
+        /* Sits just above the bubble on hover instead of overlapping its text. */
+        .hover-actions-trigger .message-actions-dropdown.hover-actions {
+            top: -22px;
+            right: 0;
+            left: auto;
+        }
     </style>
     <div class="card card-chat overflow-hidden">
         <div class="card-body d-flex p-0 h-100">
@@ -476,6 +483,44 @@ try {
         </div>
     </div>
 
+    <!-- Edit Message modal -->
+    <div class="modal fade" id="editMessageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-pen me-2"></i>Edit Message</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" id="editMessageTextarea" rows="4"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmEditMessageBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Message confirmation modal -->
+    <div class="modal fade" id="deleteMessageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-trash me-2"></i>Delete Message</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to delete this message? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteMessageBtn">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // FIXED Chat JavaScript - Simplified and more compatible
 
@@ -542,6 +587,11 @@ try {
 
             fetchMessages(id, type, index);
             updateReadStatus(id);
+        }
+
+        function refreshChat(userId) {
+            if (currentReceiver != userId || !currentReceiverType) return;
+            fetchMessages(currentReceiver, currentReceiverType, currentIndex);
         }
 
         function fetchMessages(userId, userType, index) {
@@ -651,16 +701,7 @@ try {
                     const messageTime = parseDbTimestamp(message.timestamp);
                     const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
-                    let fileHtml = '';
-                    if (message.file_url) {
-                        fileHtml = `
-                    <div class="mt-2">
-                        <a href="../taskfiles/${escapeHtml(message.file_url)}" class="glightbox" data-gallery="gallery-3">
-                            <img class="rounded" src="../taskfiles/${escapeHtml(message.file_url)}" alt="Shared image" width="150" loading="lazy">
-                        </a>
-                    </div>
-                `;
-                    }
+                    const fileHtml = fileAttachmentHtml(message.file_url);
 
                     messageElement.innerHTML = `
                 <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
@@ -831,16 +872,7 @@ try {
             const messageTime = parseDbTimestamp(message.timestamp);
             const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
-            let fileHtml = '';
-            if (message.file_url) {
-                fileHtml = `
-            <div class="mt-2">
-                <a href="../taskfiles/${escapeHtml(message.file_url)}" class="glightbox">
-                    <img class="rounded" src="../taskfiles/${escapeHtml(message.file_url)}" alt="Shared image" width="150">
-                </a>
-            </div>
-        `;
-            }
+            const fileHtml = fileAttachmentHtml(message.file_url);
 
             messageElement.innerHTML = `
         <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
@@ -991,6 +1023,19 @@ try {
         };
         const SHARED_FILE_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'bmp', 'tiff', 'tif'];
 
+        // Renders a message's attachment as an inline image preview if it's a
+        // photo, otherwise as a file-type icon link (previously this always
+        // rendered an <img>, so PDFs/docs/zips showed a broken image icon).
+        function fileAttachmentHtml(fileUrl) {
+            if (!fileUrl) return '';
+            const extension = (fileUrl.split('.').pop() || '').toLowerCase();
+            const href = `../taskfiles/${escapeHtml(fileUrl)}`;
+            if (SHARED_FILE_IMAGE_EXTENSIONS.includes(extension)) {
+                return `<div class="mt-2"><a href="${href}" class="glightbox" data-gallery="gallery-3"><img class="rounded" src="${href}" alt="Shared image" width="150" loading="lazy"></a></div>`;
+            }
+            return `<div class="mt-2"><a href="${href}" target="_blank" class="d-flex align-items-center text-decoration-none bg-light rounded p-2" style="max-width:200px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-lg me-2"></i><span class="text-truncate fs-11 text-dark">${escapeHtml(fileUrl)}</span></a></div>`;
+        }
+
         function openSharedFiles(partnerId) {
             const modalBody = document.getElementById('sharedFilesModalBody');
             modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
@@ -1113,7 +1158,7 @@ try {
         function taskChipHtml(relatedTaskId) {
             if (!relatedTaskId) return '';
             const encodedId = btoa(String(relatedTaskId));
-            return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-dark text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
+            return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-800 text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
         }
 
         function updateReadStatus(userId) {
@@ -1249,69 +1294,115 @@ try {
                 : '<span class="text-muted fas fa-check ms-1" title="Sent"></span>';
         }
 
-        // Edit/delete hover buttons, shown only on the sender's own messages.
+        // Edit/delete dropdown, shown only on the sender's own messages.
         function messageActionsHtml(messageId) {
             return `
-            <div class="hover-actions me-1">
-                <button type="button" class="btn btn-tertiary border-300 btn-sm p-1 me-1" onclick="editMessage(${messageId}, this)" title="Edit"><i class="fas fa-pen fs-11"></i></button>
-                <button type="button" class="btn btn-tertiary border-300 btn-sm p-1" onclick="deleteMessage(${messageId}, this)" title="Delete"><i class="fas fa-trash fs-11"></i></button>
+            <div class="hover-actions message-actions-dropdown dropup me-1">
+                <button type="button" class="btn btn-tertiary border-300 btn-sm p-1" data-bs-toggle="dropdown" aria-expanded="false" title="Message actions">
+                    <i class="fas fa-ellipsis-v fs-11"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#!" onclick="editMessage(${messageId}, this); return false;"><i class="fas fa-pen me-2"></i>Edit</a></li>
+                    <li><a class="dropdown-item text-danger" href="#!" onclick="deleteMessage(${messageId}, this); return false;"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                </ul>
             </div>
         `;
         }
+
+        let pendingEditMessageId = null;
+        let pendingEditBubble = null;
+        let pendingEditTrigger = null;
 
         function editMessage(messageId, btn) {
             if (!messageId) return;
             const bubble = btn.closest('.hover-actions-trigger').querySelector('.message-text');
             if (!bubble) return;
 
-            const currentText = bubble.textContent;
-            const newText = prompt('Edit your message:', currentText);
-            if (newText === null || newText.trim() === '' || newText === currentText) return;
+            pendingEditMessageId = messageId;
+            pendingEditBubble = bubble;
+            pendingEditTrigger = btn;
 
-            const formData = new FormData();
-            formData.append('message_id', messageId);
-            formData.append('message', newText);
-            formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
-
-            fetch('edit_message', { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        bubble.textContent = newText;
-                        const chatMessage = btn.closest('.hover-actions-trigger').querySelector('.chat-message');
-                        if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
-                            const tag = document.createElement('span');
-                            tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
-                            tag.textContent = '(edited)';
-                            bubble.insertAdjacentElement('afterend', tag);
-                        }
-                    } else {
-                        alert('Failed to edit message: ' + (data.message || 'Unknown error'));
-                    }
-                })
-                .catch(error => alert('Error editing message: ' + error.message));
+            document.getElementById('editMessageTextarea').value = bubble.textContent;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editMessageModal')).show();
         }
+
+        let pendingDeleteMessageId = null;
+        let pendingDeleteTrigger = null;
 
         function deleteMessage(messageId, btn) {
             if (!messageId) return;
-            if (!confirm('Delete this message?')) return;
-
-            const formData = new FormData();
-            formData.append('message_id', messageId);
-            formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
-
-            fetch('delete_message', { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const messageRow = btn.closest('[data-message-id]');
-                        if (messageRow) messageRow.remove();
-                    } else {
-                        alert('Failed to delete message: ' + (data.message || 'Unknown error'));
-                    }
-                })
-                .catch(error => alert('Error deleting message: ' + error.message));
+            pendingDeleteMessageId = messageId;
+            pendingDeleteTrigger = btn;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMessageModal')).show();
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmEditBtn = document.getElementById('confirmEditMessageBtn');
+            if (confirmEditBtn) {
+                confirmEditBtn.addEventListener('click', function() {
+                    if (!pendingEditMessageId || !pendingEditBubble) return;
+                    const newText = document.getElementById('editMessageTextarea').value;
+                    const currentText = pendingEditBubble.textContent;
+                    const editModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('editMessageModal'));
+                    if (newText.trim() === '' || newText === currentText) {
+                        editModal.hide();
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('message_id', pendingEditMessageId);
+                    formData.append('message', newText);
+                    formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+                    fetch('edit_message', { method: 'POST', body: formData })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                pendingEditBubble.textContent = newText;
+                                const chatMessage = pendingEditTrigger.closest('.hover-actions-trigger').querySelector('.chat-message');
+                                if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
+                                    const tag = document.createElement('span');
+                                    tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
+                                    tag.textContent = '(edited)';
+                                    pendingEditBubble.insertAdjacentElement('afterend', tag);
+                                }
+                                editModal.hide();
+                            } else {
+                                alert('Failed to edit message: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => alert('Error editing message: ' + error.message));
+                });
+            }
+
+            const confirmDeleteBtn = document.getElementById('confirmDeleteMessageBtn');
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    if (!pendingDeleteMessageId) return;
+                    const deleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMessageModal'));
+
+                    const formData = new FormData();
+                    formData.append('message_id', pendingDeleteMessageId);
+                    formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
+
+                    fetch('delete_message', { method: 'POST', body: formData })
+                        .then(response => response.json())
+                        .then(data => {
+                            deleteModal.hide();
+                            if (data.status === 'success') {
+                                const messageRow = pendingDeleteTrigger.closest('[data-message-id]');
+                                if (messageRow) messageRow.remove();
+                            } else {
+                                alert('Failed to delete message: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            deleteModal.hide();
+                            alert('Error deleting message: ' + error.message);
+                        });
+                });
+            }
+        });
 
         // chat_messages.timestamp is stored in UTC (MySQL's NOW() reflects the
         // DB server's own timezone). A bare `new Date("YYYY-MM-DD HH:mm:ss")`
