@@ -997,7 +997,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 <div class="card-body">
                     <div class="task-description-content">
                         <?php
-                        $cleanText = stripslashes($taskDescription);
+                        $cleanText = $taskDescription;
 
                         if (strip_tags($cleanText) !== $cleanText) {
                             // --- HTML content from Quill editor ---

@@ -126,7 +126,7 @@ function getChatUsers($con, $currentUserId, $currentUserType) {
                 $users[] = [
                     'id' => (int)$writer['id'],
                     'username' => htmlspecialchars($writer['username'] ?? '', ENT_QUOTES, 'UTF-8'),
-                    'is_online' => (bool)$writer['is_online'],
+                    'is_online' => isRecentlyOnline($writer['last_seen']),
                     'last_seen' => $writer['last_seen'],
                     'type' => 'writer',
                     'photo' => $writer['photo'] ?? 'default.jpg',
@@ -204,6 +204,11 @@ try {
         </div>
     </div>
 
+    <style>
+        .card-chat {
+            height: calc(80vh - var(--falcon-top-nav-height) - 0.625rem - 5rem);
+        }
+    </style>
     <div class="card card-chat overflow-hidden">
         <div class="card-body d-flex p-0 h-100">
             <div class="chat-sidebar">

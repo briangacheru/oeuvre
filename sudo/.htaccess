@@ -10,3 +10,14 @@ RewriteRule ^([^\.]+)$ $1.php [L]
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^.]+)\.php [NC]
 RewriteRule ^ %1 [R=301,L]
 </IfModule>
+
+# The task description editor (TinyMCE) writes inline style="..." attributes
+# for alignment/font-size/color formatting. The host's ModSecurity/WAF blocks
+# POST bodies containing style="..." with a raw 403, before these scripts
+# ever run. Scoped off here (only these two files) rather than for the whole
+# sudo/ directory.
+<FilesMatch "^(submit-task|update-task)\.php$">
+    <IfModule mod_security2.c>
+        SecRuleEngine Off
+    </IfModule>
+</FilesMatch>

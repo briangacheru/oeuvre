@@ -59,6 +59,26 @@
         border: 2px dashed #ff9900; /* Dashed border in warning color */
     }
 
+    /* The theme's base .dz-remove is opacity:0 (only meant to reveal on hover
+       for its own single-file preview variant); our multi-file dropzones need
+       it always visible, so it's pulled out of absolute positioning here. */
+    #dropArea.dropzone .dz-remove {
+        position: static;
+        display: inline-block;
+        opacity: 1;
+        width: auto;
+        height: auto;
+        line-height: normal;
+        margin-top: 0.5rem;
+        color: var(--falcon-danger, #e63757);
+        font-size: 0.8rem;
+        text-decoration: underline;
+    }
+    #dropArea.dropzone .dz-remove:hover {
+        color: var(--falcon-danger, #e63757);
+        text-decoration: none;
+    }
+
     .grain-overlay {
         background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><pattern id='grain' width='10' height='10' patternUnits='userSpaceOnUse'><circle cx='5' cy='5' r='1' fill='white' opacity='0.05'/></pattern></defs><rect width='100' height='100' fill='url(%23grain)'/></svg>");
         opacity: 1;

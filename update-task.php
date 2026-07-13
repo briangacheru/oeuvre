@@ -16,19 +16,22 @@ if ($_POST['action'] == 'submitForm') {
             exit; // Stop the script execution
         }
     }
-    // Since FILTER_SANITIZE_STRING is deprecated, consider alternative sanitization
+    // Note: string fields below are passed as-is to a parameterized query,
+    // which handles escaping itself. Do not mysqli_real_escape_string() these
+    // before binding - that double-escapes the value (e.g. a real newline in
+    // the description becomes the literal text "\r\n" in storage).
     $taskId = mysqli_real_escape_string($con, $_POST['taskId']);
-    $topic = mysqli_real_escape_string($con, $_POST['topic']);
-    $subject = mysqli_real_escape_string($con, $_POST['subject']);
-    $account = mysqli_real_escape_string($con, $_POST['account']);
-    $description = mysqli_real_escape_string($con, $_POST['description']);
-    $writer = mysqli_real_escape_string($con, $_POST['writer']);
-    $writerEmail = mysqli_real_escape_string($con, $_POST['email']);
-    $status = mysqli_real_escape_string($con, $_POST['status']);
-    $due_date = mysqli_real_escape_string($con, $_POST['due_date']);
-    $cpp = mysqli_real_escape_string($con, $_POST['cpp']);
-    $pages = mysqli_real_escape_string($con, $_POST['pages']);
-    $is_confirmed = mysqli_real_escape_string($con, $_POST['is_confirmed']);
+    $topic = $_POST['topic'];
+    $subject = $_POST['subject'];
+    $account = $_POST['account'];
+    $description = $_POST['description'];
+    $writer = $_POST['writer'];
+    $writerEmail = $_POST['email'];
+    $status = $_POST['status'];
+    $due_date = $_POST['due_date'];
+    $cpp = $_POST['cpp'];
+    $pages = $_POST['pages'];
+    $is_confirmed = $_POST['is_confirmed'];
 
     // Handle existing file paths
     $existingFiles = $_POST['existingFiles'] ?? []; // Default to an empty array if not set

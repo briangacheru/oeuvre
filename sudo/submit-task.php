@@ -49,18 +49,21 @@ foreach ($requiredFields as $field) {
 }
 
 try {
-    // Sanitize input data
-    $topic = mysqli_real_escape_string($con, $_POST['topic']);
-    $subject = mysqli_real_escape_string($con, $_POST['subject']);
-    $account = mysqli_real_escape_string($con, $_POST['account']);
-    $description = mysqli_real_escape_string($con, $_POST['description']);
-    $writer = mysqli_real_escape_string($con, $_POST['writer']);
-    $writerEmail = mysqli_real_escape_string($con, $_POST['email']);
-    $due_date = mysqli_real_escape_string($con, $_POST['due_date']);
-    $cpp = mysqli_real_escape_string($con, $_POST['cpp']);
-    $pages = mysqli_real_escape_string($con, $_POST['pages']);
-    $is_confirmed = mysqli_real_escape_string($con, $_POST['is_confirmed']);
-    $publish = mysqli_real_escape_string($con, $_POST['publish']);
+    // Note: values are passed as-is to a parameterized query below, which
+    // handles escaping itself. Do not mysqli_real_escape_string() these -
+    // doing so before binding double-escapes the value (e.g. a real newline
+    // in the description becomes the literal text "\r\n" in storage).
+    $topic = $_POST['topic'];
+    $subject = $_POST['subject'];
+    $account = $_POST['account'];
+    $description = $_POST['description'];
+    $writer = $_POST['writer'];
+    $writerEmail = $_POST['email'];
+    $due_date = $_POST['due_date'];
+    $cpp = $_POST['cpp'];
+    $pages = $_POST['pages'];
+    $is_confirmed = $_POST['is_confirmed'];
+    $publish = $_POST['publish'];
 
     // Extract writer name from the combined value
     $writerInfo = explode('|', $writer);
@@ -102,10 +105,11 @@ try {
         $uploadedFilesData = json_decode($_POST['uploadedFiles'], true);
         if (is_array($uploadedFilesData)) {
             foreach ($uploadedFilesData as $fileData) {
-                $fileName = mysqli_real_escape_string($con, basename($fileData['filePath']));
-                $originalFileName = mysqli_real_escape_string($con, $fileData['fileName']);
-                $filePath = mysqli_real_escape_string($con, $fileData['filePath']);
-                $fileUrl = mysqli_real_escape_string($con, $fileData['fileUrl']);
+                // Bound via prepared statement below - do not pre-escape (see note above).
+                $fileName = basename($fileData['filePath']);
+                $originalFileName = $fileData['fileName'];
+                $filePath = $fileData['filePath'];
+                $fileUrl = $fileData['fileUrl'];
                 $fileSize = (int)$fileData['fileSize'];
 
                 // Insert file record into tbl_task_files

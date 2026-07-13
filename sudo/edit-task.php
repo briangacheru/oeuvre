@@ -102,24 +102,15 @@ if ($row = mysqli_fetch_array($result)) {
 ?>
 
     <div class="card mb-3">
-        <div class="card-header">
-            <div class="row flex-between-end">
-                <div class="col-auto align-self-center">
-                    <h5 class="mb-0" data-anchor="data-anchor">Task Details</h5>
-                </div>
-            </div>
+        <div class="card-header border-bottom border-dashed">
+            <h5 class="mb-0" data-anchor="data-anchor"><span class="fas fa-clipboard-list text-primary me-2"></span>Task Details</h5>
         </div>
-        <div class="card-body bg-body-tertiary">
-            <div class="tab-content">
-                <div class="tab-pane preview-tab-pane active" >
-                    <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="update-task" enctype="multipart/form-data">
+        <div class="card-body pt-3">
+            <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="update-task" enctype="multipart/form-data">
 <?= csrf_field() ?>
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Basic information</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row gx-2">
+                <div class="pb-4 border-bottom border-dashed">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-info-circle text-primary me-1"></span> Basic Information</h6>
+                    <div class="row gx-3">
                                     <div class="col-12 mb-3">
                                         <label class="form-label" for="manufacturar-name">Topic:</label>
                                         <input type="hidden" name="taskId" value="<?php echo htmlspecialchars($taskId); ?>">
@@ -143,7 +134,11 @@ if ($row = mysqli_fetch_array($result)) {
                                     </div>
                                     <div class="col-sm-4 mb-3">
                                         <label class="form-label" for="cpp">CPP: </label>
-                                        <select class="form-select" id="cpp" name="cpp" required="required">
+                                        <?php
+                                        $standardCpps = ['375', '250', '300', '190', '350', '200', '400', '450', '500', '700', '750'];
+                                        $isCustomCpp = $taskCPP !== '' && !in_array((string)$taskCPP, $standardCpps, true);
+                                        ?>
+                                        <select class="form-select" id="cpp" name="cpp" required="required" onchange="toggleCustomCpp(this)">
                                             <option value="375" <?php echo ($taskCPP == '375') ? 'selected' : ''; ?>>375</option>
                                             <option value="250" <?php echo ($taskCPP == '250') ? 'selected' : ''; ?>>250</option>
                                             <option value="300" <?php echo ($taskCPP == '300') ? 'selected' : ''; ?>>300</option>
@@ -155,11 +150,17 @@ if ($row = mysqli_fetch_array($result)) {
                                             <option value="500" <?php echo ($taskCPP == '500') ? 'selected' : ''; ?>>500</option>
                                             <option value="700" <?php echo ($taskCPP == '700') ? 'selected' : ''; ?>>700</option>
                                             <option value="750" <?php echo ($taskCPP == '750') ? 'selected' : ''; ?>>750</option>
+                                            <option value="custom" <?php echo $isCustomCpp ? 'selected' : ''; ?>>Custom...</option>
                                         </select>
+                                        <input type="number" class="form-control mt-2" id="cpp_custom"
+                                               placeholder="Enter custom CPP value" min="1"
+                                               style="<?php echo $isCustomCpp ? 'display:block;' : 'display:none;'; ?>"
+                                               value="<?php echo $isCustomCpp ? htmlspecialchars($taskCPP) : ''; ?>"
+                                               <?php echo $isCustomCpp ? 'required' : ''; ?>>
                                     </div>
                                     <div class="col-sm-4 mb-3">
                                         <label class="form-label" for="publish">Publish: </label>
-                                        <select class="form-select" id="publish" name="publish" required="required">
+                                        <select class="form-select" id="publish" name="publish" required="required" onchange="toggleSendEmailForDraft(this)">
                                             <option value="1" <?php echo ($taskPublish == '1') ? 'selected' : ''; ?>>Yes (Published)</option>
                                             <option value="0" <?php echo ($taskPublish == '0') ? 'selected' : ''; ?>>No (Draft)</option>
                                         </select>
@@ -221,9 +222,9 @@ if ($row = mysqli_fetch_array($result)) {
                                     </div>
                                     <div class="col-sm-6 mb-3">
                                         <label class="form-label" for="cpp">Send email</label>
-                                        <select class="form-select" id="sendEmail" name="sendEmail" required="required">
-                                            <option value="1">Yes</option>
-                                            <option value="0">No</option>
+                                        <select class="form-select" id="sendEmail" name="sendEmail" required="required" <?php echo ($taskPublish == '0') ? 'disabled' : ''; ?>>
+                                            <option value="1" <?php echo ($taskPublish != '0') ? 'selected' : ''; ?>>Yes</option>
+                                            <option value="0" <?php echo ($taskPublish == '0') ? 'selected' : ''; ?>>No</option>
                                         </select>
                                     </div>
                                     <div class='col-sm-6 mb-3'>
@@ -241,90 +242,20 @@ if ($row = mysqli_fetch_array($result)) {
                                         </select>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Details</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row gx-2">
-                                    <div class="col-12 mb-3">
-                                        <label class="form-label" for="task-description">Task description:</label>
-                                        <div id="description"><?php echo ($taskDescription); ?></div>
-                                        <input type="hidden" name="description" id="description-input">
-                                        <script>
-                                            const quill = new Quill('#description', {
-                                                theme: 'snow',
-                                                modules: {
-                                                    toolbar: {
-                                                        container: [
-                                                            ['bold', 'italic', 'underline', 'strike'],
-                                                            ['blockquote', 'code-block'],
-                                                            [{ 'header': 1 }, { 'header': 2 }],
-                                                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                                            [{ 'script': 'sub'}, { 'script': 'super' }],
-                                                            [{ 'indent': '-1'}, { 'indent': '+1' }],
-                                                            [{ 'direction': 'rtl' }],
-                                                            [{ 'size': ['small', false, 'large', 'huge'] }],
-                                                            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                                                            [{ 'color': [] }, { 'background': [] }],
-                                                            [{ 'font': [] }],
-                                                            [{ 'align': [] }],
-                                                            ['clean'],
-                                                            ['link', 'image', 'video']
-                                                        ],
-                                                        handlers: {
-                                                            link: function(value) {
-                                                                if (value) {
-                                                                    let href = prompt('Enter URL');
-                                                                    if (href) {
-                                                                        // Remove all quotes, whitespace, and accidental slashes
-                                                                        let cleanUrl = href.trim()
-                                                                            .replace(/^["']+|["']+$/g, '') // Remove leading/trailing quotes
-                                                                            .replace(/^\/+|\/+$/g, '');    // Remove leading/trailing slashes
-                                                                        this.quill.format('link', cleanUrl);
-                                                                    }
-                                                                } else {
-                                                                    this.quill.format('link', false);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            });
+                </div>
 
-                                            document.getElementById('taskForm').addEventListener('submit', function(e) {
-                                                let content = quill.root.innerHTML;
-                                                content = content.replace(/href="([^"]+)"/g, (match, url) => {
-                                                    let cleanUrl = url.trim();
-                                                    try { cleanUrl = decodeURIComponent(cleanUrl); } catch(e) {}
-                                                    cleanUrl = cleanUrl
-                                                        .replace(/^["']+|["']+$/g, '') // Remove quotes
-                                                        .replace(/^\/+|\/+$/g, '')    // Remove slashes
-                                                        .replace(/\\+|"+/g, '');      // Remove backslashes and extra quotes
-                                                    return `href="${cleanUrl}"`;
-                                                });
-                                                document.getElementById('description-input').value = content;
-                                            });
-                                        </script>
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="pt-3 pb-4 border-bottom border-dashed">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-align-left text-primary me-1"></span> Task Description</h6>
+                    <label class="form-label visually-hidden" for="description">Task description:</label>
+                    <textarea name="description" id="description"><?php echo htmlspecialchars($taskDescription); ?></textarea>
+                    <div class="invalid-feedback">This field is required</div>
+                    <?php include 'task-description-editor.php'; ?>
+                </div>
 
-                        <!-- Task Files card section -->
-                        <div class='col mb-3'>
-                            <div class='row g-3'>
-                                <div class='col-xxl-12'>
-                                    <div class='card h-100 h-xxl-auto mt-xxl-3'>
-                                        <div class='card-header d-flex flex-between-center bg-body-tertiary py-2'>
-                                            <h6 class='mb-0'>Task Files</h6>
-                                        </div>
-                                        <div class='card-body position-relative'>
-                                            <div class='bg-holder bg-card d-none d-md-block'
-                                                 style='background-image:url(../assets/img/icons/spot-illustrations/corner-2.png);'></div>
+                <div class="pt-3 pb-4 border-bottom border-dashed position-relative">
+                    <div class='bg-holder bg-card d-none d-md-block'
+                         style='background-image:url(../assets/img/icons/spot-illustrations/corner-2.png);'></div>
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-folder-open text-primary me-1"></span> Task Files</h6>
                                             <?php
                                             // Get task files from new table
                                             $taskFilesQuery = "SELECT * FROM tbl_task_files WHERE task_id = ? AND file_type = 'task' AND is_deleted = 0 ORDER BY upload_time ASC";
@@ -437,50 +368,28 @@ if ($row = mysqli_fetch_array($result)) {
                                                 echo '<div>No task files attached.</div>';
                                             }
                                             ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Add task file(s)</h6>
-                            </div>
-                            <div class="card-body">
-                                <div id="dropArea" class="drop-area">
-                                    <p>Drag and drop your files here or click to select files</p>
-                                    <input name="taskfiles[]" id="fileInput" type="file" multiple="multiple" accept="*/*" style="display: none;"/>
-                                    <button class="btn btn-outline-info me-1 mb-1" type="button" onclick="document.getElementById('fileInput').click()">Select Files</button>
-                                </div>
-                                <div id="fileList" class="file-list btn-outline-info">
-                                    <ul id="fileNamesList"></ul>
-                                </div>
-                                <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
-                            </div>
-                        </div>
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <div class="row justify-content-between align-items-center">
-                                    <div class="col-md">
-                                        <h5 class="mb-2 mb-md-0">You're almost done!</h5>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button class="btn btn-link text-secondary p-0 me-3 fw-medium" type="button" id="discardButton" role="button">Discard</button>
-                                        <button class="btn btn-primary" name="save" type="submit" role="button" id="updateTaskButton">
-                                            <span id="buttonText">Update Task</span>
-                                            <span id="loadingText" class="d-none">
-                                            Updating Task...
-                                            <span id="loadingSpinner" class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                        </span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
                 </div>
-            </div>
+
+                <div class="pt-3 mb-4">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-paperclip text-primary me-1"></span> Add Task File(s)</h6>
+                    <div id="dropArea" class="dropzone border rounded-3"></div>
+                    <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top">
+                    <h5 class="mb-2 mb-md-0">You're almost done!</h5>
+                    <div>
+                        <button class="btn btn-link text-secondary p-0 me-3 fw-medium" type="button" id="discardButton" role="button">Discard</button>
+                        <button class="btn btn-primary" name="save" type="submit" role="button" id="updateTaskButton">
+                            <span id="buttonText">Update Task</span>
+                            <span id="loadingText" class="d-none">
+                            Updating Task...
+                            <span id="loadingSpinner" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        </span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -561,11 +470,55 @@ if ($row = mysqli_fetch_array($result)) {
                 form.reset();
                 window.scrollTo(0, 0);
             });
+
+            // Before form submit, swap "custom" select value with the typed number
+            form.addEventListener('submit', function() {
+                const cppSelect = document.getElementById('cpp');
+                const customInput = document.getElementById('cpp_custom');
+                if (cppSelect.value === 'custom' && customInput.value) {
+                    // A <select>'s value can only be set to something matching one
+                    // of its <option>s - assigning an arbitrary number directly
+                    // is silently ignored by the browser. Inject a matching
+                    // option instead so the typed value actually gets submitted.
+                    let customOption = cppSelect.querySelector('option[data-custom-cpp]');
+                    if (!customOption) {
+                        customOption = document.createElement('option');
+                        customOption.setAttribute('data-custom-cpp', 'true');
+                        cppSelect.appendChild(customOption);
+                    }
+                    customOption.value = customInput.value;
+                    customOption.selected = true;
+                }
+            }, true); // capture phase so it runs before other submit listeners
         });
+
+        function toggleCustomCpp(select) {
+            const customInput = document.getElementById('cpp_custom');
+            if (select.value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        // A draft hasn't been published, so there's no one to email - force
+        // "Send email" to No and lock it while Publish is set to Draft.
+        function toggleSendEmailForDraft(select) {
+            const sendEmailSelect = document.getElementById('sendEmail');
+            if (select.value === '0') {
+                sendEmailSelect.value = '0';
+                sendEmailSelect.disabled = true;
+            } else {
+                sendEmailSelect.disabled = false;
+            }
+        }
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const dropArea = document.getElementById('dropArea');
             const form = document.getElementById('taskForm');
             const updateTaskButton = document.getElementById('updateTaskButton');
             const buttonText = document.getElementById('buttonText');
@@ -614,29 +567,6 @@ if ($row = mysqli_fetch_array($result)) {
                 }, 500);
             }
 
-            // Prevent default drag behaviors
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, preventDefaults, false);
-                document.body.addEventListener(eventName, preventDefaults, false);
-            });
-
-            // Highlight drop area when item is dragged over it
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, unhighlight, false);
-            });
-
-            // Handle dropped files
-            dropArea.addEventListener('drop', handleDrop, false);
-
-            // Add change event listener to file input for direct file selection
-            document.getElementById('fileInput').addEventListener('change', function(e) {
-                handleFiles(e.target.files);
-            });
-
             // Handle existing file removal
             fileContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.delete-btn')) {
@@ -646,107 +576,70 @@ if ($row = mysqli_fetch_array($result)) {
                 }
             });
 
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
+            // Keep the visible file name short; the last 4 characters (usually
+            // the extension) always stay visible. Full name is on the title tooltip.
+            function truncateFileName(name, maxLength = 24) {
+                if (name.length <= maxLength) return name;
+                const keepEnd = 4;
+                const end = name.slice(-keepEnd);
+                const start = name.slice(0, Math.max(maxLength - keepEnd - 3, 1));
+                return `${start}...${end}`;
             }
 
-            function highlight(e) {
-                dropArea.classList.add('highlight');
+            function updateUploadedFilesInput() {
+                document.getElementById('uploadedFiles').value = JSON.stringify(uploadedFilePaths);
             }
 
-            function unhighlight(e) {
-                dropArea.classList.remove('highlight');
-            }
+            const csrfToken = form.querySelector('input[name="csrf_token"]').value;
 
-            function handleDrop(e) {
-                var dt = e.dataTransfer;
-                var files = dt.files;
-                handleFiles(files);
-            }
+            const taskDropzone = new Dropzone('#dropArea', {
+                url: 'upload_update',
+                paramName: 'file',
+                maxFilesize: 1024, // MB, effectively unlimited like the previous accept="*/*"
+                addRemoveLinks: true,
+                dictDefaultMessage: 'Drag and drop your files here or click to select files',
+                dictRemoveFile: 'Remove',
+                init: function () {
+                    this.on('sending', function (file, xhr, formData) {
+                        formData.append('action', 'upload');
+                        formData.append('csrf_token', csrfToken);
+                    });
 
-            function handleFiles(files) {
-                files = [...files]; // Convert files to an array
-                files.forEach(file => uploadFile(file));
-            }
-
-            async function uploadFile(file) {
-                const url = 'upload_update'; // Point to the new Digital Ocean upload handler
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('action', 'upload');
-
-                const li = document.createElement('li');
-                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: 0%`;
-                li.style.color = '#FFA500';
-
-                const progressBar = document.createElement('progress');
-                progressBar.value = 0;
-                progressBar.max = 100;
-                li.appendChild(progressBar);
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = 'Remove';
-                removeBtn.classList.add('btn', 'btn-outline-warning', 'btn-sm', 'ms-2');
-                removeBtn.onclick = function () {
-                    li.parentNode.removeChild(li);
-                    const index = uploadedFilePaths.findIndex(f => f.fileName === file.name);
-                    if (index > -1) {
-                        uploadedFilePaths.splice(index, 1);
-                        updateUploadedFilesInput();
-                    }
-                };
-
-                li.appendChild(removeBtn);
-                document.getElementById('fileNamesList').appendChild(li);
-
-                try {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', url, true);
-
-                    xhr.upload.addEventListener('progress', function (e) {
-                        if (e.lengthComputable) {
-                            const percentComplete = (e.loaded / e.total) * 100;
-                            progressBar.value = percentComplete;
-                            li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: ${percentComplete.toFixed(2)}%`;
-                            li.appendChild(progressBar);
-                            li.appendChild(removeBtn);
+                    this.on('addedfile', function (file) {
+                        const nameEl = file.previewElement.querySelector('[data-dz-name]');
+                        if (nameEl) {
+                            nameEl.textContent = truncateFileName(file.name);
+                            nameEl.title = file.name;
                         }
                     });
 
-                    xhr.onload = function () {
-                        if (xhr.status === 200) {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.status === 'success') {
-                                const filePath = response.filePath;
-                                const fileUrl = response.fileUrl;
-                                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload complete!`;
-                                li.style.color = 'green';
-                                li.appendChild(removeBtn);
-                                uploadedFilePaths.push({
-                                    fileName: file.name,
-                                    filePath: filePath,
-                                    fileUrl: fileUrl,
-                                    fileSize: response.fileSize || file.size
-                                });
-                                updateUploadedFilesInput();
-                            } else {
-                                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload failed: ${response.message}`;
-                                li.style.color = 'red';
-                            }
-                        } else {
-                            li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload error.`;
-                            li.style.color = 'red';
+                    this.on('success', function (file, response) {
+                        let data = response;
+                        if (typeof data === 'string') {
+                            try { data = JSON.parse(data); } catch (e) { data = null; }
                         }
-                    };
+                        if (data && data.status === 'success') {
+                            uploadedFilePaths.push({
+                                fileName: file.name,
+                                filePath: data.filePath,
+                                fileUrl: data.fileUrl,
+                                fileSize: data.fileSize || file.size
+                            });
+                            updateUploadedFilesInput();
+                        } else {
+                            this.emit('error', file, (data && data.message) || 'Upload failed.');
+                        }
+                    });
 
-                    xhr.send(formData);
-                } catch (error) {
-                    console.error('Error:', error);
-                    li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload error.`;
-                    li.style.color = 'red';
+                    this.on('removedfile', function (file) {
+                        const index = uploadedFilePaths.findIndex(f => f.fileName === file.name);
+                        if (index > -1) {
+                            uploadedFilePaths.splice(index, 1);
+                            updateUploadedFilesInput();
+                        }
+                    });
                 }
-            }
+            });
 
             async function removeFileReference(fileId, elementToRemove) {
                 if (confirm('Are you sure you want to remove this file from the task?')) {
@@ -797,10 +690,6 @@ if ($row = mysqli_fetch_array($result)) {
                         deleteBtn.innerHTML = '<img src="../assets/img/icons/delete.svg" alt="" width="15" />';
                     }
                 }
-            }
-
-            function updateUploadedFilesInput() {
-                document.getElementById('uploadedFiles').value = JSON.stringify(uploadedFilePaths);
             }
 
             form.addEventListener('submit', async function(e) {

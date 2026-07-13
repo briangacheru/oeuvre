@@ -26,212 +26,122 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">
-            <div class="row flex-between-end">
-                <div class="col-auto align-self-center">
-                    <h5 class="mb-0" data-anchor="data-anchor">Task Details</h5>
-                </div>
-            </div>
+        <div class="card-header border-bottom border-dashed">
+            <h5 class="mb-0" data-anchor="data-anchor"><span class="fas fa-clipboard-list text-primary me-2"></span>Task Details</h5>
         </div>
-        <div class="card-body bg-body-tertiary">
-            <div class="tab-content">
-                <div class="tab-pane preview-tab-pane active" >
-                    <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submit-task" enctype="multipart/form-data">
+        <div class="card-body pt-3">
+            <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submit-task" enctype="multipart/form-data">
 <?= csrf_field() ?>
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Basic information</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row gx-2">
-                                    <div class="col-12 mb-3">
-                                        <label class="form-label" for="manufacturer-name">Topic:</label>
-                                        <input class="form-control" name="topic" type="text" required="required" />
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="import-status">Subject: </label>
-                                        <input class="form-control" name="subject" type="text" required="required" />
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="origin-country">Account: </label>
-                                        <input class="form-control" name="account" type="text" required="required" />
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                    <div class="col-sm-4 mb-3">
-                                        <label class="form-label" for="product-summary">Pages: </label>
-                                        <input class="form-control"  type="number" name="pages" id="pages" min="0" step="0.5" required="required"/>
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                    <div class="col-sm-4 mb-3">
-                                        <label class="form-label" for="cpp">CPP: </label>
-                                        <select class="form-select" id="cpp" name="cpp" required="required" onchange="toggleCustomCpp(this)">
-                                            <option selected disabled></option>
-                                            <option value="375">375</option>
-                                            <option value="250">250</option>
-                                            <option value="300">300</option>
-                                            <option value="190">190</option>
-                                            <option value="350">350</option>
-                                            <option value="200">200</option>
-                                            <option value="400">400</option>
-                                            <option value="450">450</option>
-                                            <option value="500">500</option>
-                                            <option value="750">750</option>
-                                            <option value="custom">Custom...</option>
-                                        </select>
-                                        <input type="number" class="form-control mt-2" id="cpp_custom" placeholder="Enter custom CPP value" min="1" style="display:none;">
-                                    </div>
-                                    <div class="col-sm-4 mb-3">
-                                        <label class="form-label" for="cpp">Confirmed: </label>
-                                        <select class="form-select" name="is_confirmed">
-                                            <option selected value="0">Yes</option>
-                                            <option value="1">No</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="basic-form-due">Deadline:</label>
-                                        <input class="form-control" name="due_date" required="required" id="due_date" type="datetime-local" min="<?php echo date('Y-m-d\T00:00'); ?>" />
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="publish">Publish: </label>
-                                        <select class="form-select" name="publish" id="publish">
-                                            <option selected value="1">Yes (Send Email & Set Active)</option>
-                                            <option value="0">No (Save as Draft, No Email)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="cpp">Select writer: </label>
-                                        <select class="form-select js-choice" name="writer" id="writerSelect" required="required" data-options='{"removeItemButton":true,"placeholder":true}' >
-                                            <option selected disabled value="">Select Writer</option>
-                                            <?php
-                                            // Assuming $con is your database connection
-                                            $query = mysqli_query($con, "SELECT id, username, email FROM tblwriters WHERE is_deleted = 0 AND is_verified=1 ORDER BY id ASC");
-                                            while ($row = mysqli_fetch_assoc($query)) {
-                                                echo "<option value='" . $row['username'] . "|" . $row['email'] . "'>" . $row['username'] . "</option>";
-                                            }
-                                            ?>
-                                        </select>
-                                        <div id="writerError" class="invalid-feedback">Please select a writer.</div>
-                                    </div>
-                                    <div class="col-sm-6 mb-3">
-                                        <label class="form-label" for="product-summary">Writer email: </label>
-                                        <input class="form-control" type="email" name="email" value="" id="email" required="required"  readonly/>
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="pb-4 border-bottom border-dashed">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-info-circle text-primary me-1"></span> Basic Information</h6>
+                    <div class="row gx-3">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="manufacturer-name">Topic:</label>
+                            <input class="form-control" name="topic" type="text" required="required" />
+                            <div class="invalid-feedback">This field is required</div>
                         </div>
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Details</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row gx-2">
-                                    <div class="col-12 mb-3">
-                                        <label class="form-label" for="task-description">Task description:</label>
-                                        <div  id="description"></div>
-                                        <input type="hidden" name="description" id="description-input">
-                                        <script>
-                                            const quill = new Quill('#description', {
-                                                theme: 'snow',
-                                                modules: {
-                                                    toolbar: {
-                                                        container: [
-                                                            ['bold', 'italic', 'underline', 'strike'],
-                                                            ['blockquote', 'code-block'],
-                                                            [{ 'header': 1 }, { 'header': 2 }],
-                                                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                                            [{ 'script': 'sub'}, { 'script': 'super' }],
-                                                            [{ 'indent': '-1'}, { 'indent': '+1' }],
-                                                            [{ 'direction': 'rtl' }],
-                                                            [{ 'size': ['small', false, 'large', 'huge'] }],
-                                                            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                                                            [{ 'color': [] }, { 'background': [] }],
-                                                            [{ 'font': [] }],
-                                                            [{ 'align': [] }],
-                                                            ['clean'],
-                                                            ['link', 'image', 'video']
-                                                        ],
-                                                        handlers: {
-                                                            link: function(value) {
-                                                                if (value) {
-                                                                    let href = prompt('Enter URL');
-                                                                    if (href) {
-                                                                        // Remove all quotes, whitespace, and accidental slashes
-                                                                        let cleanUrl = href.trim()
-                                                                            .replace(/^["']+|["']+$/g, '') // Remove leading/trailing quotes
-                                                                            .replace(/^\/+|\/+$/g, '');    // Remove leading/trailing slashes
-                                                                        this.quill.format('link', cleanUrl);
-                                                                    }
-                                                                } else {
-                                                                    this.quill.format('link', false);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            });
-
-                                            document.getElementById('taskForm').addEventListener('submit', function(e) {
-                                                // Clean the content before saving
-                                                let content = quill.root.innerHTML;
-                                                content = content.replace(/href="([^"]+)"/g, (match, url) => {
-                                                    let cleanUrl = url.trim();
-                                                    try { cleanUrl = decodeURIComponent(cleanUrl); } catch(e) {}
-                                                    cleanUrl = cleanUrl
-                                                        .replace(/^["']+|["']+$/g, '') // Remove quotes
-                                                        .replace(/^\/+|\/+$/g, '')    // Remove slashes
-                                                        .replace(/\\+|"+/g, '');      // Remove backslashes and extra quotes
-                                                    return `href="${cleanUrl}"`;
-                                                });
-                                                document.getElementById('description-input').value = content;
-                                            });
-                                        </script>
-                                        <div class="invalid-feedback">This field is required</div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="import-status">Subject: </label>
+                            <input class="form-control" name="subject" type="text" required="required" />
+                            <div class="invalid-feedback">This field is required</div>
                         </div>
-                        <div class="card mb-3">
-                            <div class="card-header bg-body-tertiary">
-                                <h6 class="mb-0">Add task file(s)</h6>
-                            </div>
-                            <div class="card-body">
-                                <div id="dropArea" class="drop-area">
-                                    <p>Drag and drop your files here or click to select files</p>
-                                    <input name="taskfiles" id="fileInput" type="file" multiple="multiple" accept="*/*" style="display: none;"/>
-                                    <button class="btn btn-outline-info me-1 mb-1" type="button" onclick="document.getElementById('fileInput').click()">Select Files</button>
-                                </div>
-                                <div id="fileList" class="file-list btn-outline-info">
-                                    <ul id="fileNamesList"></ul>
-                                </div>
-                                <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
-                            </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="origin-country">Account: </label>
+                            <input class="form-control" name="account" type="text" required="required" />
+                            <div class="invalid-feedback">This field is required</div>
                         </div>
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <div class="row justify-content-between align-items-center">
-                                    <div class="col-md">
-                                        <h5 class="mb-2 mb-md-0">You're almost done!</h5>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button class="btn btn-link text-secondary p-0 me-3 fw-medium" type="button" id="discardButton" role="button">Discard</button>
-                                        <button type="submit" id="createTaskButton" class="btn btn-primary" name="createTask" role="button">
-                                            <span id="buttonText">Create Task</span>
-                                            <span id="loadingSpinner" class="d-none">
-                                                Creating Task...
-                                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-sm-4 mb-3">
+                            <label class="form-label" for="product-summary">Pages: </label>
+                            <input class="form-control"  type="number" name="pages" id="pages" min="0" step="0.5" required="required"/>
+                            <div class="invalid-feedback">This field is required</div>
                         </div>
-                    </form>
+                        <div class="col-sm-4 mb-3">
+                            <label class="form-label" for="cpp">CPP: </label>
+                            <select class="form-select" id="cpp" name="cpp" required="required" onchange="toggleCustomCpp(this)">
+                                <option selected disabled></option>
+                                <option value="375">375</option>
+                                <option value="250">250</option>
+                                <option value="300">300</option>
+                                <option value="190">190</option>
+                                <option value="350">350</option>
+                                <option value="200">200</option>
+                                <option value="400">400</option>
+                                <option value="450">450</option>
+                                <option value="500">500</option>
+                                <option value="750">750</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <input type="number" class="form-control mt-2" id="cpp_custom" placeholder="Enter custom CPP value" min="1" style="display:none;">
+                        </div>
+                        <div class="col-sm-4 mb-3">
+                            <label class="form-label" for="cpp">Confirmed: </label>
+                            <select class="form-select" name="is_confirmed">
+                                <option selected value="0">Yes</option>
+                                <option value="1">No</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="basic-form-due">Deadline:</label>
+                            <input class="form-control" name="due_date" required="required" id="due_date" type="datetime-local" min="<?php echo date('Y-m-d\T00:00'); ?>" />
+                            <div class="invalid-feedback">This field is required</div>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="publish">Publish: </label>
+                            <select class="form-select" name="publish" id="publish">
+                                <option selected value="1">Yes (Send Email & Set Active)</option>
+                                <option value="0">No (Save as Draft, No Email)</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="cpp">Select writer: </label>
+                            <select class="form-select js-choice" name="writer" id="writerSelect" required="required" data-options='{"removeItemButton":true,"placeholder":true}' >
+                                <option selected disabled value="">Select Writer</option>
+                                <?php
+                                // Assuming $con is your database connection
+                                $query = mysqli_query($con, "SELECT id, username, email FROM tblwriters WHERE is_deleted = 0 AND is_verified=1 ORDER BY id ASC");
+                                while ($row = mysqli_fetch_assoc($query)) {
+                                    echo "<option value='" . $row['username'] . "|" . $row['email'] . "'>" . $row['username'] . "</option>";
+                                }
+                                ?>
+                            </select>
+                            <div id="writerError" class="invalid-feedback">Please select a writer.</div>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label" for="product-summary">Writer email: </label>
+                            <input class="form-control" type="email" name="email" value="" id="email" required="required"  readonly/>
+                            <div class="invalid-feedback">This field is required</div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+                <div class="pt-3 pb-4 border-bottom border-dashed">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-align-left text-primary me-1"></span> Task Description</h6>
+                    <label class="form-label visually-hidden" for="description">Task description:</label>
+                    <textarea name="description" id="description"></textarea>
+                    <div class="invalid-feedback">This field is required</div>
+                    <?php include 'task-description-editor.php'; ?>
+                </div>
+
+                <div class="pt-3 mb-4">
+                    <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-paperclip text-primary me-1"></span> Task Files</h6>
+                    <div id="dropArea" class="dropzone border rounded-3"></div>
+                    <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top">
+                    <h5 class="mb-2 mb-md-0">You're almost done!</h5>
+                    <div>
+                        <button class="btn btn-link text-secondary p-0 me-3 fw-medium" type="button" id="discardButton" role="button">Discard</button>
+                        <button type="submit" id="createTaskButton" class="btn btn-primary" name="createTask" role="button">
+                            <span id="buttonText">Create Task</span>
+                            <span id="loadingSpinner" class="d-none">
+                                Creating Task...
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
     <script>
@@ -299,14 +209,25 @@
                 const cppSelect = document.getElementById('cpp');
                 const customInput = document.getElementById('cpp_custom');
                 if (cppSelect.value === 'custom' && customInput.value) {
-                    cppSelect.value = customInput.value;
+                    // A <select>'s value can only be set to something matching one
+                    // of its <option>s - assigning an arbitrary number directly
+                    // (as below, previously) is silently ignored by the browser.
+                    // Inject a matching option instead so the typed value actually
+                    // gets submitted.
+                    let customOption = cppSelect.querySelector('option[data-custom-cpp]');
+                    if (!customOption) {
+                        customOption = document.createElement('option');
+                        customOption.setAttribute('data-custom-cpp', 'true');
+                        cppSelect.appendChild(customOption);
+                    }
+                    customOption.value = customInput.value;
+                    customOption.selected = true;
                 }
             }, true); // capture phase so it runs before other submit listeners
         });
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const dropArea = document.getElementById('dropArea');
             const form = document.getElementById('taskForm');
             const createTaskButton = document.getElementById('createTaskButton');
             const buttonText = document.getElementById('buttonText');
@@ -354,138 +275,28 @@
                 }, 500);
             }
 
-            // Prevent default drag behaviors
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, preventDefaults, false);
-                document.body.addEventListener(eventName, preventDefaults, false);
-            });
-
-            // Highlight drop area when item is dragged over it
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, unhighlight, false);
-            });
-
-            // Handle dropped files
-            dropArea.addEventListener('drop', handleDrop, false);
-
-            // Add change event listener to file input for direct file selection
-            document.getElementById('fileInput').addEventListener('change', function(e) {
-                handleFiles(e.target.files);
-            });
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
+            // Keep the visible file name short; the last 4 characters (usually
+            // the extension) always stay visible. Full name is on the title tooltip.
+            function truncateFileName(name, maxLength = 24) {
+                if (name.length <= maxLength) return name;
+                const keepEnd = 4;
+                const end = name.slice(-keepEnd);
+                const start = name.slice(0, Math.max(maxLength - keepEnd - 3, 1));
+                return `${start}...${end}`;
             }
 
-            function highlight(e) {
-                dropArea.classList.add('highlight');
-            }
-
-            function unhighlight(e) {
-                dropArea.classList.remove('highlight');
-            }
-
-            function handleDrop(e) {
-                var dt = e.dataTransfer;
-                var files = dt.files;
-
-                handleFiles(files);
-            }
-
-            function handleFiles(files) {
-                files = [...files]; // Convert files to an array
-                files.forEach(file => uploadFile(file));
-            }
-
-            async function uploadFile(file) {
-                const url = 'upload'; // This now points to our new upload.php
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('action', 'upload');
-
-                const li = document.createElement('li');
-                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: 0%`;
-                li.style.color = '#FFA500';
-
-                const progressBar = document.createElement('progress');
-                progressBar.value = 0;
-                progressBar.max = 100;
-                li.appendChild(progressBar);
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = 'Remove';
-                removeBtn.classList.add('btn', 'btn-outline-warning', 'btn-sm', 'ms-2');
-                removeBtn.onclick = function () {
-                    li.parentNode.removeChild(li);
-                    const index = uploadedFilePaths.findIndex(f => f.fileName === file.name);
-                    if (index > -1) {
-                        const filePath = uploadedFilePaths[index].filePath;
-                        deleteFileFromServer(filePath);
-                        uploadedFilePaths.splice(index, 1);
-                        updateUploadedFilesInput();
-                    }
-                };
-
-                li.appendChild(removeBtn);
-                document.getElementById('fileNamesList').appendChild(li);
-
-                try {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', url, true);
-
-                    xhr.upload.addEventListener('progress', function (e) {
-                        if (e.lengthComputable) {
-                            const percentComplete = (e.loaded / e.total) * 100;
-                            progressBar.value = percentComplete;
-                            li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: ${percentComplete.toFixed(2)}%`;
-                            li.appendChild(progressBar);
-                            li.appendChild(removeBtn);
-                        }
-                    });
-
-                    xhr.onload = function () {
-                        if (xhr.status === 200) {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.status === 'success') {
-                                const filePath = response.filePath;
-                                const fileUrl = response.fileUrl;
-                                const fileSize = response.fileSize;
-                                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload complete!`;
-                                li.style.color = 'green';
-                                li.appendChild(removeBtn);
-                                uploadedFilePaths.push({ fileName: file.name, filePath: filePath, fileUrl: fileUrl, fileSize: fileSize });
-                                updateUploadedFilesInput();
-                            } else {
-                                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload failed: ${response.message}`;
-                                li.style.color = 'red';
-                            }
-                        } else {
-                            li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload error.`;
-                            li.style.color = 'red';
-                        }
-                    };
-
-                    xhr.send(formData);
-                } catch (error) {
-                    console.error('Error:', error);
-                    li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload error.`;
-                    li.style.color = 'red';
-                }
+            function updateUploadedFilesInput() {
+                document.getElementById('uploadedFiles').value = JSON.stringify(uploadedFilePaths); // Update hidden input value
             }
 
             async function deleteFileFromServer(filePath) {
-                const url = 'delete_file'; // URL to the PHP file handling deletions
                 const formData = new FormData();
                 formData.append('filePath', filePath);
                 formData.append('action', 'deleteFile');
+                formData.append('csrf_token', csrfToken);
 
                 try {
-                    const response = await fetch(url, {
+                    const response = await fetch('delete_file', {
                         method: 'POST',
                         body: formData,
                     });
@@ -501,9 +312,57 @@
                 }
             }
 
-            function updateUploadedFilesInput() {
-                document.getElementById('uploadedFiles').value = JSON.stringify(uploadedFilePaths); // Update hidden input value
-            }
+            const csrfToken = form.querySelector('input[name="csrf_token"]').value;
+
+            const taskDropzone = new Dropzone('#dropArea', {
+                url: 'upload',
+                paramName: 'file',
+                maxFilesize: 1024, // MB, effectively unlimited like the previous accept="*/*"
+                addRemoveLinks: true,
+                dictDefaultMessage: 'Drag and drop your files here or click to select files',
+                dictRemoveFile: 'Remove',
+                init: function () {
+                    this.on('sending', function (file, xhr, formData) {
+                        formData.append('action', 'upload');
+                        formData.append('csrf_token', csrfToken);
+                    });
+
+                    this.on('addedfile', function (file) {
+                        const nameEl = file.previewElement.querySelector('[data-dz-name]');
+                        if (nameEl) {
+                            nameEl.textContent = truncateFileName(file.name);
+                            nameEl.title = file.name;
+                        }
+                    });
+
+                    this.on('success', function (file, response) {
+                        let data = response;
+                        if (typeof data === 'string') {
+                            try { data = JSON.parse(data); } catch (e) { data = null; }
+                        }
+                        if (data && data.status === 'success') {
+                            uploadedFilePaths.push({
+                                fileName: file.name,
+                                filePath: data.filePath,
+                                fileUrl: data.fileUrl,
+                                fileSize: data.fileSize
+                            });
+                            updateUploadedFilesInput();
+                        } else {
+                            this.emit('error', file, (data && data.message) || 'Upload failed.');
+                        }
+                    });
+
+                    this.on('removedfile', function (file) {
+                        const index = uploadedFilePaths.findIndex(f => f.fileName === file.name);
+                        if (index > -1) {
+                            deleteFileFromServer(uploadedFilePaths[index].filePath);
+                            uploadedFilePaths.splice(index, 1);
+                            updateUploadedFilesInput();
+                        }
+                    });
+                }
+            });
 
             form.addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent the default form submission

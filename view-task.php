@@ -671,7 +671,7 @@ $dashOffset = $circumference * (1 - $progressPct / 100);
                             <div class="d-flex">
                                 <dd class="task-description-content">
                                     <?php
-                                    $cleanText = stripslashes($taskDescription);
+                                    $cleanText = $taskDescription;
                                     $pattern = '/(https?:\/\/[^\s]+)/';
                                     $replacement = '<a href="$1" class="highlighted-link" target="_blank">$1</a>';
                                     $formattedText = preg_replace($pattern, $replacement, $cleanText);

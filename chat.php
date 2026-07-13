@@ -19,8 +19,8 @@ $currentUserQuery = mysqli_query($con, "
 $currentUser = mysqli_fetch_assoc($currentUserQuery);
 $currentUserId = $currentUser['id'];
 $currentUserType = $currentUser['type'];
-$isOnline = $currentUser['is_online'];
 $lastSeen = $currentUser['last_seen'];
+$isOnline = isRecentlyOnline($lastSeen);
 
 // Determine online status or last seen
 $statusText = $isOnline ? 'Online' : ($lastSeen ? 'Last seen ' . date('M j, Y, g:i a', strtotime($lastSeen)) : 'Offline');
@@ -35,7 +35,7 @@ if ($currentUserType == 'writer') {
             'id' => $admin['id'],
             'username' => $admin['username'],
             'photo' => $admin['Photo'],
-            'is_online' => $admin['is_online'],
+            'is_online' => isRecentlyOnline($admin['last_seen']),
             'last_seen' => $admin['last_seen'],
             'type' => 'admin'
         ];
@@ -84,6 +84,11 @@ usort($users, function($a, $b) {
     </div>
 </div>
 
+<style>
+    .card-chat {
+        height: calc(80vh - var(--falcon-top-nav-height) - 0.625rem - 5rem);
+    }
+</style>
 <div class="card card-chat overflow-hidden">
     <div class="card-body d-flex p-0 h-100">
         <div class="chat-sidebar">

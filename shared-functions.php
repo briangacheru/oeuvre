@@ -184,6 +184,21 @@ function formatSizeUnits($bytes) {
 }
 }
 
+if (!function_exists('isRecentlyOnline')) {
+    // Presence is derived from last_seen rather than the is_online DB column,
+    // since is_online only flips back to 0 on an explicit logout - a closed
+    // tab, crashed browser, or dead session leaves it stuck at 1 forever.
+    // last_seen gets refreshed by check-login.php on every authenticated
+    // request, including the ~30s background poll in admin-task-notification.js,
+    // so a short threshold reliably reflects an actively open session.
+    function isRecentlyOnline($lastSeen, $thresholdSeconds = 120) {
+        if (!$lastSeen || $lastSeen === '0000-00-00 00:00:00') {
+            return false;
+        }
+        return (time() - strtotime($lastSeen)) <= $thresholdSeconds;
+    }
+}
+
 
 // ---- CSRF protection ----
 // A single per-session token is generated once and reused for every form

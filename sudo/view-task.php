@@ -658,12 +658,79 @@ if (isset($_SESSION['alert'])) {
 ?>
 
 <?php if ($publish != 1): ?>
-    <div class="alert alert-danger mt-2">
+    <div class="alert alert-danger mt-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h5 class="mb-0 text-800">
             <?php echo $publishText;?>
-
         </h5>
+        <button type="button" class="btn btn-sm btn-primary" id="publishTaskBtn">
+            <span class="fas fa-paper-plane me-1"></span>
+            <span class="publish-btn-text">Publish &amp; Notify Writer</span>
+        </button>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const publishBtn = document.getElementById('publishTaskBtn');
+            if (!publishBtn) return;
+
+            // Values embedded HTML-safe (JSON_HEX_*) since description is
+            // raw HTML and could otherwise break out of this <script> tag.
+            const taskData = <?php echo json_encode([
+                'taskId' => $taskId,
+                'topic' => $taskTopic,
+                'subject' => $taskSubject,
+                'account' => $taskAccount,
+                'description' => $taskDescription,
+                'writer' => $taskWriter,
+                'email' => $taskWriterEmail,
+                'due_date' => $taskDueDate,
+                'cpp' => $taskCPP,
+                'pages' => $taskPages,
+                'is_confirmed' => $is_confirmed,
+                'status' => ($is_confirmed == 0) ? 'In Progress' : 'Draft',
+                'admin_acknowledged' => $rowTask['admin_acknowledged'],
+                'acknowledged' => $rowTask['acknowledged'],
+            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+            const originalText = publishBtn.innerHTML;
+
+            publishBtn.addEventListener('click', function () {
+                if (!confirm('Publishing this task will immediately email the assigned writer with the task details. Continue?')) {
+                    return;
+                }
+
+                publishBtn.disabled = true;
+                publishBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Publishing...';
+
+                const formData = new FormData();
+                formData.append('action', 'submitForm');
+                formData.append('csrf_token', '<?php echo csrf_token(); ?>');
+                Object.keys(taskData).forEach(function (key) {
+                    formData.append(key, taskData[key]);
+                });
+                formData.append('publish', '1');
+                formData.append('sendEmail', '1');
+
+                fetch('update-task', { method: 'POST', body: formData })
+                    .then(function (response) { return response.text(); })
+                    .then(function (text) {
+                        const match = text.match(/(\{.*\})$/s);
+                        const data = match ? JSON.parse(match[1]) : null;
+                        if (data && data.status === 'success') {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to publish task: ' + (data && data.message ? data.message : 'Unknown error'));
+                            publishBtn.disabled = false;
+                            publishBtn.innerHTML = originalText;
+                        }
+                    })
+                    .catch(function (error) {
+                        alert('Error publishing task: ' + error.message);
+                        publishBtn.disabled = false;
+                        publishBtn.innerHTML = originalText;
+                    });
+            });
+        });
+    </script>
 <?php endif; ?>
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
     <div class="card mb-3">
@@ -1023,7 +1090,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                         <div class="card-body">
                             <div class="task-description-content">
                                 <?php
-                                $cleanText = stripslashes($taskDescription);
+                                $cleanText = $taskDescription;
 
                                 if (strip_tags($cleanText) !== $cleanText) {
                                     // --- HTML content from Quill editor ---
@@ -2430,7 +2497,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                         <div class="card-body position-relative">
                             <div class="bg-holder bg-card d-none d-md-block" style="background-image:url(../assets/img/icons/spot-illustrations/corner-1.png);"></div>
                             <ul class="list-unstyled position-relative fs-9 p-0 m-0"><li class="mb-2"><div class="d-flex"><dd class="task-description-content">
-                                            <?php echo preg_replace('/(https?:\/\/[^\s]+)/', '<a href="$1" class="highlighted-link" target="_blank">$1</a>', stripslashes($taskDescription)); ?>
+                                            <?php echo preg_replace('/(https?:\/\/[^\s]+)/', '<a href="$1" class="highlighted-link" target="_blank">$1</a>', $taskDescription); ?>
                                         </dd></div></li></ul>
                         </div>
                     </div>
