@@ -445,6 +445,29 @@ if (isset($_SESSION['alert'])) {
         </div>
     </div>
 
+    <style>
+        /* The theme's base .dz-remove is opacity:0 (only meant to reveal on
+           hover for its own single-file preview variant); this multi-file
+           dropzone needs it always visible, so it's pulled out of absolute
+           positioning here. */
+        #dropArea.dropzone .dz-remove {
+            position: static;
+            display: inline-block;
+            opacity: 1;
+            width: auto;
+            height: auto;
+            line-height: normal;
+            margin-top: 0.5rem;
+            color: var(--falcon-danger, #e63757);
+            font-size: 0.8rem;
+            text-decoration: underline;
+        }
+        #dropArea.dropzone .dz-remove:hover {
+            color: var(--falcon-danger, #e63757);
+            text-decoration: none;
+        }
+    </style>
+
     <div id="alertPlaceholder"></div>
     <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submission_upload" enctype="multipart/form-data">
 <?= csrf_field() ?>
@@ -453,14 +476,7 @@ if (isset($_SESSION['alert'])) {
                 <h6 class="mb-0">Submit file(s)</h6>
             </div>
             <div class="card-body">
-                <div id="dropArea" class="drop-area">
-                    <p>Drag and drop your files here or click to select files</p>
-                    <input name="taskfiles[]" id="fileInput" type="file" multiple="multiple" accept="*/*" style="display: none;"/>
-                    <button class="btn btn-outline-info me-1 mb-1" type="button" onclick="document.getElementById('fileInput').click()">Select Files</button>
-                </div>
-                <div id="fileList" class="file-list btn-outline-info">
-                    <ul id="fileNamesList"></ul>
-                </div>
+                <div id="dropArea" class="dropzone border rounded-3"></div>
                 <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
             </div>
         </div>
@@ -517,45 +533,66 @@ if (isset($_SESSION['alert'])) {
     </form>
 
     <script>
+        Dropzone.autoDiscover = false;
+
         document.addEventListener('DOMContentLoaded', function() {
             // Element references
-            const dropArea = document.getElementById('dropArea');
             const form = document.getElementById('taskForm');
-            const fileInput = document.getElementById('fileInput');
             const submitTaskButton = document.getElementById('submitTaskButton');
             const buttonText = document.getElementById('buttonText');
             const loadingSpinner = document.getElementById('loadingSpinner');
             const alertPlaceholder = document.getElementById('alertPlaceholder');
             const discardButton = document.getElementById('discardButton');
-            const fileContainer = document.querySelector('.card-body');
             const statusText = document.getElementById('statusText');
-            const fileNamesList = document.getElementById('fileNamesList');
             const uploadedFilesInput = document.getElementById('uploadedFiles');
+            const csrfToken = document.querySelector('[name="csrf_token"]').value;
 
             let uploadedFilePaths = []; // Store paths, URLs, and sizes of successfully uploaded files
 
             // Initially hide submit button
             submitTaskButton.classList.add('d-none');
 
-            // Prevent default drag behaviors
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, preventDefaults, false);
-                document.body.addEventListener(eventName, preventDefaults, false);
-            });
+            const dropzone = new Dropzone('#dropArea', {
+                url: 'upload_update',
+                paramName: 'file',
+                maxFilesize: 1024, // MB
+                addRemoveLinks: true,
+                dictDefaultMessage: 'Drag and drop your files here or click to select files',
+                dictRemoveFile: 'Remove',
+                init: function() {
+                    this.on('sending', function(file, xhr, formData) {
+                        formData.append('action', 'upload');
+                        formData.append('csrf_token', csrfToken);
+                    });
 
-            // Drag and drop handlers
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, highlight, false);
-            });
+                    this.on('success', function(file, response) {
+                        const data = typeof response === 'string' ? JSON.parse(response) : response;
+                        if (data.status === 'success') {
+                            file._uploadedFilePath = data.filePath;
+                            uploadedFilePaths.push({
+                                fileName: data.fileName || file.name,
+                                originalName: data.originalName || file.name,
+                                filePath: data.filePath,
+                                fileUrl: data.fileUrl,
+                                fileSize: data.fileSize || file.size
+                            });
+                            updateUploadedFilesInput();
+                            toggleSubmitButton();
+                        } else {
+                            this.emit('error', file, data.message || 'Upload failed');
+                        }
+                    });
 
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, unhighlight, false);
-            });
-
-            // Event Listeners
-            dropArea.addEventListener('drop', handleDrop, false);
-            fileInput.addEventListener('change', function(e) {
-                handleFiles(e.target.files);
+                    this.on('removedfile', function(file) {
+                        const index = uploadedFilePaths.findIndex(f => f.filePath === file._uploadedFilePath);
+                        if (index > -1) {
+                            deleteFileFromServer(uploadedFilePaths[index].filePath);
+                            uploadedFilePaths.splice(index, 1);
+                            updateUploadedFilesInput();
+                            toggleSubmitButton();
+                        }
+                    });
+                }
             });
 
             discardButton.addEventListener('click', function() {
@@ -566,19 +603,10 @@ if (isset($_SESSION['alert'])) {
                         deleteFileFromServer(file.filePath);
                     });
                     uploadedFilePaths = [];
-                    document.getElementById('fileNamesList').innerHTML = '';
+                    dropzone.removeAllFiles(true);
                     updateUploadedFilesInput();
                     toggleSubmitButton();
                     window.scrollTo(0, 0);
-                }
-            });
-
-            // File container click handler for delete buttons
-            fileContainer.addEventListener('click', function(e) {
-                if (e.target.classList.contains('delete-btn')) {
-                    e.preventDefault();
-                    const filePath = e.target.getAttribute('data-file-path');
-                    deleteFile(filePath, e.target.closest('.d-flex'));
                 }
             });
 
@@ -603,23 +631,6 @@ if (isset($_SESSION['alert'])) {
             });
 
             // Utility Functions
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            function highlight(e) {
-                dropArea.classList.add('highlight');
-            }
-
-            function unhighlight(e) {
-                dropArea.classList.remove('highlight');
-            }
-
-            function handleDrop(e) {
-                handleFiles(e.dataTransfer.files);
-            }
-
             function toggleSubmitButton() {
                 if (uploadedFilePaths.length > 0) {
                     submitTaskButton.classList.remove('d-none');
@@ -628,99 +639,12 @@ if (isset($_SESSION['alert'])) {
                 }
             }
 
-            function handleFiles(files) {
-                [...files].forEach(file => uploadFile(file));
-            }
-
-            async function uploadFile(file) {
-                // Changed to upload_submission for Digital Ocean Spaces uploads
-                const url = 'upload_update';
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('action', 'upload');
-
-                const li = document.createElement('li');
-                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: 0%`;
-                li.style.color = '#FFA500';
-
-                const progressBar = document.createElement('progress');
-                progressBar.value = 0;
-                progressBar.max = 100;
-                li.appendChild(progressBar);
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = 'Remove';
-                removeBtn.classList.add('btn', 'btn-outline-warning', 'btn-sm', 'ms-2');
-                removeBtn.onclick = function() {
-                    li.parentNode.removeChild(li);
-                    const index = uploadedFilePaths.findIndex(f => f.fileName === file.name);
-                    if (index > -1) {
-                        deleteFileFromServer(uploadedFilePaths[index].filePath);
-                        uploadedFilePaths.splice(index, 1);
-                        updateUploadedFilesInput();
-                        toggleSubmitButton();
-                    }
-                };
-
-                li.appendChild(removeBtn);
-                document.getElementById('fileNamesList').appendChild(li);
-
-                try {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', url, true);
-
-                    xhr.upload.addEventListener('progress', function(e) {
-                        if (e.lengthComputable) {
-                            const percentComplete = (e.loaded / e.total) * 100;
-                            progressBar.value = percentComplete;
-                            li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Uploading: ${percentComplete.toFixed(2)}%`;
-                            li.appendChild(progressBar);
-                            li.appendChild(removeBtn);
-                        }
-                    });
-
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.status === 'success') {
-                                li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Upload complete!`;
-                                li.style.color = 'green';
-                                li.appendChild(removeBtn);
-
-                                // Store filePath, fileUrl, and fileSize
-                                uploadedFilePaths.push({
-                                    fileName: file.name,
-                                    originalName: file.name,
-                                    filePath: response.filePath,
-                                    fileUrl: response.fileUrl,
-                                    fileSize: response.fileSize || file.size // Use server response or fallback to client size
-                                });
-
-                                updateUploadedFilesInput();
-                                toggleSubmitButton();
-                            } else {
-                                li.textContent = `${file.name} - Upload failed: ${response.message}`;
-                                li.style.color = 'red';
-                            }
-                        } else {
-                            li.textContent = `${file.name} - Upload error.`;
-                            li.style.color = 'red';
-                        }
-                    };
-
-                    xhr.send(formData);
-                } catch (error) {
-                    console.error('Error:', error);
-                    li.textContent = `${file.name} - Upload error.`;
-                    li.style.color = 'red';
-                }
-            }
-
             async function deleteFileFromServer(filePath) {
                 const url = 'delete-file';
                 const formData = new FormData();
                 formData.append('filePath', filePath);
                 formData.append('action', 'deleteFile');
+                formData.append('csrf_token', csrfToken);
 
                 try {
                     const response = await fetch(url, {
@@ -733,30 +657,6 @@ if (isset($_SESSION['alert'])) {
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                }
-            }
-
-            function deleteFile(filePath, elementToRemove) {
-                if (confirm('Are you sure you want to delete this file?')) {
-                    fetch('delete-file', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'filePath=' + encodeURIComponent(filePath) + '&action=deleteFile'
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                elementToRemove.remove();
-                            } else {
-                                alert('Failed to delete the file. Please try again.');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('An error occurred. Please try again.');
-                        });
                 }
             }
 

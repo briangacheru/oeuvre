@@ -14,6 +14,7 @@ $msg = "";
 if (isset($_GET['del'])) {
     $encodedId = $_GET['del'];
     $cmpid = (int) base64_decode($encodedId);
+    $cancellationReason = trim($_GET['reason'] ?? '') ?: 'No reason provided';
 
     // Validate $cmpid to ensure it's numeric and not empty
     if (is_numeric($cmpid) && !empty($cmpid)) {
@@ -29,7 +30,8 @@ if (isset($_GET['del'])) {
                                   </div>';
         } else {
             // Perform the delete operation if the task is not completed, submitted, or paid
-            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1 , status = 'Cancelled' WHERE id='$cmpid'");
+            $escapedReason = mysqli_real_escape_string($con, $cancellationReason);
+            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1, status = 'Cancelled', cancellation_reason = '$escapedReason' WHERE id='$cmpid'");
 
             if ($query) {
 
@@ -37,10 +39,12 @@ if (isset($_GET['del'])) {
                 $taskQuery = mysqli_query($con, "SELECT * FROM tbltasks WHERE id='$cmpid'");
                 $taskData = mysqli_fetch_assoc($taskQuery);
                 $writerEmail = $taskData['email'];
+                $writerName = $taskData['writer'];
                 $taskTopic = $taskData['topic'];
                 $taskSubject = $taskData['subject'];
                 $taskDueDate = $taskData['due_date'];
                 $taskPages = $taskData['pages'];
+                $taskCpp = $taskData['cpp'];
                 $taskDescription = $taskData['description'];
                 $taskAccount = $taskData['account'];
 
@@ -63,10 +67,120 @@ if (isset($_GET['del'])) {
                     $mail->addAddress($writerEmail);
                     $mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin');
 
-                    // Content
-                    $mail->isHTML(true);                        // Set email format to HTML
-                    $mail->Subject = 'Task ID: ' . $cmpid . ' - ' . $taskTopic . ' - [ ' . $taskAccount. ' ] ';
-                    $mail->Body    = "<h1>Task $cmpid has been Cancelled. Do not go ahead with it.</h1>";
+                    // Content - styled the same as the task-assignment ("acknowledgement")
+                    // email, but with red accents to signal a cancellation instead of a new task.
+                    $mail->isHTML(true);
+                    $mail->Subject = 'Task ID: ' . $cmpid . ' - ' . $taskTopic . ' - [ ' . $taskAccount . ' ] ';
+
+                    $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
+                    $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
+
+                    $mail->Body = "
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                        <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #f4f4f4;
+                            padding: 20px;
+                        }
+                        .email-container {
+                            max-width: 600px;
+                            background: #ffffff;
+                            margin: 0 auto;
+                            padding: 20px;
+                            border-radius: 8px;
+                            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+                        }
+                        .email-header {
+                            text-align: center;
+                            border-bottom: 2px solid #dc3545;
+                            padding-bottom: 15px;
+                        }
+                        .email-header img {
+                            max-width: 100%;
+                            height: auto;
+                            max-height:100px;
+                        }
+                        .email-content {
+                            padding: 20px;
+                        }
+                        .email-content h2 {
+                            color: #dc3545;
+                            text-align: center;
+                        }
+                        .email-content p {
+                            font-size: 16px;
+                            line-height: 1.5;
+                            color: #333;
+                        }
+                        .highlight {
+                            font-weight: bold;
+                            color: #dc3545;
+                        }
+                        .btn {
+                            display: block;
+                            text-align: center;
+                            background: #dc3545;
+                            color: #ffffff;
+                            padding: 12px;
+                            border-radius: 5px;
+                            text-decoration: none;
+                            font-size: 16px;
+                            font-weight: bold;
+                            margin-top: 20px;
+                            transition: background 0.3s ease-in-out, color 0.3s ease-in-out;
+                        }
+                        .btn:hover {
+                            background: #c82333;
+                            color: #ffffff !important;
+                        }
+                        .footer {
+                            text-align: center;
+                            padding-top: 15px;
+                            font-size: 12px;
+                            color: #777;
+                        }
+                        </style>
+                        </head>
+                        <body>
+                        <div class='email-container'>
+                            <div class='email-header'>
+                                <img src='{$companyLogo}' alt='itasker logo'>
+                            </div>
+                            <div class='email-content'>
+                                <h2>Task Cancelled</h2>
+                                <p>Hello <span class='highlight'>$writerName</span>,</p>
+                                <p>The following task has been cancelled. Please do not go ahead with it:</p>
+                                <p><strong>Topic:</strong> <span class='highlight'>$taskTopic</span></p>
+                                <p><strong>Subject:</strong> $taskSubject</p>
+                                <p><strong>Due Date:</strong> <span class='highlight'>$taskDueDate</span></p>
+                                <p><strong>Pages:</strong> $taskPages</p>
+                                <p><strong>Price per Page:</strong> Ksh $taskCpp</p>
+                                <p><strong>Reason for Cancellation:</strong> <span class='highlight'>$cancellationReason</span></p>
+
+                                <a class='btn' href='$taskDetailsUrl'>View Task Details</a>
+                            </div>
+                            <div class='footer'>
+                                <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
+                                <p>&copy; " . date('Y') . " iTasker. All rights reserved.</p>
+                            </div>
+                        </div>
+                        </body>
+                        </html>";
+
+                    $mail->AltBody = "Task Cancelled\n\n
+                        Hello $writerName,\n
+                        The following task has been cancelled. Please do not go ahead with it:\n
+                        Topic: $taskTopic\n
+                        Subject: $taskSubject\n
+                        Due Date: $taskDueDate\n
+                        Pages: $taskPages\n
+                        Price per Page: Ksh $taskCpp\n
+                        Reason for Cancellation: $cancellationReason\n
+                        View Task Details: $taskDetailsUrl\n\n
+                        For any questions, contact bryo4419@gmail.com";
 
                     $mail->send();
 
@@ -703,6 +817,25 @@ if (isset($_SESSION['alert'])) {
                         </div>
                     </div>
                 </div>
+
+                <!-- Cancellation Reason -->
+                <div class="card border-0 shadow-sm mt-3">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="mb-0 fw-bold text-danger">
+                            <i class="fas fa-comment-dots me-2"></i>Reason for Cancellation
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <select class="form-select mb-3" id="cancelReasonSelect">
+                            <option value="" selected disabled>Select a reason...</option>
+                            <option value="Client asked the task to be cancelled">Client asked the task to be cancelled</option>
+                            <option value="The task timeline has depleted">The task timeline has depleted</option>
+                            <option value="other">Other (please specify)</option>
+                        </select>
+                        <textarea class="form-control d-none" id="cancelReasonCustom" rows="3" placeholder="Please specify the reason for cancelling this task..."></textarea>
+                        <div class="invalid-feedback d-block d-none" id="cancelReasonError">Please provide a reason for cancelling this task.</div>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer with modern buttons -->
@@ -791,17 +924,41 @@ if (isset($_SESSION['alert'])) {
                             statusBadge.classList.add('bg-secondary');
                     }
 
+                    // Reset the cancellation reason fields for this fresh confirmation
+                    cancelReasonSelect.value = '';
+                    cancelReasonCustom.value = '';
+                    cancelReasonCustom.classList.add('d-none');
+                    cancelReasonError.classList.add('d-none');
+
                     // Show the modal
                     deleteModal.show();
                 });
             });
 
+            // Cancellation reason fields
+            const cancelReasonSelect = document.getElementById('cancelReasonSelect');
+            const cancelReasonCustom = document.getElementById('cancelReasonCustom');
+            const cancelReasonError = document.getElementById('cancelReasonError');
+
+            cancelReasonSelect.addEventListener('change', function() {
+                cancelReasonCustom.classList.toggle('d-none', this.value !== 'other');
+                cancelReasonError.classList.add('d-none');
+            });
+
             // Handle confirm delete button
             confirmDeleteBtn.addEventListener('click', function() {
-                if (currentTaskEncodedId) {
-                    // Redirect to delete URL
-                    window.location.href = 'tasks-in-progress?del=' + currentTaskEncodedId;
+                if (!currentTaskEncodedId) return;
+
+                const selectedReason = cancelReasonSelect.value;
+                const reason = selectedReason === 'other' ? cancelReasonCustom.value.trim() : selectedReason;
+
+                if (!reason) {
+                    cancelReasonError.classList.remove('d-none');
+                    return;
                 }
+
+                // Redirect to delete URL
+                window.location.href = 'tasks-in-progress?del=' + currentTaskEncodedId + '&reason=' + encodeURIComponent(reason);
             });
 
             // Add click event to each duplicate button

@@ -177,8 +177,11 @@ if (isset($_GET['task_id']) && isset($_GET['action'])) {
     }
 
     if ($action == 'accept') {
-        // Update the task to be accepted; already viewed by the writer at this point, so mark it acknowledged
-        $sql = "UPDATE tbltasks SET is_confirmed = 0, status = 'In Progress', acknowledged = 1, acknowledged_at = NOW() WHERE id = '$taskId'";
+        // Update the task to be accepted; already viewed by the writer at this point, so mark it acknowledged.
+        // MySQL's NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+        // setting (see check-login.php), so the timestamp is computed here instead.
+        $acknowledgedAt = date('Y-m-d H:i:s');
+        $sql = "UPDATE tbltasks SET is_confirmed = 0, status = 'In Progress', acknowledged = 1, acknowledged_at = '$acknowledgedAt' WHERE id = '$taskId'";
     } elseif ($action == 'decline') {
         // Update the task to be declined
         $sql = "UPDATE tbltasks SET is_confirmed = 2, status = 'Draft' WHERE id = '$taskId'";
