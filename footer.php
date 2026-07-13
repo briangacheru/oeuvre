@@ -158,6 +158,7 @@
 <script src="assets/js/theme.js"></script>
 <script src="assets/js/myjs.js"></script>
 <script src="assets/js/sessiontimeout.js"></script>
+<script>const GLOBAL_CSRF_TOKEN = '<?php echo csrf_token(); ?>';</script>
 <script src="assets/js/task-notification.js"></script>
 <script src="vendors/tinymce/tinymce.min.js"></script>
 <script src="vendors/dropzone/dropzone-min.js"></script>

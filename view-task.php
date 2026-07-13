@@ -47,6 +47,17 @@ if (isset($_GET['task_id'])) {
         header("Location: all-tasks");
         exit();
     }
+
+    $taskRowCheck = $result->fetch_assoc();
+    if ($taskRowCheck['is_confirmed'] == 2) {
+        $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
+                                <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
+                                <p class="mb-0 flex-1">This task has been declined and is no longer available.</p>
+                                <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>';
+        header("Location: all-tasks");
+        exit();
+    }
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                             <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -256,6 +267,13 @@ if (in_array($taskStatus, ['Completed', 'Cancelled'])) {
             </div>
         </div>
     </div>
+
+<?php
+if (isset($_SESSION['alert'])) {
+    echo $_SESSION['alert'];
+    unset($_SESSION['alert']);
+}
+?>
 
 <?php
 if (isset($_GET['message'])) {
@@ -1688,18 +1706,42 @@ foreach ($comments as $comment) {
 
     </script>
     <script>
+        let pendingConfirmTaskId = null;
+
         function confirmAction(taskId, action) {
-            if (action === 'accept' || action === 'decline') {
-                let actionText = action === 'accept' ? 'accept' : 'decline';
-                if (confirm(`Are you sure you want to ${actionText} this task?`)) {
-                    window.location.href = `confirmation?task_id=${taskId}&action=${action}`;
-                }
+            if (action === 'accept') {
+                pendingConfirmTaskId = taskId;
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('acceptTaskModal')).show();
+            } else if (action === 'decline') {
+                pendingConfirmTaskId = taskId;
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('declineTaskModal')).show();
             } else if (action === 'resubmit') {
                 if (confirm('Are you sure you want to resubmit this task?')) {
                     window.location.href = `resubmission?task_id=${taskId}#filesResubmission`;
                 }
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const acceptBtn = document.getElementById('confirmAcceptBtn');
+            const declineBtn = document.getElementById('confirmDeclineBtn');
+
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', function() {
+                    if (pendingConfirmTaskId) {
+                        window.location.href = `confirmation?task_id=${pendingConfirmTaskId}&action=accept`;
+                    }
+                });
+            }
+
+            if (declineBtn) {
+                declineBtn.addEventListener('click', function() {
+                    if (pendingConfirmTaskId) {
+                        window.location.href = `confirmation?task_id=${pendingConfirmTaskId}&action=decline`;
+                    }
+                });
+            }
+        });
         // Enhanced toggle function with smooth animations
         function toggleCommentForm() {
             const form = document.getElementById('commentForm');
@@ -3409,6 +3451,47 @@ foreach ($comments as $comment) {
 
     </script>
 
+    <!-- Accept Task confirmation modal -->
+    <div class="modal fade" id="acceptTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-success">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Accept Task</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to accept this task? Once accepted, it will move to "In Progress".</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmAcceptBtn">
+                        <i class="fas fa-check me-1"></i>Yes, Accept
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decline Task confirmation modal -->
+    <div class="modal fade" id="declineTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-times-circle me-2"></i>Decline Task</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to decline this task? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeclineBtn">
+                        <i class="fas fa-times me-1"></i>Yes, Decline
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <?php
 include "footer.php";

@@ -8,12 +8,13 @@ if (isset($_POST['task_id']) && isset($_POST['acknowledged'])) {
     $task_id = intval($_POST['task_id']);
     $acknowledged = intval($_POST['acknowledged']);
     $acknowledged_at = date('Y-m-d H:i:s');
+    $aid = $_SESSION['sessionWriter'];
 
-    $query = 'UPDATE tbltasks SET acknowledged = ?, acknowledged_at = ? WHERE id = ?';
+    $query = 'UPDATE tbltasks SET acknowledged = ?, acknowledged_at = ? WHERE id = ? AND email = ?';
     $stmt = mysqli_prepare($con, $query);
 
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, 'isi', $acknowledged, $acknowledged_at, $task_id);
+        mysqli_stmt_bind_param($stmt, 'isis', $acknowledged, $acknowledged_at, $task_id, $aid);
         $result = mysqli_stmt_execute($stmt);
 
         if ($result) {

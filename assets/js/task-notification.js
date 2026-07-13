@@ -89,7 +89,7 @@ function markTaskAsRead(taskId) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `task_id=${taskId}`
+        body: `task_id=${taskId}&csrf_token=${encodeURIComponent(GLOBAL_CSRF_TOKEN)}`
     })
         .then(response => response.json())
         .catch(error => {

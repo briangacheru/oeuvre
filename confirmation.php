@@ -177,8 +177,8 @@ if (isset($_GET['task_id']) && isset($_GET['action'])) {
     }
 
     if ($action == 'accept') {
-        // Update the task to be accepted
-        $sql = "UPDATE tbltasks SET is_confirmed = 0, status = 'In Progress' WHERE id = '$taskId'";
+        // Update the task to be accepted; already viewed by the writer at this point, so mark it acknowledged
+        $sql = "UPDATE tbltasks SET is_confirmed = 0, status = 'In Progress', acknowledged = 1, acknowledged_at = NOW() WHERE id = '$taskId'";
     } elseif ($action == 'decline') {
         // Update the task to be declined
         $sql = "UPDATE tbltasks SET is_confirmed = 2, status = 'Draft' WHERE id = '$taskId'";
@@ -202,7 +202,12 @@ if (isset($_GET['task_id']) && isset($_GET['action'])) {
                                 </div>';
     }
 
-    header('Location: view-task?task_id=' . $encodedId);
+    if ($action == 'decline') {
+        // Declined tasks are hidden from the writer immediately, so send them back to their task list instead
+        header('Location: all-tasks');
+    } else {
+        header('Location: view-task?task_id=' . $encodedId);
+    }
     exit();
 } else {
     $_SESSION['alert'] = '<div class="alert alert-danger border-0 d-flex align-items-center" role="alert">

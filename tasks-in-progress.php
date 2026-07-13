@@ -189,7 +189,7 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'task_id=' + taskId + '&acknowledged=1'
+                body: 'task_id=' + taskId + '&acknowledged=1&csrf_token=' + encodeURIComponent(GLOBAL_CSRF_TOKEN)
             })
                 .then(response => response.json())
                 .then(data => {
