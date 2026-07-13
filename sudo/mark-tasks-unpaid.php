@@ -18,7 +18,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {
         $idsString = implode(',', array_map('intval', $taskIds));
 
         // SQL query to update tasks status
-        $sql = "UPDATE tbltasks SET is_paid = 1, paid_on = NOW() WHERE id IN ($idsString) AND status = 'Completed' AND is_paid = 0";
+        // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+        // setting (see check-login.php), so the timestamp is computed here instead.
+        $paidOn = date('Y-m-d H:i:s');
+        $sql = "UPDATE tbltasks SET is_paid = 1, paid_on = '$paidOn' WHERE id IN ($idsString) AND status = 'Completed' AND is_paid = 0";
 
         if (mysqli_query($con, $sql)) {
             // Check if any rows were updated

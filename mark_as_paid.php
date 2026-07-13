@@ -7,7 +7,10 @@ if(isset($_POST['task_ids']) && is_array($_POST['task_ids'])) {
     $taskIds = $_POST['task_ids'];
     $taskIdsString = implode(',', array_map('intval', $taskIds));
 
-    $query = "UPDATE tbltasks SET is_paid = 1, paid_on = NOW() WHERE id IN ($taskIdsString)";
+    // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+    // setting (see check-login.php), so the timestamp is computed here instead.
+    $paidOn = date('Y-m-d H:i:s');
+    $query = "UPDATE tbltasks SET is_paid = 1, paid_on = '$paidOn' WHERE id IN ($taskIdsString)";
     if(mysqli_query($con, $query)) {
         $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert"><i class="bi bi-check-circle"></i> Selected tasks marked as paid successfully.
                                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

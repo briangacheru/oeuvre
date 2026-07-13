@@ -6,9 +6,12 @@ csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] == 'mark_paid') {
         $bonusId = intval($_POST['bonus_id']);
-        $updateQuery = "UPDATE tbl_monthly_bonuses SET is_paid = 1, paid_on = NOW() WHERE id = ?";
+        // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+        // setting (see check-login.php), so the timestamp is computed here instead.
+        $paidOn = date('Y-m-d H:i:s');
+        $updateQuery = "UPDATE tbl_monthly_bonuses SET is_paid = 1, paid_on = ? WHERE id = ?";
         $stmt = $con->prepare($updateQuery);
-        $stmt->bind_param("i", $bonusId);
+        $stmt->bind_param("si", $paidOn, $bonusId);
 
         if ($stmt->execute()) {
             $successMessage = "Bonus marked as paid successfully!";

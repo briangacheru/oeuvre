@@ -65,7 +65,7 @@ if (isset($_GET['del'])) {
                     $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'itasker');
                     $mail->addReplyTo(env('ADMIN_EMAIL'), 'Bryo Gacheru');
                     $mail->addAddress($writerEmail);
-                    $mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin');
+                    $mail->addBCC(env('ADMIN_EMAIL'), 'iTasker Admin');
 
                     // Content - styled the same as the task-assignment ("acknowledgement")
                     // email, but with red accents to signal a cancellation instead of a new task.
@@ -150,7 +150,7 @@ if (isset($_GET['del'])) {
                                 <img src='{$companyLogo}' alt='itasker logo'>
                             </div>
                             <div class='email-content'>
-                                <h2>Task Cancelled</h2>
+                                <h2>Task ID " . $cmpid . " has beed CANCELLED</h2>
                                 <p>Hello <span class='highlight'>$writerName</span>,</p>
                                 <p>The following task has been cancelled. Please do not go ahead with it:</p>
                                 <p><strong>Topic:</strong> <span class='highlight'>$taskTopic</span></p>

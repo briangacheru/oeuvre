@@ -9,9 +9,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $taskId = (int) base64_decode($encodedId);
 
     // Update the task status to 'Completed'
-    $sql = "UPDATE tbltasks SET  is_paid = 1, paid_on = NOW() WHERE id = ?";
+    // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+    // setting (see check-login.php), so the timestamp is computed here instead.
+    $paidOn = date('Y-m-d H:i:s');
+    $sql = "UPDATE tbltasks SET  is_paid = 1, paid_on = ? WHERE id = ?";
     $stmt = $con->prepare($sql);
-    $stmt->bind_param("i", $taskId);
+    $stmt->bind_param("si", $paidOn, $taskId);
 
     if ($stmt->execute()) {
         $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert">
