@@ -607,6 +607,7 @@ usort($users, function($a, $b) {
                     <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
                         <div class="w-100 w-xxl-75">
                             <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
+                                ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
                                     ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                                     ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
