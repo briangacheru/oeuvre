@@ -48,7 +48,7 @@ try {
 
     // Fetch new messages
     $newMessagesQuery = mysqli_query($con, "
-        SELECT id, sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url, is_read, is_edited, related_task_id
+        SELECT id, sender_id, sender_type, receiver_id, receiver_type, message, timestamp, file_url, original_file_name, is_read, is_edited, related_task_id
         FROM chat_messages
         WHERE receiver_id = $currentUserId
           AND receiver_type = '$currentUserType'

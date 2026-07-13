@@ -1,17 +1,18 @@
 <?php
-// Returns every file attachment exchanged with a given conversation partner,
-// for the "Shared Files" modal.
+// Lightweight poll target: for the currently open conversation, returns the
+// current text of every edited message (either party), so an edit made by
+// one side shows up on the other side's screen without a full reload.
 include "check-login.php";
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['sessionWriter']) && !isset($_SESSION['odmsaid'])) {
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    echo json_encode(['error' => 'Not authenticated']);
     exit();
 }
 
 $partnerId = filter_var($_GET['partner_id'] ?? null, FILTER_VALIDATE_INT);
 if ($partnerId === false || $partnerId <= 0) {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid partner ID']);
+    echo json_encode(['error' => 'Invalid partner ID']);
     exit();
 }
 
@@ -27,34 +28,24 @@ mysqli_stmt_execute($currentUserIdQuery);
 $currentUser = mysqli_fetch_assoc(mysqli_stmt_get_result($currentUserIdQuery));
 
 if (!$currentUser) {
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    echo json_encode(['error' => 'User not found']);
     exit();
 }
 
 $currentUserId = (int)$currentUser['id'];
 
 $stmt = mysqli_prepare($con, "
-    SELECT id, sender_id, file_url, original_file_name, timestamp
-    FROM chat_messages
-    WHERE file_url IS NOT NULL
-      AND is_deleted = 0
-      AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
-    ORDER BY timestamp DESC
-    LIMIT 100
+    SELECT id, message FROM chat_messages
+    WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
+      AND is_edited = 1 AND is_deleted = 0
 ");
 mysqli_stmt_bind_param($stmt, 'iiii', $currentUserId, $partnerId, $partnerId, $currentUserId);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
-$files = [];
+$edits = [];
 while ($row = mysqli_fetch_assoc($result)) {
-    $files[] = [
-        'id' => (int)$row['id'],
-        'sender_id' => (int)$row['sender_id'],
-        'file_url' => $row['file_url'],
-        'original_file_name' => $row['original_file_name'],
-        'timestamp' => $row['timestamp']
-    ];
+    $edits[] = ['id' => (int)$row['id'], 'message' => $row['message']];
 }
 
-echo json_encode(['status' => 'success', 'files' => $files]);
+echo json_encode(['status' => 'success', 'edits' => $edits]);

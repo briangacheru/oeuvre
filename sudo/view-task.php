@@ -766,6 +766,11 @@ if (isset($_SESSION['alert'])) {
                                     <?php echo $confirmation;?>
                                 <?php endif; ?>
                             </div>
+                            <?php if ($taskStatus == 'Cancelled' && !empty($rowTask['cancellation_reason'])): ?>
+                                <div class="fs-9 mb-2 text-danger">
+                                    <strong class="me-1">Reason:</strong> <?php echo htmlspecialchars($rowTask['cancellation_reason'], ENT_QUOTES, 'UTF-8'); ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -2345,6 +2350,11 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         <?php endif; ?>
                                         <?php if ($is_confirmed == 1): ?><?php echo $confirmation; ?><?php endif; ?>
                                     </div>
+                                    <?php if ($taskStatus == 'Cancelled' && !empty($rowTask['cancellation_reason'])): ?>
+                                        <div class="fs-9 mb-3 mb-sm-0 text-danger">
+                                            <strong class="me-1">Reason:</strong> <?php echo htmlspecialchars($rowTask['cancellation_reason'], ENT_QUOTES, 'UTF-8'); ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="col-12 col-sm-auto ms-auto">
                                     <?php if ($taskStatus == 'In Progress'): ?>

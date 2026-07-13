@@ -22,7 +22,7 @@ if (isset($_GET['user_id']) && isset($_GET['user_type'])) {
 
         // Fetch messages between the current user and the selected user
         $messagesQuery = mysqli_prepare($con, "
-            SELECT id, sender_id, receiver_id, message, timestamp, file_url, is_read, is_edited, related_task_id
+            SELECT id, sender_id, receiver_id, message, timestamp, file_url, original_file_name, is_read, is_edited, related_task_id
             FROM chat_messages
             WHERE ((sender_id = ? AND receiver_id = ?)
                OR (receiver_id = ? AND sender_id = ?))

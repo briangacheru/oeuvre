@@ -227,11 +227,11 @@ usort($users, function($a, $b) {
                 <input type="hidden" name="receiver_type" id="receiverTypeField">
                 <input type="file" id="chat-file-upload" name="file" class="d-none" accept="image/*,.heic,.heif,.avif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
                 <label class="chat-file-upload cursor-pointer" for="chat-file-upload"><span class="fas fa-paperclip"></span></label>
-                <div id="file-preview" class="file-preview"></div> <!-- Preview area -->
+                <div id="file-preview" class="file-preview" style="display: none;"></div> <!-- Preview area -->
                 <div class="chat-emoji-picker">
                     <div class="btn btn-link emoji-icon" data-emoji-mart="data-emoji-mart" data-emoji-mart-input-target="#messageInput"><span class="far fa-laugh-beam"></span></div>
                 </div>
-                <button class="btn btn-sm btn-send shadow-none" type="submit">Send</button>
+                <button class="btn btn-sm btn-send shadow-none" type="submit" id="sendButton">Send</button>
             </form>
         </div>
     </div>
@@ -545,7 +545,7 @@ usort($users, function($a, $b) {
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
                         ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                         ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
-                        ${fileAttachmentHtml(message.file_url)}
+                        ${fileAttachmentHtml(message.file_url, message.original_file_name)}
                     </div>
                 </div>
                 <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''}">
@@ -568,6 +568,7 @@ usort($users, function($a, $b) {
 
     function pollMessages() {
         refreshReadReceipts();
+        refreshMessageEdits();
         refreshTypingIndicator();
 
         fetch(`poll_messages?last_timestamp=${lastTimestamp}`)
@@ -611,7 +612,7 @@ usort($users, function($a, $b) {
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
                                     ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                                     ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
-                                    ${fileAttachmentHtml(message.file_url)}
+                                    ${fileAttachmentHtml(message.file_url, message.original_file_name)}
                                 </div>
                             </div>
                             <div class="text-400 fs-11 ${isCurrentUser ? 'text-end' : ''}">
@@ -688,6 +689,42 @@ usort($users, function($a, $b) {
             });
     }
 
+    // Syncs edits made on either side of the conversation into the DOM -
+    // without this, editing a message only updates the editor's own screen,
+    // and the other party never sees the new text until a full reload.
+    function refreshMessageEdits() {
+        const receiverId = document.getElementById('receiverIdField').value;
+        if (!receiverId) return;
+
+        fetch(`get_message_edits?partner_id=${encodeURIComponent(receiverId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.status !== 'success' || !Array.isArray(data.edits)) return;
+
+                data.edits.forEach(edit => {
+                    const messageEl = document.querySelector(`[data-message-id="${edit.id}"]`);
+                    if (!messageEl) return;
+                    const textEl = messageEl.querySelector('.message-text');
+                    if (!textEl) return;
+
+                    if (textEl.textContent !== edit.message) {
+                        textEl.textContent = edit.message;
+                    }
+
+                    const chatMessage = messageEl.querySelector('.chat-message');
+                    if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
+                        const tag = document.createElement('span');
+                        tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
+                        tag.textContent = '(edited)';
+                        textEl.insertAdjacentElement('afterend', tag);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error refreshing message edits:', error);
+            });
+    }
+
     function sendTypingSignal() {
         const receiverId = document.getElementById('receiverIdField').value;
         const receiverType = document.getElementById('receiverTypeField').value;
@@ -733,14 +770,15 @@ usort($users, function($a, $b) {
     // Renders a message's attachment as an inline image preview if it's a
     // photo, otherwise as a file-type icon link (previously this always
     // rendered an <img>, so PDFs/docs/zips showed a broken image icon).
-    function fileAttachmentHtml(fileUrl) {
+    function fileAttachmentHtml(fileUrl, originalFileName) {
         if (!fileUrl) return '';
+        const displayName = originalFileName || fileUrl;
         const extension = (fileUrl.split('.').pop() || '').toLowerCase();
         const href = `taskfiles/${fileUrl}`;
         if (SHARED_FILE_IMAGE_EXTENSIONS.includes(extension)) {
-            return `<a href="${href}" class="glightbox" data-gallery="gallery-3"><img class="rounded" src="${href}" alt="" width="150"></a>`;
+            return `<a href="${href}" class="glightbox" data-gallery="gallery-3" title="${escapeHtml(displayName)}"><img class="rounded" src="${href}" alt="${escapeHtml(displayName)}" width="150"></a>`;
         }
-        return `<a href="${href}" target="_blank" class="d-flex align-items-center text-decoration-none bg-light rounded p-2 mt-1" style="max-width:200px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-lg me-2"></i><span class="text-truncate fs-11 text-dark">${escapeHtml(fileUrl)}</span></a>`;
+        return `<a href="${href}" target="_blank" download="${escapeHtml(displayName)}" class="d-flex align-items-center text-decoration-none bg-light rounded p-2 mt-1" style="max-width:200px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-lg me-2"></i><span class="text-truncate fs-11 text-dark">${escapeHtml(displayName)}</span></a>`;
     }
 
     function openSharedFiles(partnerId) {
@@ -768,6 +806,7 @@ usort($users, function($a, $b) {
                 grid.className = 'row g-3';
 
                 data.files.forEach(file => {
+                    const displayName = file.original_file_name || file.file_url;
                     const extension = (file.file_url.split('.').pop() || '').toLowerCase();
                     const isImage = SHARED_FILE_IMAGE_EXTENSIONS.includes(extension);
                     const fileHref = `taskfiles/${encodeURIComponent(file.file_url)}`;
@@ -777,13 +816,13 @@ usort($users, function($a, $b) {
                     col.className = 'col-6 col-md-4';
 
                     const previewHtml = isImage
-                        ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="Shared file" loading="lazy"></a>`
-                        : `<a href="${fileHref}" target="_blank" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
+                        ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files" title="${escapeHtml(displayName)}"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="${escapeHtml(displayName)}" loading="lazy"></a>`
+                        : `<a href="${fileHref}" target="_blank" download="${escapeHtml(displayName)}" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
 
                     col.innerHTML = `
                 <div class="border rounded p-2 h-100">
                     ${previewHtml}
-                    <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(file.file_url)}</div>
+                    <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(displayName)}</div>
                     <div class="fs-11 text-400">${dateText}</div>
                 </div>
             `;
@@ -906,6 +945,11 @@ usort($users, function($a, $b) {
             formData.append('related_task_id', linkedTaskId);
         }
 
+        const sendButton = document.getElementById('sendButton');
+        const originalButtonText = sendButton.innerHTML;
+        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        sendButton.disabled = true;
+
         fetch('send_message', {
             method: 'POST',
             body: formData
@@ -930,7 +974,7 @@ usort($users, function($a, $b) {
             `;
 
                     if (data.file_url) {
-                        messageHTML += fileAttachmentHtml(data.file_url);
+                        messageHTML += fileAttachmentHtml(data.file_url, data.original_file_name);
                     }
 
                     messageHTML += `
@@ -950,12 +994,20 @@ usort($users, function($a, $b) {
 
                     messageInput.innerText = '';
                     fileInput.value = ''; // Clear the file input
-                    document.getElementById('file-preview').innerHTML = ''; // Clear the preview area
+                    hideFilePreview();
 
                     GLightbox(); // Re-initialize GLightbox for new content
                 } else {
                     alert(data.message);
                 }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                alert('An error occurred while sending the message.');
+            })
+            .finally(() => {
+                sendButton.innerHTML = originalButtonText;
+                sendButton.disabled = false;
             });
 
         return false;
@@ -978,18 +1030,31 @@ usort($users, function($a, $b) {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    function clearFilePreview() {
+        document.getElementById('chat-file-upload').value = '';
+        hideFilePreview();
+    }
+
+    function hideFilePreview() {
+        const previewContainer = document.getElementById('file-preview');
+        previewContainer.style.display = 'none';
+        previewContainer.innerHTML = '';
+    }
+
     document.getElementById('chat-file-upload').addEventListener('change', function(event) {
         const file = event.target.files[0];
         const previewContainer = document.getElementById('file-preview');
         previewContainer.innerHTML = '';
 
         if (!file) {
+            hideFilePreview();
             return;
         }
 
         if (file.size > MAX_CHAT_FILE_SIZE) {
             alert('File size must be less than 50MB');
             event.target.value = '';
+            hideFilePreview();
             return;
         }
 
@@ -997,8 +1062,11 @@ usort($users, function($a, $b) {
         if (!ALLOWED_CHAT_FILE_EXTENSIONS.includes(extension)) {
             alert('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.');
             event.target.value = '';
+            hideFilePreview();
             return;
         }
+
+        previewContainer.style.display = 'block';
 
         const browserRenderableImages = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
         const iconMap = {
@@ -1012,18 +1080,22 @@ usort($users, function($a, $b) {
         };
 
         if (browserRenderableImages.includes(extension)) {
-            const spinner = document.createElement('div');
-            spinner.className = 'spinner-border';
-            previewContainer.appendChild(spinner);
+            previewContainer.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Processing...';
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                previewContainer.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.alt = 'Preview';
-                img.style.maxWidth = '100px';
-                previewContainer.appendChild(img);
+                previewContainer.innerHTML = `
+                    <div class="d-flex align-items-center border rounded p-2 mb-2">
+                        <img src="${e.target.result}" alt="Preview" style="width: 50px; height: 50px; object-fit: cover;" class="me-2 rounded">
+                        <div class="flex-1">
+                            <div class="fw-bold">${escapeHtml(file.name)}</div>
+                            <small class="text-muted">${formatFileSize(file.size)}</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFilePreview()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
             };
             reader.readAsDataURL(file);
         } else {
@@ -1035,6 +1107,9 @@ usort($users, function($a, $b) {
                         <div class="fw-bold">${escapeHtml(file.name)}</div>
                         <small class="text-muted">${formatFileSize(file.size)}</small>
                     </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFilePreview()">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             `;
         }

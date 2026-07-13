@@ -701,7 +701,7 @@ try {
                     const messageTime = parseDbTimestamp(message.timestamp);
                     const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
-                    const fileHtml = fileAttachmentHtml(message.file_url);
+                    const fileHtml = fileAttachmentHtml(message.file_url, message.original_file_name);
 
                     messageElement.innerHTML = `
                 <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
@@ -830,6 +830,7 @@ try {
                                     message: messageContent,
                                     timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
                                     file_url: data.file_url || null,
+                                    original_file_name: data.original_file_name || null,
                                     is_read: false,
                                     related_task_id: linkedTaskId
                                 });
@@ -872,7 +873,7 @@ try {
             const messageTime = parseDbTimestamp(message.timestamp);
             const timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
-            const fileHtml = fileAttachmentHtml(message.file_url);
+            const fileHtml = fileAttachmentHtml(message.file_url, message.original_file_name);
 
             messageElement.innerHTML = `
         <div class="flex-1 ${isCurrentUser ? 'd-flex justify-content-end' : ''}">
@@ -901,6 +902,7 @@ try {
             // which conversation (if any) is currently open, so a message
             // from someone other than the open contact still surfaces here.
             refreshReadReceipts();
+            refreshMessageEdits();
             refreshTypingIndicator();
 
             fetch(`poll_messages?last_timestamp=${encodeURIComponent(lastTimestamp)}`)
@@ -982,6 +984,41 @@ try {
                 });
         }
 
+        // Syncs edits made on either side of the conversation into the DOM -
+        // without this, editing a message only updates the editor's own screen,
+        // and the other party never sees the new text until a full reload.
+        function refreshMessageEdits() {
+            if (!currentReceiver) return;
+
+            fetch(`get_message_edits?partner_id=${encodeURIComponent(currentReceiver)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.status !== 'success' || !Array.isArray(data.edits)) return;
+
+                    data.edits.forEach(edit => {
+                        const messageEl = document.querySelector(`[data-message-id="${edit.id}"]`);
+                        if (!messageEl) return;
+                        const textEl = messageEl.querySelector('.message-text');
+                        if (!textEl) return;
+
+                        if (textEl.textContent !== edit.message) {
+                            textEl.textContent = edit.message;
+                        }
+
+                        const chatMessage = messageEl.querySelector('.chat-message');
+                        if (chatMessage && !chatMessage.querySelector('.edited-tag')) {
+                            const tag = document.createElement('span');
+                            tag.className = 'edited-tag fs-11 fst-italic ms-1 opacity-75';
+                            tag.textContent = '(edited)';
+                            textEl.insertAdjacentElement('afterend', tag);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error refreshing message edits:', error);
+                });
+        }
+
         function sendTypingSignal() {
             if (!currentReceiver || !currentReceiverType) return;
 
@@ -1026,14 +1063,15 @@ try {
         // Renders a message's attachment as an inline image preview if it's a
         // photo, otherwise as a file-type icon link (previously this always
         // rendered an <img>, so PDFs/docs/zips showed a broken image icon).
-        function fileAttachmentHtml(fileUrl) {
+        function fileAttachmentHtml(fileUrl, originalFileName) {
             if (!fileUrl) return '';
+            const displayName = originalFileName || fileUrl;
             const extension = (fileUrl.split('.').pop() || '').toLowerCase();
             const href = `../taskfiles/${escapeHtml(fileUrl)}`;
             if (SHARED_FILE_IMAGE_EXTENSIONS.includes(extension)) {
-                return `<div class="mt-2"><a href="${href}" class="glightbox" data-gallery="gallery-3"><img class="rounded" src="${href}" alt="Shared image" width="150" loading="lazy"></a></div>`;
+                return `<div class="mt-2"><a href="${href}" class="glightbox" data-gallery="gallery-3" title="${escapeHtml(displayName)}"><img class="rounded" src="${href}" alt="${escapeHtml(displayName)}" width="150" loading="lazy"></a></div>`;
             }
-            return `<div class="mt-2"><a href="${href}" target="_blank" class="d-flex align-items-center text-decoration-none bg-light rounded p-2" style="max-width:200px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-lg me-2"></i><span class="text-truncate fs-11 text-dark">${escapeHtml(fileUrl)}</span></a></div>`;
+            return `<div class="mt-2"><a href="${href}" target="_blank" download="${escapeHtml(displayName)}" class="d-flex align-items-center text-decoration-none bg-light rounded p-2" style="max-width:200px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-lg me-2"></i><span class="text-truncate fs-11 text-dark">${escapeHtml(displayName)}</span></a></div>`;
         }
 
         function openSharedFiles(partnerId) {
@@ -1061,6 +1099,7 @@ try {
                     grid.className = 'row g-3';
 
                     data.files.forEach(file => {
+                        const displayName = file.original_file_name || file.file_url;
                         const extension = (file.file_url.split('.').pop() || '').toLowerCase();
                         const isImage = SHARED_FILE_IMAGE_EXTENSIONS.includes(extension);
                         const fileHref = `../taskfiles/${encodeURIComponent(file.file_url)}`;
@@ -1070,13 +1109,13 @@ try {
                         col.className = 'col-6 col-md-4';
 
                         const previewHtml = isImage
-                            ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="Shared file" loading="lazy"></a>`
-                            : `<a href="${fileHref}" target="_blank" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
+                            ? `<a href="${fileHref}" class="glightbox" data-gallery="shared-files" title="${escapeHtml(displayName)}"><img src="${fileHref}" class="rounded w-100" style="height:100px;object-fit:cover;" alt="${escapeHtml(displayName)}" loading="lazy"></a>`
+                            : `<a href="${fileHref}" target="_blank" download="${escapeHtml(displayName)}" class="d-flex align-items-center justify-content-center rounded bg-light" style="height:100px;"><i class="fas ${SHARED_FILE_ICON_MAP[extension] || 'fa-file text-secondary'} fa-2x"></i></a>`;
 
                         col.innerHTML = `
                     <div class="border rounded p-2 h-100">
                         ${previewHtml}
-                        <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(file.file_url)}</div>
+                        <div class="fs-11 text-muted mt-1 text-truncate">${escapeHtml(displayName)}</div>
                         <div class="fs-11 text-400">${dateText}</div>
                     </div>
                 `;

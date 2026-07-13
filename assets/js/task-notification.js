@@ -109,13 +109,48 @@ function onUserLogout() {
     clearShownNotifications();
 }
 
+// Update sidebar badge counts (All Tasks, Unconfirmed, In Progress, In
+// Revision, Submitted, Completed, Unpaid, Paid, Chat unread) - these are
+// only rendered once at page load otherwise, so they go stale until refresh.
+const SIDEBAR_BADGE_IDS = {
+    all_tasks: 'sidebar-badge-all-tasks',
+    unconfirmed: 'sidebar-badge-unconfirmed',
+    in_progress: 'sidebar-badge-in-progress',
+    in_revision: 'sidebar-badge-in-revision',
+    submitted: 'sidebar-badge-submitted',
+    completed: 'sidebar-badge-completed',
+    unpaid: 'sidebar-badge-unpaid',
+    paid: 'sidebar-badge-paid',
+    unread_messages: 'sidebar-badge-unread-messages'
+};
+
+function updateSidebarBadges() {
+    fetch('get_sidebar_counts')
+        .then(response => response.json())
+        .then(data => {
+            if (!data || data.status !== 'success' || !data.counts) return;
+
+            Object.keys(SIDEBAR_BADGE_IDS).forEach(key => {
+                const el = document.getElementById(SIDEBAR_BADGE_IDS[key]);
+                if (el && key in data.counts) {
+                    el.textContent = data.counts[key];
+                }
+            });
+        })
+        .catch(error => {
+            // Silent error handling
+        });
+}
+
 // Start checking for new tasks when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Check immediately
     checkForNewTasks();
+    updateSidebarBadges();
 
     // Then check every 30 seconds
     setInterval(checkForNewTasks, 30000);
+    setInterval(updateSidebarBadges, 30000);
 });
 
 // Optional: Manual function to clear all toasts and reset tracking (for testing)

@@ -340,6 +340,11 @@ if (isset($_GET['message'])) {
                                     <?php echo $confirmation; ?>
                                 <?php endif; ?>
                             </div>
+                            <?php if ($taskStatus == 'Cancelled' && !empty($rowTask['cancellation_reason'])): ?>
+                                <div class="fs-9 mb-3 mb-sm-0 text-danger">
+                                    <strong class="me-1">Reason:</strong> <?php echo htmlspecialchars($rowTask['cancellation_reason'], ENT_QUOTES, 'UTF-8'); ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="col-12 col-sm-auto ms-auto">
                             <?php if ($taskStatus == 'In Progress'): ?>

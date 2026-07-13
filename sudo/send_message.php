@@ -61,6 +61,7 @@ if (strlen($message) > 1000) {
 
 $senderEmail = $_SESSION['odmsaid'];
 $fileUrl = null;
+$originalFileName = null;
 
 try {
     // Enhanced file upload handling
@@ -71,6 +72,7 @@ try {
             exit();
         }
         $fileUrl = $uploadResult['filename'];
+        $originalFileName = $_FILES['file']['name'];
     }
 
     // Get sender information - Using mysqli_real_escape_string for compatibility
@@ -118,6 +120,7 @@ try {
     // Escape message content for database insertion
     $escapedMessage = mysqli_real_escape_string($con, $message);
     $escapedFileUrl = $fileUrl ? mysqli_real_escape_string($con, $fileUrl) : null;
+    $escapedOriginalFileName = $originalFileName ? mysqli_real_escape_string($con, $originalFileName) : null;
     $relatedTaskId = filter_var($_POST['related_task_id'] ?? null, FILTER_VALIDATE_INT);
     if ($relatedTaskId === false || $relatedTaskId <= 0) {
         $relatedTaskId = null;
@@ -125,9 +128,10 @@ try {
 
     // Insert message
     $insertQuery = "
-        INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, related_task_id, timestamp, is_read)
+        INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, original_file_name, related_task_id, timestamp, is_read)
         VALUES ($senderId, '$senderType', $receiverId, '$receiverType', '$escapedMessage', " .
         ($escapedFileUrl ? "'$escapedFileUrl'" : 'NULL') . ', ' .
+        ($escapedOriginalFileName ? "'$escapedOriginalFileName'" : 'NULL') . ', ' .
         ($relatedTaskId ? (int)$relatedTaskId : 'NULL') . ", NOW(), 0)
     ";
 
@@ -142,7 +146,8 @@ try {
     echo json_encode([
         'status' => 'success',
         'message_id' => $messageId,
-        'file_url' => $fileUrl
+        'file_url' => $fileUrl,
+        'original_file_name' => $originalFileName
     ]);
 
 } catch (Exception $e) {

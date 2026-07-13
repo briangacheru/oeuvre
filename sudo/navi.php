@@ -859,7 +859,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="all-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-database"></span></span><span class="nav-link-text ps-1">All Tasks</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-success"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-success" id="sidebar-badge-all-tasks"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks";
                                         $result = mysqli_query($con, $query);
@@ -878,7 +878,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="draft-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-edit"></span></span><span class="nav-link-text ps-1">Drafts</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-danger"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-danger" id="sidebar-badge-drafts"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND (writer = 'Draft' OR status = 'Draft')";
                                         $result = mysqli_query($con, $query);
@@ -897,7 +897,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="unconfirmed" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-question-circle"></span></span><span class="nav-link-text ps-1">Unconfirmed</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-primary"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-primary" id="sidebar-badge-unconfirmed"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_confirmed = 1";
                                         $result = mysqli_query($con, $query);
@@ -916,7 +916,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="tasks-in-progress" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-spinner"></span></span><span class="nav-link-text ps-1">In Progress</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-warning"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-warning" id="sidebar-badge-in-progress"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'In Progress'";
                                         $result = mysqli_query($con, $query);
@@ -935,7 +935,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="tasks-in-revision" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-flag"></span></span><span class="nav-link-text ps-1">In Revision</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-warning"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-warning" id="sidebar-badge-in-revision"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'In Revision'";
                                         $result = mysqli_query($con, $query);
@@ -954,7 +954,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="submitted-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-check"></span></span><span class="nav-link-text ps-1">Submitted</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-info"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-info" id="sidebar-badge-submitted"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'Submitted'";
                                         $result = mysqli_query($con, $query);
@@ -973,7 +973,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="completed-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-check-double"></span></span><span class="nav-link-text ps-1">Completed</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-success"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-success" id="sidebar-badge-completed"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'Completed' AND is_archived = 0";
                                         $result = mysqli_query($con, $query);
@@ -992,7 +992,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="cancelled-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-trash"></span></span><span class="nav-link-text ps-1">Cancelled</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-danger"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-danger" id="sidebar-badge-cancelled"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 1";
                                         $result = mysqli_query($con, $query);
@@ -1011,7 +1011,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="archived-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fa fa-archive"></span></span><span class="nav-link-text ps-1">Archived</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-secondary"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-secondary" id="sidebar-badge-archived"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_archived = 1";
                                         $result = mysqli_query($con, $query);
@@ -1030,7 +1030,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="favorited-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fa fa-heart"></span></span><span class="nav-link-text ps-1">Favorite</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-light"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-light" id="sidebar-badge-favorite"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_favorite = 1";
                                         $result = mysqli_query($con, $query);
@@ -1069,7 +1069,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="chat" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-comments"></span></span><span class="nav-link-text ps-1">Chat</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-primary"><?php echo $unreadMessagesCount ?></span>
+                                    <span class="badge rounded-pill ms-2 badge-subtle-primary" id="sidebar-badge-unread-messages"><?php echo $unreadMessagesCount ?></span>
                                 </div>
                             </a>
                             <!-- parent pages--><a class="nav-link" href="todo" role="button">
@@ -1123,7 +1123,7 @@
                             </div>
                             <!-- parent pages--><a class="nav-link" href="unpaid-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-creative-commons-nc"></span></span><span class="nav-link-text ps-1">Unpaid</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-warning"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-warning" id="sidebar-badge-unpaid"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND status = 'Completed'";
                                         $result = mysqli_query($con, $query);
@@ -1142,7 +1142,7 @@
                             </a>
                             <!-- parent pages--><a class="nav-link" href="paid-tasks" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="far fa-credit-card"></span></span><span class="nav-link-text ps-1">Paid</span>
-                                    <span class="badge rounded-pill ms-2 badge-subtle-success"><?php
+                                    <span class="badge rounded-pill ms-2 badge-subtle-success" id="sidebar-badge-paid"><?php
                                         // Query to count tasks where is_deleted = 0
                                         $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'Completed' AND is_paid = 1";
                                         $result = mysqli_query($con, $query);
@@ -2233,5 +2233,48 @@
                     ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
                         document.addEventListener(event, setUserActive, true);
                     });
+                });
+
+                // Sidebar task-count badges (All Tasks, Drafts, Unconfirmed, In Progress,
+                // In Revision, Submitted, Completed, Cancelled, Archived, Favorite, Unpaid,
+                // Paid, Chat unread) - these are only rendered once at page load otherwise,
+                // so they go stale until refresh.
+                const SIDEBAR_BADGE_IDS = {
+                    all_tasks: 'sidebar-badge-all-tasks',
+                    drafts: 'sidebar-badge-drafts',
+                    unconfirmed: 'sidebar-badge-unconfirmed',
+                    in_progress: 'sidebar-badge-in-progress',
+                    in_revision: 'sidebar-badge-in-revision',
+                    submitted: 'sidebar-badge-submitted',
+                    completed: 'sidebar-badge-completed',
+                    cancelled: 'sidebar-badge-cancelled',
+                    archived: 'sidebar-badge-archived',
+                    favorite: 'sidebar-badge-favorite',
+                    unpaid: 'sidebar-badge-unpaid',
+                    paid: 'sidebar-badge-paid',
+                    unread_messages: 'sidebar-badge-unread-messages'
+                };
+
+                function updateSidebarBadges() {
+                    fetch('get_sidebar_counts')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data || data.status !== 'success' || !data.counts) return;
+
+                            Object.keys(SIDEBAR_BADGE_IDS).forEach(key => {
+                                const el = document.getElementById(SIDEBAR_BADGE_IDS[key]);
+                                if (el && key in data.counts) {
+                                    el.textContent = data.counts[key];
+                                }
+                            });
+                        })
+                        .catch(error => {
+                            // Silent error handling
+                        });
+                }
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateSidebarBadges();
+                    setInterval(updateSidebarBadges, 30000);
                 });
             </script>

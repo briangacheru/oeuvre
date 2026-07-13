@@ -8,6 +8,7 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
     $receiverId = intval($_POST['receiver_id']);
     $receiverType = trim($_POST['receiver_type']);
     $fileUrl = null;
+    $originalFileName = null;
 
     if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
         $validation = validateChatAttachment($_FILES['file']);
@@ -17,9 +18,11 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
         }
 
         $fileTmpPath = $_FILES['file']['tmp_name'];
-        // Random filename rather than the original - the allow-list now
-        // covers many more types than just images, so name collisions
-        // between different senders' files are far more likely.
+        $originalFileName = $_FILES['file']['name'];
+        // Random filename on disk rather than the original - the allow-list now
+        // covers many more types than just images, so name collisions between
+        // different senders' files are far more likely. The original name is
+        // kept in original_file_name for display purposes.
         $fileName = bin2hex(random_bytes(16)) . '_' . time() . '.' . $validation['extension'];
         $uploadDir = 'taskfiles/'; // Ensure this directory exists and is writable
         $destPath = $uploadDir . $fileName;
@@ -53,10 +56,10 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
         }
 
         $insertQuery = mysqli_prepare($con, "
-            INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, related_task_id, timestamp, is_read)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+            INSERT INTO chat_messages (sender_id, sender_type, receiver_id, receiver_type, message, file_url, original_file_name, related_task_id, timestamp, is_read)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
         ");
-        mysqli_stmt_bind_param($insertQuery, 'isisssi', $senderId, $senderType, $receiverId, $receiverType, $message, $fileUrl, $relatedTaskId);
+        mysqli_stmt_bind_param($insertQuery, 'isissssi', $senderId, $senderType, $receiverId, $receiverType, $message, $fileUrl, $originalFileName, $relatedTaskId);
 
         // Error logging can be done by manually creating a string of the query and parameters
         $logMessage = sprintf(
@@ -71,7 +74,7 @@ if (isset($_POST['receiver_id'], $_POST['receiver_type']) && (!empty($_POST['mes
         error_log('Insert Query: ' . $logMessage); // Debugging: log the query
 
         if (mysqli_stmt_execute($insertQuery)) {
-            echo json_encode(['status' => 'success', 'message_id' => mysqli_insert_id($con), 'file_url' => $fileUrl]);
+            echo json_encode(['status' => 'success', 'message_id' => mysqli_insert_id($con), 'file_url' => $fileUrl, 'original_file_name' => $originalFileName]);
         } else {
             error_log('Database insert failed: ' . mysqli_error($con));
             echo json_encode(['status' => 'error', 'message' => 'Database insert failed.']);
