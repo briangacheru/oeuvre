@@ -106,10 +106,14 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
             $originalFileName = isset($file['originalName']) ? $file['originalName'] : $fileName;
             $filePath = $file['filePath']; // This should be the full path from your uploaded files
 
-            $insertFileSql = "INSERT INTO tbl_task_files (task_id, file_name, original_file_name, file_path, file_url, file_size, file_type, uploaded_by, upload_time) VALUES (?, ?, ?, ?, ?, ?, 'submitted', ?, ?)";
+            // upload_time uses SQL NOW() (UTC) to match the 'task'-type files inserted
+            // by sudo/update-task.php, sudo/submit-task.php and sudo/duplicate-task.php,
+            // since every reader (view-task.php/sudo/view-task.php) parses this column
+            // as UTC (strtotime($x . ' UTC')).
+            $insertFileSql = "INSERT INTO tbl_task_files (task_id, file_name, original_file_name, file_path, file_url, file_size, file_type, uploaded_by, upload_time) VALUES (?, ?, ?, ?, ?, ?, 'submitted', ?, NOW())";
 
             if ($fileStmt = mysqli_prepare($con, $insertFileSql)) {
-                mysqli_stmt_bind_param($fileStmt, 'issssiss', $taskId, $fileName, $originalFileName, $filePath, $fileUrl, $fileSize, $writer, $submittedOn);
+                mysqli_stmt_bind_param($fileStmt, 'issssis', $taskId, $fileName, $originalFileName, $filePath, $fileUrl, $fileSize, $writer);
 
                 if (!mysqli_stmt_execute($fileStmt)) {
                     throw new Exception('Failed to insert file record: ' . mysqli_stmt_error($fileStmt));
@@ -142,10 +146,12 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
         // Add writer comment to threaded comments system if provided
         if (!empty($writerComments)) {
-            $commentSql = "INSERT INTO tbl_task_comments (task_id, user_type, username, comment, created_at) VALUES (?, 'writer', ?, ?, ?)";
+            // created_at uses SQL NOW() (UTC) to match add-task-comment.php's write
+            // path, so all tbl_task_comments rows share one clock convention.
+            $commentSql = "INSERT INTO tbl_task_comments (task_id, user_type, username, comment, created_at) VALUES (?, 'writer', ?, ?, NOW())";
 
             if ($commentStmt = mysqli_prepare($con, $commentSql)) {
-                mysqli_stmt_bind_param($commentStmt, 'isss', $taskId, $writer, $writerComments, $submittedOn);
+                mysqli_stmt_bind_param($commentStmt, 'iss', $taskId, $writer, $writerComments);
 
                 if (!mysqli_stmt_execute($commentStmt)) {
                     throw new Exception('Failed to add comment: ' . mysqli_stmt_error($commentStmt));

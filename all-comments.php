@@ -52,37 +52,25 @@ $totalComments = $totalResult['total'];
 $totalPages = ceil($totalComments / $limit);
 
 // Get comments with pagination
+// user_photo resolves each commenter's avatar in one query, matching by username
+// OR email (same fallback get-new-comments.php uses, since tc.username isn't
+// always the exact tblwriters/tbladmin username - see add-task-comment.php).
 $commentsQuery = mysqli_query($con, "
-    SELECT tc.*, t.topic, t.id as task_id, t.status as task_status
-    FROM tbl_task_comments tc 
-    JOIN tbltasks t ON tc.task_id = t.id 
+    SELECT tc.*, t.topic, t.id as task_id, t.status as task_status,
+           COALESCE(tw.Photo, ta.Photo) as user_photo
+    FROM tbl_task_comments tc
+    JOIN tbltasks t ON tc.task_id = t.id
+    LEFT JOIN tblwriters tw ON tc.user_type = 'writer' AND (tw.username COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci OR tw.email COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci)
+    LEFT JOIN tbladmin ta ON tc.user_type = 'admin' AND (ta.username COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci OR ta.email COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci)
     $whereClause
-    ORDER BY tc.created_at DESC 
+    ORDER BY tc.created_at DESC
     LIMIT $limit OFFSET $offset
 ");
 
 $comments = [];
 while ($comment = mysqli_fetch_assoc($commentsQuery)) {
-    // Calculate time ago
-    $commentTime = new DateTime($comment['created_at']);
-    $now = new DateTime();
-    $interval = $now->diff($commentTime);
-
-    if ($interval->y > 0) {
-        $timeAgo = $interval->y . ' year' . ($interval->y > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->m > 0) {
-        $timeAgo = $interval->m . ' month' . ($interval->m > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->d > 0) {
-        $timeAgo = $interval->d . ' day' . ($interval->d > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->h > 0) {
-        $timeAgo = $interval->h . ' hour' . ($interval->h > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->i > 0) {
-        $timeAgo = $interval->i . ' minute' . ($interval->i > 1 ? 's' : '') . ' ago';
-    } else {
-        $timeAgo = 'Just now';
-    }
-
-    $comment['time_ago'] = $timeAgo;
+    // tbl_task_comments.created_at is stored in UTC.
+    $comment['time_ago'] = timeAgo($comment['created_at'], true);
     $comments[] = $comment;
 }
 
@@ -173,10 +161,16 @@ while ($task = mysqli_fetch_assoc($tasksQuery)) {
                                     <?php foreach ($comments as $comment): ?>
                                         <div class='col-sm-2 col-md-2 mb-3'>
                                             <div class='position-relative h-sm-100'>
-                                                <div class='avatar avatar-2xl w-100 h-100 object-fit-cover rounded-5 absolute-sm-centered d-flex align-items-center justify-content-center <?php echo $comment['user_type'] === 'admin' ? 'bg-body-secondary' : 'bg-body-tertiary'; ?>'>
-                                                    <span class='fs-10'>
-                                                        <?php echo strtoupper(substr($comment['username'], 0)); ?>
-                                                    </span>
+                                                <?php
+                                                $commentPhoto = $comment['user_photo'] ?? '';
+                                                $commentPhotoSrc = (!empty($commentPhoto) && $commentPhoto !== 'avatar.png')
+                                                    ? 'profileimages/' . $commentPhoto
+                                                    : 'assets/img/team/avatar.png';
+                                                ?>
+                                                <div class='avatar avatar-2xl w-100 h-100 absolute-sm-centered'>
+                                                    <div class='avatar-name rounded-circle <?php echo $comment['user_type'] === 'admin' ? 'bg-body-secondary' : 'bg-body-tertiary'; ?>'>
+                                                        <img src='<?php echo htmlspecialchars($commentPhotoSrc); ?>' alt='<?php echo htmlspecialchars($comment['username']); ?>' class='rounded-circle'>
+                                                    </div>
                                                 </div>
                                                 <?php if ($comment['is_read'] == 0 && $comment['user_type'] === 'admin'): ?>
                                                     <div class='badge rounded-pill bg-danger position-absolute top-0 end-0 me-2 mt-2 fs-11 z-2'>

@@ -373,6 +373,9 @@ if ($row = mysqli_fetch_array($result)) {
                 <div class="pt-3 mb-4">
                     <h6 class="text-uppercase text-body-tertiary fs-11 fw-bold mb-3"><span class="fas fa-paperclip text-primary me-1"></span> Add Task File(s)</h6>
                     <div id="dropArea" class="dropzone border rounded-3"></div>
+                    <div class="form-text mt-2">
+                        Accepted: Word, Excel, PowerPoint, PDF, ZIP, and photos (JPG, PNG, GIF, WEBP, HEIC, BMP, TIFF) — max 50MB per file.
+                    </div>
                     <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
                 </div>
 
@@ -595,10 +598,13 @@ if ($row = mysqli_fetch_array($result)) {
             const taskDropzone = new Dropzone('#dropArea', {
                 url: 'upload_update',
                 paramName: 'file',
-                maxFilesize: 1024, // MB, effectively unlimited like the previous accept="*/*"
+                maxFilesize: 50, // MB - matches the chat-attachment policy in shared-functions.php
+                acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.tiff,.tif',
                 addRemoveLinks: true,
                 dictDefaultMessage: 'Drag and drop your files here or click to select files',
                 dictRemoveFile: 'Remove',
+                dictFileTooBig: 'File is too big ({{filesize}}MiB). Max file size: {{maxFilesize}}MiB.',
+                dictInvalidFileType: "You can't upload files of this type. Accepted: Word, Excel, PowerPoint, PDF, ZIP, and photos.",
                 init: function () {
                     this.on('sending', function (file, xhr, formData) {
                         formData.append('action', 'upload');

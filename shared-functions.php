@@ -84,9 +84,9 @@ function set_subAlert($subAlert) {
 }
 
 if (!function_exists('timeAgo')) {
-function timeAgo($datetime)
+function timeAgo($datetime, $isUtc = false)
 {
-    $commentTime = new DateTime($datetime);
+    $commentTime = $isUtc ? new DateTime($datetime, new DateTimeZone('UTC')) : new DateTime($datetime);
     $now = new DateTime();
     $interval = $now->diff($commentTime);
 

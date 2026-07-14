@@ -16,6 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             exit;
         }
 
+        // Enforce the same type/size policy as chat attachments (Word, Excel,
+        // PowerPoint, PDF, ZIP, photos; 50MB) server-side - the Dropzone config
+        // in sudo/create-task.php only restricts this client-side, which a
+        // request posted directly to this endpoint can bypass.
+        $validation = validateChatAttachment($file);
+        if (!$validation['success']) {
+            echo json_encode(['status' => 'error', 'message' => $validation['message']]);
+            exit;
+        }
+
         // Create a temporary file path
         $tempFilePath = $file['tmp_name'];
         $originalFileName = $file['name'];

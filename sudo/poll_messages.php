@@ -73,6 +73,7 @@ try {
             'message' => $message['message'] ?? '',
             'timestamp' => $message['timestamp'],
             'file_url' => $message['file_url'],
+            'original_file_name' => $message['original_file_name'],
             'is_read' => intval($message['is_read']) ? true : false,
             'is_edited' => intval($message['is_edited']) ? true : false,
             'related_task_id' => $message['related_task_id'] ? intval($message['related_task_id']) : null

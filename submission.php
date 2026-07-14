@@ -466,6 +466,24 @@ if (isset($_SESSION['alert'])) {
             color: var(--falcon-danger, #e63757);
             text-decoration: none;
         }
+        /* The theme's base .dz-error-message is an absolutely-positioned tooltip
+           (top:130px, z-index:1000) that only appears on hover - but hovering a
+           failed file is exactly when someone reaches for .dz-remove (now static,
+           always-visible, just below the thumbnail), so the error tooltip was
+           popping up on top of it and eating the click. Made static so it flows
+           in-line instead of overlapping anything, and always visible so the
+           error is readable without needing to hover at all. */
+        #dropArea.dropzone .dz-error-message {
+            position: static;
+            display: block;
+            opacity: 1;
+            pointer-events: auto;
+            width: auto;
+            margin-top: 0.5rem;
+        }
+        #dropArea.dropzone .dz-error-message:after {
+            display: none;
+        }
     </style>
 
     <div id="alertPlaceholder"></div>
@@ -477,6 +495,9 @@ if (isset($_SESSION['alert'])) {
             </div>
             <div class="card-body">
                 <div id="dropArea" class="dropzone border rounded-3"></div>
+                <div class="form-text mt-2">
+                    Accepted: Word, Excel, PowerPoint, PDF, ZIP, and photos (JPG, PNG, GIF, WEBP, HEIC, BMP, TIFF) — max 50MB per file.
+                </div>
                 <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
             </div>
         </div>
@@ -533,9 +554,16 @@ if (isset($_SESSION['alert'])) {
     </form>
 
     <script>
-        Dropzone.autoDiscover = false;
-
         document.addEventListener('DOMContentLoaded', function() {
+            // Dropzone.autoDiscover must be set here, not at the top level of this
+            // script block: vendors/dropzone/dropzone-min.js only loads in footer.php,
+            // which is included after this block in the page, so `Dropzone` is not yet
+            // defined when this script tag first runs. Deferring to DOMContentLoaded
+            // (which fires after the whole document, including footer.php's scripts,
+            // has been parsed) avoids a ReferenceError that was silently aborting the
+            // rest of this script - which is why the dropzone never initialized.
+            Dropzone.autoDiscover = false;
+
             // Element references
             const form = document.getElementById('taskForm');
             const submitTaskButton = document.getElementById('submitTaskButton');
@@ -555,10 +583,13 @@ if (isset($_SESSION['alert'])) {
             const dropzone = new Dropzone('#dropArea', {
                 url: 'upload_update',
                 paramName: 'file',
-                maxFilesize: 1024, // MB
+                maxFilesize: 50, // MB - matches the chat-attachment policy in shared-functions.php
+                acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.tiff,.tif',
                 addRemoveLinks: true,
                 dictDefaultMessage: 'Drag and drop your files here or click to select files',
                 dictRemoveFile: 'Remove',
+                dictFileTooBig: 'File is too big ({{filesize}}MiB). Max file size: {{maxFilesize}}MiB.',
+                dictInvalidFileType: "You can't upload files of this type. Accepted: Word, Excel, PowerPoint, PDF, ZIP, and photos.",
                 init: function() {
                     this.on('sending', function(file, xhr, formData) {
                         formData.append('action', 'upload');

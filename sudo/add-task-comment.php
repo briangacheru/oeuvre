@@ -395,7 +395,7 @@ if ($selectStmt = mysqli_prepare($con, $selectQuery)) {
                 'comment' => $commentData['comment'],
                 'parent_id' => $commentData['parent_id'],
                 'created_at' => $commentData['created_at'],
-                'formatted_date' => date('M j, Y g:i A', strtotime($commentData['created_at'])),
+                'formatted_date' => date('M j, Y g:i A', strtotime($commentData['created_at'] . ' UTC')),
                 'attachments_count' => count($uploadedFiles)
             ]
         ];

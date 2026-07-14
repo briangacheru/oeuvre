@@ -760,10 +760,9 @@
                                             $senderQuery = mysqli_query($con, "SELECT username, Photo FROM tbladmin WHERE id = '$senderID'");
                                             $senderResult = mysqli_fetch_assoc($senderQuery);
 
-                                            $receivedDate = new DateTime($message['timestamp']);
-                                            $now = new DateTime();
-                                            $interval = $now->diff($receivedDate);
-                                            $unreadMessages[$key]['time_received'] = $interval->format('%a days %h hours %i minutes');
+                                            // chat_messages.timestamp is stored in UTC, hence isUtc=true
+                                            // (see shared-functions.php utcToNairobiTimestamp()).
+                                            $unreadMessages[$key]['time_received'] = timeAgo($message['timestamp'], true);
                                             if ($key >= 9) break; // Limit to only 10 messages
                                         }
                                         ?>
@@ -883,7 +882,7 @@
                                                             </p>
                                                             <span class='notification-time text-muted'>
                                                                 <span class='me-2' role='img' aria-label='Time'>💬</span>
-                                                                <?php echo timeAgo($comment['created_at']); ?>
+                                                                <?php echo timeAgo($comment['created_at'], true); ?>
                                                             </span>
                                                         </div>
                                                     </a>

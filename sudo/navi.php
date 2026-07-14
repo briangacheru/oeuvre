@@ -78,6 +78,24 @@
         color: var(--falcon-danger, #e63757);
         text-decoration: none;
     }
+    /* The theme's base .dz-error-message is an absolutely-positioned tooltip
+       (top:130px, z-index:1000) that only appears on hover - but hovering a
+       failed file is exactly when someone reaches for .dz-remove (now static,
+       always-visible, just below the thumbnail), so the error tooltip was
+       popping up on top of it and eating the click. Made static so it flows
+       in-line instead of overlapping anything, and always visible so the
+       error is readable without needing to hover at all. */
+    #dropArea.dropzone .dz-error-message {
+        position: static;
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+        width: auto;
+        margin-top: 0.5rem;
+    }
+    #dropArea.dropzone .dz-error-message:after {
+        display: none;
+    }
 
     .grain-overlay {
         background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><pattern id='grain' width='10' height='10' patternUnits='userSpaceOnUse'><circle cx='5' cy='5' r='1' fill='white' opacity='0.05'/></pattern></defs><rect width='100' height='100' fill='url(%23grain)'/></svg>");
@@ -1462,21 +1480,10 @@
                                                         $senderResult = mysqli_stmt_get_result($stmt);
                                                         $sender = mysqli_fetch_assoc($senderResult);
 
-                                                        // Calculate time difference
-                                                        $receivedDate = new DateTime($message['timestamp']);
-                                                        $now = new DateTime();
-                                                        $interval = $now->diff($receivedDate);
-
-                                                        // Format time display
-                                                        if ($interval->days > 0) {
-                                                            $timeReceived = $interval->format('%a days ago');
-                                                        } elseif ($interval->h > 0) {
-                                                            $timeReceived = $interval->format('%h hours ago');
-                                                        } elseif ($interval->i > 0) {
-                                                            $timeReceived = $interval->format('%i minutes ago');
-                                                        } else {
-                                                            $timeReceived = 'Just now';
-                                                        }
+                                                        // chat_messages.timestamp is stored in UTC, hence
+                                                        // isUtc=true (see shared-functions.php
+                                                        // utcToNairobiTimestamp()).
+                                                        $timeReceived = timeAgo($message['timestamp'], true);
 
                                                         // Store processed message data
                                                         $processedMessages[] = [
@@ -1563,8 +1570,10 @@
 
                         $unreadComments = [];
                         while ($comment = mysqli_fetch_assoc($unreadCommentsQuery)) {
-                            // Calculate time ago
-                            $commentTime = new DateTime($comment['created_at']);
+                            // Calculate time ago. tbl_task_comments.created_at is stored in
+                            // UTC (via NOW()); must be parsed as UTC explicitly or the diff
+                            // is off by the Nairobi UTC+3 offset.
+                            $commentTime = new DateTime($comment['created_at'], new DateTimeZone('UTC'));
                             $now = new DateTime();
                             $interval = $now->diff($commentTime);
 

@@ -57,37 +57,25 @@ $totalComments = $totalResult['total'];
 $totalPages = ceil($totalComments / $limit);
 
 // Get comments with pagination
+// user_photo resolves each commenter's avatar in one query, matching by username
+// OR email (same fallback get-new-comments.php uses, since tc.username isn't
+// always the exact tblwriters/tbladmin username - see add-task-comment.php).
 $commentsQuery = mysqli_query($con, "
-    SELECT tc.*, t.topic, t.id as task_id, t.status as task_status, t.email as writer_email, t.writer as writer_name
-    FROM tbl_task_comments tc 
-    JOIN tbltasks t ON tc.task_id = t.id 
+    SELECT tc.*, t.topic, t.id as task_id, t.status as task_status, t.email as writer_email, t.writer as writer_name,
+           COALESCE(tw.Photo, ta.Photo) as user_photo
+    FROM tbl_task_comments tc
+    JOIN tbltasks t ON tc.task_id = t.id
+    LEFT JOIN tblwriters tw ON tc.user_type = 'writer' AND (tw.username COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci OR tw.email COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci)
+    LEFT JOIN tbladmin ta ON tc.user_type = 'admin' AND (ta.username COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci OR ta.email COLLATE utf8mb4_unicode_ci = tc.username COLLATE utf8mb4_unicode_ci)
     $whereClause
-    ORDER BY tc.created_at DESC 
+    ORDER BY tc.created_at DESC
     LIMIT $limit OFFSET $offset
 ");
 
 $comments = [];
 while ($comment = mysqli_fetch_assoc($commentsQuery)) {
-    // Calculate time ago
-    $commentTime = new DateTime($comment['created_at']);
-    $now = new DateTime();
-    $interval = $now->diff($commentTime);
-
-    if ($interval->y > 0) {
-        $timeAgo = $interval->y . ' year' . ($interval->y > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->m > 0) {
-        $timeAgo = $interval->m . ' month' . ($interval->m > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->d > 0) {
-        $timeAgo = $interval->d . ' day' . ($interval->d > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->h > 0) {
-        $timeAgo = $interval->h . ' hour' . ($interval->h > 1 ? 's' : '') . ' ago';
-    } elseif ($interval->i > 0) {
-        $timeAgo = $interval->i . ' minute' . ($interval->i > 1 ? 's' : '') . ' ago';
-    } else {
-        $timeAgo = 'Just now';
-    }
-
-    $comment['time_ago'] = $timeAgo;
+    // tbl_task_comments.created_at is stored in UTC.
+    $comment['time_ago'] = timeAgo($comment['created_at'], true);
     $comments[] = $comment;
 }
 
@@ -261,10 +249,16 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
                                                                onchange="updateSelectedCount()">
                                                     </div>
                                                 <?php endif; ?>
-                                                <div class='avatar avatar-2xl w-50 h-50 object-fit-cover rounded-5 absolute-sm-centered d-flex align-items-center justify-content-center <?php echo $comment['user_type'] === 'writer' ? 'bg-body-secondary' : 'bg-body-tertiary'; ?>'>
-                                                    <span class='fs-10'>
-                                                        <?php echo strtoupper(substr($comment['username'], 0)); ?>
-                                                    </span>
+                                                <?php
+                                                $commentPhoto = $comment['user_photo'] ?? '';
+                                                $commentPhotoSrc = (!empty($commentPhoto) && $commentPhoto !== 'avatar.png')
+                                                    ? '../profileimages/' . $commentPhoto
+                                                    : '../assets/img/team/avatar.png';
+                                                ?>
+                                                <div class='avatar avatar-2xl w-50 h-50 absolute-sm-centered'>
+                                                    <div class='avatar-name rounded-circle <?php echo $comment['user_type'] === 'writer' ? 'bg-body-secondary' : 'bg-body-tertiary'; ?>'>
+                                                        <img src='<?php echo htmlspecialchars($commentPhotoSrc); ?>' alt='<?php echo htmlspecialchars($comment['username']); ?>' class='rounded-circle'>
+                                                    </div>
                                                 </div>
                                                 <?php if ($comment['is_read'] == 0 && $comment['user_type'] === 'writer'): ?>
                                                     <span class='badge rounded-pill bg-danger '> Unread</span>
@@ -437,6 +431,7 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
             const formData = new FormData();
             formData.append('action', action);
             formData.append('comment_ids', JSON.stringify(commentIds));
+            formData.append('csrf_token', '<?php echo csrf_token(); ?>');
 
             // Add current filter parameters for 'all_filtered' action
             if (action === 'all_filtered') {
@@ -461,7 +456,7 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
                             location.reload();
                         }
                     } else {
-                        alert('Error: ' + (data.message || 'Failed to mark comments as read.'));
+                        alert('Error: ' + (data.message || data.error || 'Failed to mark comments as read.'));
                     }
                 })
                 .catch(error => {

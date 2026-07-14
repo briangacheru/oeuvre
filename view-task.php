@@ -1163,7 +1163,7 @@ foreach ($comments as $comment) {
                                     style="border-radius: 8px; min-width: 36px;"
                                     title="Toggle discussion"
                                     onclick="event.stopPropagation(); toggleDiscussion();">
-                                <i class="fas fa-chevron-up" id="discussionToggleIcon" style="transition: transform 0.3s ease; display:inline-block;"></i>
+                                <i class="fas <?php echo $hasMessages ? 'fa-chevron-up' : 'fa-chevron-down'; ?>" id="discussionToggleIcon" style="display:inline-block;"></i>
                             </button>
                         </div>
                     </div>
@@ -1297,14 +1297,15 @@ foreach ($comments as $comment) {
                                                         $statusText = 'Offline';
                                                     }
 
-                                                    // Get profile image
+                                                    // Get profile image. Matches on the COMMENT AUTHOR's own
+                                                    // username/email (same pattern as get-new-comments.php) -
+                                                    // not the current viewer's session email, which the query's
+                                                    // column order didn't match anyway.
                                                     $profileImage = null;
                                                     if ($comment['user_type'] === 'admin') {
-                                                        $imgQuery = 'SELECT Photo FROM tbladmin WHERE email = ? OR username = ? LIMIT 1';
+                                                        $imgQuery = 'SELECT Photo FROM tbladmin WHERE username = ? OR email = ? LIMIT 1';
                                                         if ($imgStmt = mysqli_prepare($con, $imgQuery)) {
-                                                            $userEmailForStatus = isset($_SESSION['odmsaid']) ? $_SESSION['odmsaid'] : '';
-                                                            $emailToCheck = $userEmailForStatus ? $userEmailForStatus : $comment['username'];
-                                                            mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $emailToCheck);
+                                                            mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $comment['username']);
                                                             mysqli_stmt_execute($imgStmt);
                                                             mysqli_stmt_bind_result($imgStmt, $profileImage);
                                                             mysqli_stmt_fetch($imgStmt);
@@ -1313,9 +1314,7 @@ foreach ($comments as $comment) {
                                                     } else {
                                                         $imgQuery = 'SELECT Photo FROM tblwriters WHERE username = ? OR email = ? LIMIT 1';
                                                         if ($imgStmt = mysqli_prepare($con, $imgQuery)) {
-                                                            $userEmailForStatus = isset($_SESSION['sessionWriter']) ? $_SESSION['sessionWriter'] : '';
-                                                            $emailToCheck = $userEmailForStatus ? $userEmailForStatus : $comment['username'];
-                                                            mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $emailToCheck);
+                                                            mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $comment['username']);
                                                             mysqli_stmt_execute($imgStmt);
                                                             mysqli_stmt_bind_result($imgStmt, $profileImage);
                                                             mysqli_stmt_fetch($imgStmt);
@@ -1612,7 +1611,14 @@ foreach ($comments as $comment) {
                     body.style.flexDirection = 'column';
                 }
                 if (icon) {
-                    icon.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+                    icon.classList.toggle('fa-chevron-up', open);
+                    icon.classList.toggle('fa-chevron-down', !open);
+                }
+                if (open) {
+                    setTimeout(function() {
+                        var c = document.getElementById('commentsContainer');
+                        if (c) c.scrollTop = c.scrollHeight;
+                    }, 50);
                 }
             }
 

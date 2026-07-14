@@ -1804,14 +1804,15 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                                     $statusText = 'Offline';
                                                                 }
 
-                                                                // Get profile image
+                                                                // Get profile image. Matches on the COMMENT AUTHOR's own
+                                                                // username/email (same pattern as get-new-comments.php) -
+                                                                // not the current viewer's session email, which the query's
+                                                                // column order didn't match anyway.
                                                                 $profileImage = null;
                                                                 if ($comment['user_type'] === 'admin') {
-                                                                    $imgQuery = 'SELECT Photo FROM tbladmin WHERE email = ? OR username = ? LIMIT 1';
+                                                                    $imgQuery = 'SELECT Photo FROM tbladmin WHERE username = ? OR email = ? LIMIT 1';
                                                                     if ($imgStmt = mysqli_prepare($con, $imgQuery)) {
-                                                                        $userEmailForStatus = isset($_SESSION['odmsaid']) ? $_SESSION['odmsaid'] : '';
-                                                                        $emailToCheck = $userEmailForStatus ? $userEmailForStatus : $comment['username'];
-                                                                        mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $emailToCheck);
+                                                                        mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $comment['username']);
                                                                         mysqli_stmt_execute($imgStmt);
                                                                         mysqli_stmt_bind_result($imgStmt, $profileImage);
                                                                         mysqli_stmt_fetch($imgStmt);
@@ -1820,9 +1821,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                                 } else {
                                                                     $imgQuery = 'SELECT Photo FROM tblwriters WHERE username = ? OR email = ? LIMIT 1';
                                                                     if ($imgStmt = mysqli_prepare($con, $imgQuery)) {
-                                                                        $userEmailForStatus = isset($_SESSION['sessionWriter']) ? $_SESSION['sessionWriter'] : '';
-                                                                        $emailToCheck = $userEmailForStatus ? $userEmailForStatus : $comment['username'];
-                                                                        mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $emailToCheck);
+                                                                        mysqli_stmt_bind_param($imgStmt, 'ss', $comment['username'], $comment['username']);
                                                                         mysqli_stmt_execute($imgStmt);
                                                                         mysqli_stmt_bind_result($imgStmt, $profileImage);
                                                                         mysqli_stmt_fetch($imgStmt);
@@ -2593,7 +2592,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         <span class="badge bg-secondary bg-opacity-75 text-white px-3 py-2"><i class="fas fa-lock me-1"></i>Conversation Closed</span>
                                     <?php endif; ?>
                                     <button type="button" id="wvDiscussionToggleBtn" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;min-width:36px;" title="Toggle discussion" onclick="event.stopPropagation();wvToggleDiscussion();">
-                                        <i class="fas fa-chevron-up" id="wvDiscussionToggleIcon" style="transition:transform .3s ease;display:inline-block;"></i>
+                                        <i class="fas <?php echo $wv_hasMessages ? 'fa-chevron-up' : 'fa-chevron-down'; ?>" id="wvDiscussionToggleIcon" style="display:inline-block;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -2773,7 +2772,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     function wvSet(open) {
                         wvOpen = open;
                         if (wvBody) { wvBody.style.display = open ? 'flex' : 'none'; wvBody.style.flexDirection = 'column'; }
-                        if (wvIcon) wvIcon.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+                        if (wvIcon) { wvIcon.classList.toggle('fa-chevron-up', open); wvIcon.classList.toggle('fa-chevron-down', !open); }
                         if (open) setTimeout(function(){ var c=document.getElementById('wvCommentsContainer'); if(c) c.scrollTop=c.scrollHeight; }, 50);
                     }
                     wvSet(wvOpen);
@@ -4624,16 +4623,20 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         }
 
         function isElementInViewport(el) {
+            // Requires the message to be at least half-visible inside the
+            // scrollable container, not fully contained - the old full-containment
+            // check failed as soon as a message started scrolling off the top edge
+            // (its normal state while the user scrolls "past" it), so messages
+            // were never marked as read from scrolling.
             const rect = el.getBoundingClientRect();
             const container = document.getElementById('commentsContainer');
             const containerRect = container.getBoundingClientRect();
 
-            return (
-                rect.top >= containerRect.top &&
-                rect.bottom <= containerRect.bottom &&
-                rect.left >= containerRect.left &&
-                rect.right <= containerRect.right
-            );
+            const visibleTop = Math.max(rect.top, containerRect.top);
+            const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
+            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+            return rect.height > 0 && (visibleHeight / rect.height) >= 0.5;
         }
 
         function markSingleMessageAsRead(commentId, messageElement) {

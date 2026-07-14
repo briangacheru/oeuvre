@@ -158,7 +158,7 @@ while ($comment = mysqli_fetch_assoc($result)) {
         'is_unread' => $isUnread,
         'profile_image' => $imagePath,
         'attachments' => $attachments,
-        'formatted_date' => date('M d, g:i A', strtotime($comment['created_at']))
+        'formatted_date' => date('M d, g:i A', strtotime($comment['created_at'] . ' UTC'))
     ];
 }
 
