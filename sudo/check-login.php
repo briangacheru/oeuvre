@@ -70,6 +70,11 @@ $ajaxEndpoints = [
     'mark-writer-comments-read.php',
     'get_amount_due.php',
     'notification_update.php',
+    'get_sidebar_counts.php',
+    'get-new-comments.php',
+    'get_message_edits.php',
+    'get_shared_files.php',
+    'get_shared_files.php',
     'get_notification_counts.php'
 ];
 
