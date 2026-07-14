@@ -3,6 +3,7 @@
 // IDs of messages *I* sent to that partner which are now marked read, so the
 // sender's UI can flip single ticks to double green ticks without a full
 // conversation reload.
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');

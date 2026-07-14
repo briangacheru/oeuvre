@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/session-name.php';
 session_start();
 // Require an authenticated session; this is an AJAX endpoint, so respond
 // with JSON rather than redirecting.

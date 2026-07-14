@@ -1,5 +1,12 @@
 <?php
 ob_start();
+// Without these, PHP's default session.gc_maxlifetime (often ~24 min) can
+// garbage-collect the session data well before the 24-hour app-level timeout
+// below ever runs, silently logging writers out early. Mirrors sudo/check-login.php.
+ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
+ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
+session_set_cookie_params(86400); // 24 hours
+require_once __DIR__ . '/session-name.php';
 session_start();
 require_once __DIR__ . '/env.php';
 $appDebug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN);
@@ -16,6 +23,36 @@ require_once 'session_tracker.php';
 
 $self = $_SERVER["PHP_SELF"];
 $allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php'];
+$currentScript = basename($_SERVER['PHP_SELF']);
+
+// AJAX/polling endpoints that shouldn't be recorded as the "last page" used
+// to send the writer back after a session timeout.
+$ajaxEndpoints = [
+    'edit_message.php',
+    'delete_message.php',
+    'fetch_messages.php',
+    'poll_messages.php',
+    'get_sent_read_status.php',
+    'get_message_edits.php',
+    'set_typing_status.php',
+    'get_typing_status.php',
+    'get_shared_files.php',
+    'get_linkable_tasks.php',
+    'update_read_status.php',
+    'send_message.php',
+    'update-task.php',
+    'delete-file.php',
+    'upload_update.php',
+    'update-task-acknowledgement.php',
+    'submission_upload.php',
+    'add-task-comment.php',
+    'mark-admin-comments-read.php',
+    'get_invoice_items.php',
+];
+
+if (!in_array($currentScript, $allowed_pages) && !in_array($currentScript, $ajaxEndpoints)) {
+    $_SESSION['last_page'] = $_SERVER['REQUEST_URI'];
+}
 
 if (stripos($self, 'index.php') !== false) {
     if (!isset($_SESSION['sessionWriter']) || (isset($_SESSION['sessionWriter']) && strlen($_SESSION['sessionWriter']) == 0)) {
@@ -39,10 +76,11 @@ $session_timeout_duration = 86400; // 24 hrs
 
 // Check if last_activity is set
 if (isset($_SESSION['last_activity'])) {
-    // Check if the session is older than 60 minutes
+    // Check if the session is older than 24 hours
     if (time() - $_SESSION['last_activity'] > $session_timeout_duration) {
-        // Store the current page before logging out
-        $lastPage = $_SERVER['REQUEST_URI'];
+        // Store the current page before logging out (prefer the tracked last
+        // real page over the current request, which may itself be an AJAX poll)
+        $lastPage = $_SESSION['last_page'] ?? $_SERVER['REQUEST_URI'];
 
         // Store in cookie since session will be destroyed
         setcookie('last_page_before_timeout', $lastPage, time() + 300, '/', '', isset($_SERVER["HTTPS"]), true); // 5 minutes

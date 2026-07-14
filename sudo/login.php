@@ -191,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="p-4 p-md-5 flex-grow-1">
                                     <?php
                                     if (session_status() == PHP_SESSION_NONE) {
+                                        require_once __DIR__ . '/session-name.php';
                                         session_start();
                                     }
                                     // Attempt to display any error message first

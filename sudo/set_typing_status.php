@@ -3,6 +3,7 @@
 // message box. No CSRF check - matches the existing lightweight, session-
 // auth-only convention used by poll_messages.php/update_read_status.php for
 // this class of frequent, non-destructive signal.
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');

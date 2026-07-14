@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/session-name.php';
 session_start();
 require_once __DIR__ . '/../shared-functions.php'; csrf_verify_or_json_die();
 header('Content-Type: application/json');

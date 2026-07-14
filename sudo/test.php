@@ -4,6 +4,7 @@
  * Upload this file to your admin directory and access via browser
  * It will help diagnose and fix upload directory issues
  */
+require_once __DIR__ . '/session-name.php';
 session_start();
 if (empty($_SESSION['odmsaid'])) {
     http_response_code(403);

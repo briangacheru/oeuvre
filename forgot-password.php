@@ -71,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
 
     // Same message whether or not the email was found/sent — otherwise an
     // attacker could enumerate which emails have accounts here.
+    require_once __DIR__ . '/session-name.php';
     session_start();
     $_SESSION['msg']['success'] = "If an account exists for that email address, a password reset link has been sent.";
     header('location: forgot-password.php');

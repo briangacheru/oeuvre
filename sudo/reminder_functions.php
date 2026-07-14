@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../env.php';
 ob_start();
+require_once __DIR__ . '/session-name.php';
 session_start();
 $appDebug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN);
 ini_set('display_errors', $appDebug ? '1' : '0');

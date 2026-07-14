@@ -2,6 +2,7 @@
 // Lightweight poll target: for the currently open conversation, returns the
 // current text of every edited message (either party), so an edit made by
 // one side shows up on the other side's screen without a full reload.
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');

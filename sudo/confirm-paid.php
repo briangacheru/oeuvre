@@ -2,6 +2,7 @@
 include('check-login.php');
 csrf_verify_or_redirect();
 
+require_once __DIR__ . '/session-name.php';
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

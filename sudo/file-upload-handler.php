@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../env.php';
+require_once __DIR__ . '/session-name.php';
 session_start();
 // Admin-only AJAX endpoint; respond with JSON rather than redirecting.
 if (empty($_SESSION['odmsaid'])) {

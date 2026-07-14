@@ -1,6 +1,7 @@
 <?php
 // Polled alongside messages for the currently open conversation. Typing
 // signal is considered "fresh" for 5 seconds after the sender's last poke.
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');

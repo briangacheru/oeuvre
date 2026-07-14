@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');

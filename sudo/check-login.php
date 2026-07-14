@@ -4,6 +4,7 @@ ob_start();
 ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
 ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
 session_set_cookie_params(86400); // 24 hours
+require_once __DIR__ . '/session-name.php';
 session_start();
 require_once __DIR__ . '/../env.php';
 $appDebug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN);
@@ -74,8 +75,23 @@ $ajaxEndpoints = [
     'get-new-comments.php',
     'get_message_edits.php',
     'get_shared_files.php',
-    'get_shared_files.php',
-    'get_notification_counts.php'
+    'mark-comments-read.php',
+    'complete-task.php',
+    'confirm-paid.php',
+    'toggle_favorite.php',
+    'add-task-comment.php',
+    'chart-data.php',
+    'transaction-cost-chart.php',
+    'fetch-savings-goals.php',
+    'delete_file.php',
+    'submit-task.php',
+    'submit_task.php',
+    'update-task.php',
+    'pin_reset.php',
+    'update-od.php',
+    'update-writer.php',
+    'update-task-writer.php',
+    'get_invoice_items.php',
 ];
 
 // Store current page for redirect (but not for login pages or AJAX endpoints)

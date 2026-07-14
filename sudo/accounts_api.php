@@ -14,6 +14,7 @@ include_once 'dbcon.php';
 include_once 'currency_helper.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    require_once __DIR__ . '/session-name.php';
     session_start();
 }
 

@@ -6,6 +6,7 @@
  * Call via AJAX from the task view page
  */
 
+require_once __DIR__ . '/../session-name.php';
 session_start();
 error_reporting(E_ALL);
 ini_set('error_log', __DIR__ . '/php-errors.log');

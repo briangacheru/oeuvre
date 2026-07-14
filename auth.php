@@ -1,5 +1,6 @@
 <?php
 ob_start();
+require_once __DIR__ . '/session-name.php';
 session_start();
 // Set the timezone to East Africa Time (EAT)
 date_default_timezone_set('Africa/Nairobi');

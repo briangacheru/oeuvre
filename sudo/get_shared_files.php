@@ -1,6 +1,7 @@
 <?php
 // Returns every file attachment exchanged with a given conversation partner,
 // for the "Shared Files" modal.
+require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
 header('Content-Type: application/json');
