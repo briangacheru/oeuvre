@@ -53,6 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Update user status to online
                 updateUserStatus($email, 'writer', true);
 
+                // If arriving from a shared task link, send the writer straight to
+                // that task if they have access to it, or flag it if they don't.
+                // Prefer the hidden form field (set on the GET render below) since it
+                // doesn't depend on the query string surviving the .htaccess redirect
+                // that strips .php from the URL between the initial link click and this POST.
+                $sharedTaskIdEncoded = $_POST['task_id'] ?? $_GET['task_id'] ?? null;
+                $taskRedirectUrl = resolve_shared_task_redirect($con, $email, $sharedTaskIdEncoded);
+
                 $loginMessage = "
                     <div class='alert alert-success alert-dismissible fade show' role='alert'>
                     <i class='bi bi-check-circle me-1'></i> Login successful. Redirecting!
@@ -66,7 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 error_log("Available cookies: " . print_r($_COOKIE, true));
 
                 // Check for last page cookies
-                if (isset($_COOKIE['last_page_before_timeout'])) {
+                if ($taskRedirectUrl !== null) {
+                    $redirectUrl = $taskRedirectUrl;
+                    error_log("Redirecting to shared task: " . $redirectUrl);
+                } elseif (isset($_COOKIE['last_page_before_timeout'])) {
                     $redirectUrl = $_COOKIE['last_page_before_timeout'];
                     setcookie('last_page_before_timeout', '', time() - 420, '/'); // Clear cookie
                     error_log("Redirecting to timeout page: " . $redirectUrl);
@@ -240,6 +251,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <form class="needs-validation" novalidate="novalidate" method="post" role="form" action="">
 <?= csrf_field() ?>
+<?php if (isset($_GET['task_id'])): ?>
+                                        <input type="hidden" name="task_id" value="<?php echo htmlspecialchars($_GET['task_id']); ?>" />
+<?php endif; ?>
                                         <div class="form-floating mb-3">
                                             <input class="form-control" id="floatingInput" type="email" placeholder="name@example.com" name="email" value="<?php echo htmlspecialchars($email); ?>" required="required" />
                                             <label for="floatingInput">Email address</label>

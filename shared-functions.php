@@ -417,6 +417,36 @@ if (!function_exists('csrf_verify_or_json_die')) {
     }
 }
 
+if (!function_exists('resolve_shared_task_redirect')) {
+    // Given a base64-encoded task id (as passed via a shared task link's ?task_id=
+    // param) and a writer's email, returns the URL to send them to: the task itself
+    // if they have access, or 'all-tasks' (with an access-denied alert queued in
+    // $_SESSION['alert']) if they don't. Returns null if $encodedTaskId is empty.
+    function resolve_shared_task_redirect($con, $email, $encodedTaskId) {
+        if (empty($encodedTaskId)) {
+            return null;
+        }
+
+        $taskId = (int) base64_decode($encodedTaskId);
+        $stmt = $con->prepare("SELECT id FROM tbltasks WHERE id = ? AND email = ?");
+        $stmt->bind_param("is", $taskId, $email);
+        $stmt->execute();
+        $hasAccess = $stmt->get_result()->num_rows > 0;
+        $stmt->close();
+
+        if ($hasAccess) {
+            return 'view-task?task_id=' . urlencode($encodedTaskId);
+        }
+
+        $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
+                                <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
+                                <p class="mb-0 flex-1">You do not have access to that task.</p>
+                                <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>';
+        return 'all-tasks';
+    }
+}
+
 // ---- Login lockout ----
 // $table must always be a hardcoded literal ('tblwriters' or 'tbladmin')
 // supplied by the calling code, never derived from request input.

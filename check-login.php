@@ -24,7 +24,12 @@ if (stripos($self, 'index.php') !== false) {
     }
 } elseif (array_reduce($allowed_pages, fn($carry, $page) => $carry || stripos($self, $page) !== false, false)) {
     if (isset($_SESSION['sessionWriter']) && strlen($_SESSION['sessionWriter']) > 0) {
-        header('Location: index.php');
+        // If they clicked "Sign In" from a shared task link while already logged
+        // in, send them to that task (or an access-denied alert) instead of index.
+        $taskRedirect = isset($_GET['task_id'])
+            ? resolve_shared_task_redirect($con, $_SESSION['sessionWriter'], $_GET['task_id'])
+            : null;
+        header('Location: ' . ($taskRedirect ?? 'index.php'));
         exit();
     }
 }

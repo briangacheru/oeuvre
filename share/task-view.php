@@ -125,20 +125,14 @@ if ($taskData) {
     $taskSubject = $taskData['subject'];
     $taskAccount = $taskData['account'];
     $taskCreatedOn = $taskData['create_date'];
-    $taskStatus = $taskData['status'];
     $taskDescription = $taskData['description'];
     $taskWriter = $taskData['writer'];
-    $taskDueDate = $taskData['due_date'];
     $taskCPP = $taskData['cpp'];
     $taskPages = $taskData['pages'];
-    $submittedOn = $taskData['submitted_on'];
-    $completedOn = $taskData['completed_on'];
 
     // Fetch task files from database
     $taskFiles = [];
     $submittedFilesArray = [];
-    $targetTimestamp = strtotime($taskDueDate) * 1000;
-    $timerId = 'timer-' . uniqid();
 
     // Try common table structures
     $possibleTables = [
@@ -182,40 +176,28 @@ if ($taskData) {
         }
     }
 
-    // Calculate if late
-    $due_date = new DateTime($taskData['due_date']);
-    $currentDateTime = new DateTime();
-    $interval = $currentDateTime->diff($due_date);
-    $isLate = ($due_date < $currentDateTime) ? true : false;
+}
 
-    // Prepare status badge
-    $statusClass = '';
-    $statusText = '';
-    switch ($taskData["status"]) {
-        case 'In Progress':
-            $statusClass = 'status-progress';
-            $statusText = 'In Progress';
-            break;
-        case 'In Revision':
-            $statusClass = 'status-revision';
-            $statusText = 'In Revision';
-            break;
-        case 'Submitted':
-            $statusClass = 'status-submitted';
-            $statusText = 'Submitted';
-            break;
-        case 'Completed':
-            $statusClass = 'status-completed';
-            $statusText = 'Completed';
-            break;
-        case 'Cancelled':
-            $statusClass = 'status-cancelled';
-            $statusText = 'Cancelled';
-            break;
-        default:
-            $statusClass = 'status-progress';
-            $statusText = $taskData["status"];
+// Build absolute URLs for link-preview meta tags (WhatsApp etc. require an
+// absolute og:image/og:url) - same base-URL logic as generateTaskShareLink()
+// in sudo/task-share-helper.php.
+$ogProtocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$ogBasePath = str_replace('/share', '', dirname($_SERVER['SCRIPT_NAME']));
+$ogBaseUrl = rtrim($ogProtocol . '://' . $_SERVER['HTTP_HOST'] . $ogBasePath, '/');
+$ogImage = $ogBaseUrl . '/assets/img/favicons/android-chrome-512x512.png';
+$ogUrl = $ogBaseUrl . '/share/task-view' . (isset($_GET['token']) ? '?token=' . urlencode($_GET['token']) : '');
+
+if ($taskData) {
+    $ogTitle = 'Task #' . $taskId . ': ' . $taskTopic;
+    $ogDescription = trim(preg_replace('/\s+/', ' ', strip_tags($taskDescription)));
+    if ($ogDescription === '') {
+        $ogDescription = 'View details for this task on iTasker.';
+    } elseif (mb_strlen($ogDescription) > 200) {
+        $ogDescription = mb_substr($ogDescription, 0, 197) . '...';
     }
+} else {
+    $ogTitle = 'Task View | iTasker';
+    $ogDescription = 'This share link is invalid or has expired.';
 }
 ?>
 <!DOCTYPE html>
@@ -225,12 +207,26 @@ if ($taskData) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $taskData ? 'Task #' . $taskId . ' - ' . htmlspecialchars($taskTopic) : 'Task View'; ?> | iTasker</title>
 
+    <!-- Social share preview (WhatsApp, iMessage, Slack, etc.) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="iTasker">
+    <meta property="og:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image" content="<?php echo htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:url" content="<?php echo htmlspecialchars($ogUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:description" content="<?php echo htmlspecialchars($ogDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:image" content="<?php echo htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8'); ?>">
+
     <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="../assets/img/favicons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/img/favicons/favicon-16x16.png">
     <link rel="shortcut icon" type="image/x-icon" href="../assets/img/favicons/favicon.ico">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#0b1727">
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -244,10 +240,6 @@ if ($taskData) {
         }
 
         :root {
-            --primary-gradient: linear-gradient(135deg, #2d2d2d 0%, #000000 100%);
-            --secondary-gradient: linear-gradient(135deg, #4a4a4a 0%, #2d2d2d 100%);
-            --success-gradient: linear-gradient(135deg, #6b6b6b 0%, #3a3a3a 100%);
-            --warning-gradient: linear-gradient(135deg, #5a5a5a 0%, #2a2a2a 100%);
             --card-bg: rgba(255, 255, 255, 0.98);
             --glass-bg: rgba(255, 255, 255, 0.15);
             --glass-border: rgba(255, 255, 255, 0.25);
@@ -260,7 +252,10 @@ if ($taskData) {
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #1a1a1a 0%, #000000 25%, #2d2d2d 50%, #0a0a0a 75%, #1a1a1a 100%);
+            /* Falcon theme's dark-mode tokens (--falcon-body-bg / --falcon-emphasis-bg
+               in assets/css/theme.css under [data-bs-theme=dark]) - this standalone
+               page doesn't load that stylesheet, so the values are hardcoded here. */
+            background: linear-gradient(135deg, #0b1727 0%, #121e2d 50%, #0b1727 100%);
             background-attachment: fixed;
             color: var(--text-primary);
             min-height: 100vh;
@@ -459,45 +454,6 @@ if ($taskData) {
             font-weight: 400;
         }
 
-        /* Status Badges */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 20px;
-            border-radius: 24px;
-            font-size: 14px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .status-progress {
-            background: rgba(100, 100, 100, 0.3);
-            color: #ffffff;
-        }
-
-        .status-revision {
-            background: rgba(150, 150, 150, 0.3);
-            color: #ffffff;
-        }
-
-        .status-submitted {
-            background: rgba(120, 120, 120, 0.3);
-            color: #ffffff;
-        }
-
-        .status-completed {
-            background: rgba(180, 180, 180, 0.3);
-            color: #ffffff;
-        }
-
-        .status-cancelled {
-            background: rgba(80, 80, 80, 0.3);
-            color: #ffffff;
-        }
-
         /* Container */
         .container {
             max-width: 1000px;
@@ -584,11 +540,6 @@ if ($taskData) {
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            font-weight: 700;
-        }
-
-        .info-value.alert {
-            color: #ef4444;
             font-weight: 700;
         }
 
@@ -749,7 +700,7 @@ if ($taskData) {
             align-items: center;
             justify-content: space-between;
             padding: 18px 24px;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            background: linear-gradient(135deg, #0b1727 0%, #121e2d 100%);
             color: #fff;
             flex-shrink: 0;
         }
@@ -944,25 +895,6 @@ if ($taskData) {
             z-index: 10;
         }
 
-        .countdown-timer {
-            font-family: 'Courier New', Courier, monospace; /* Keeps numbers aligned */
-            font-weight: 600;
-            color: #27ae60; /* Green for active time */
-            white-space: nowrap; /* Prevents line breaks during countdown */
-            transition: color 0.3s ease;
-        }
-
-        /* Style when time is expired */
-        .countdown-timer.alert,
-        .expired-text {
-            color: #c0392b; /* Red for expired */
-        }
-
-        /* Optional: Style for low time (e.g., less than 1 hour) */
-        .countdown-timer.urgent {
-            color: #e67e22; /* Orange */
-        }
-
         /* Animations */
         @keyframes fadeInUp {
             from {
@@ -1060,7 +992,7 @@ if ($taskData) {
 <nav class="nav">
     <div class="nav-content">
         <a href="../index" class="nav-logo">iTasker</a>
-        <a href="../login" class="nav-login">Sign In</a>
+        <a href="<?php echo $taskData ? '../login?task_id=' . urlencode(base64_encode($taskId)) : '../login'; ?>" class="nav-login">Sign In</a>
     </div>
 </nav>
 
@@ -1083,16 +1015,6 @@ if ($taskData) {
             <div class="task-id">Task #<?php echo $taskId; ?></div>
             <h1 class="hero-title"><?php echo htmlspecialchars($taskTopic); ?></h1>
             <p class="hero-subtitle"><?php echo htmlspecialchars($taskSubject); ?></p>
-            <div>
-                    <span class="status-badge <?php echo $statusClass; ?>">
-                        <?php echo $statusText; ?>
-                    </span>
-                <?php if ($isLate && $taskData["status"] === 'In Progress'): ?>
-                    <span class="status-badge status-cancelled" style="margin-left: 8px;">
-                            <i class="fas fa-exclamation-triangle"></i> Overdue
-                        </span>
-                <?php endif; ?>
-            </div>
         </div>
     </section>
 
@@ -1106,32 +1028,6 @@ if ($taskData) {
                     <div class="info-label">Pages</div>
                     <div class="info-value highlight"><?php echo htmlspecialchars($taskPages); ?> pages</div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Due Date</div>
-                    <div class="info-value <?php echo $isLate ? 'alert' : ''; ?>">
-                        <?php echo date('M j, Y h:i A', strtotime($taskDueDate)); ?>
-                    </div>
-                </div>
-                <?php if ($taskStatus = "In Progress"): ?>
-                    <div class="info-item">
-                        <div class="info-label">Time Remaining</div>
-                        <div class="info-value countdown-timer" id="<?php echo $timerId; ?>" data-target="<?php echo $targetTimestamp; ?>">
-                            Calculating...
-                        </div>
-                    </div>
-                <?php endif; ?>
-                <?php if ($submittedOn): ?>
-                    <div class="info-item">
-                        <div class="info-label">Submitted</div>
-                        <div class="info-value"><?php echo date('M j, Y h:i A', strtotime($submittedOn)); ?></div>
-                    </div>
-                <?php endif; ?>
-                <?php if ($completedOn): ?>
-                    <div class="info-item">
-                        <div class="info-label">Completed</div>
-                        <div class="info-value"><?php echo date('M j, Y h:i A', strtotime($completedOn)); ?></div>
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -1243,7 +1139,7 @@ if ($taskData) {
             <div style="font-size: 15px; line-height: 1.6; color: white;">
                 This is a read-only view of the task.
                 <br>
-                <a href="../login">Sign in</a> to access full task management features.
+                <a href="../login?task_id=<?php echo urlencode(base64_encode($taskId)); ?>">Sign in</a> to access full task management features.
             </div>
         </div>
     </div>
@@ -1350,37 +1246,6 @@ if ($taskData) {
         if (e.key === 'Escape') closeFileViewer();
     });
 
-    (function() {
-        const timerElement = document.getElementById('<?php echo $timerId; ?>');
-        const targetTime = parseInt(timerElement.getAttribute('data-target'));
-
-        function updateTimer() {
-            const now = new Date().getTime();
-            const distance = targetTime - now;
-
-            // If countdown is finished
-            if (distance < 0) {
-                timerElement.innerHTML = "0h 0m 0s";
-                timerElement.classList.add('alert');
-                return;
-            }
-
-            // Time calculations
-            // Calculate total hours (including days converted to hours)
-            const totalHours = Math.floor(distance / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            // Format exactly as requested: 20 hrs 45 mins 14 secs
-            const formattedTime = `${totalHours}h ${minutes}m ${seconds}s`;
-
-            timerElement.innerHTML = formattedTime;
-        }
-
-        // Run immediately then every second
-        updateTimer();
-        setInterval(updateTimer, 1000);
-    })();
     // Generate floating particles
     function createParticles() {
         const particlesContainer = document.getElementById('particles');
