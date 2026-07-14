@@ -378,6 +378,15 @@ if (isset($_SESSION['alert'])) {
         </div>
     </div>
 
+    <?php
+    $submittedFilesQuery = 'SELECT * FROM tbl_task_files WHERE task_id = ? AND file_type = "submitted" AND is_deleted = 0 ORDER BY upload_time ASC';
+    $stmt = mysqli_prepare($con, $submittedFilesQuery);
+    mysqli_stmt_bind_param($stmt, 'i', $taskId);
+    mysqli_stmt_execute($stmt);
+    $submittedFilesResult = mysqli_stmt_get_result($stmt);
+    $hasSubmittedFiles = mysqli_num_rows($submittedFilesResult) > 0;
+    ?>
+    <?php if ($hasSubmittedFiles): ?>
     <div class='col mb-3'>
         <div class='row g-3'>
             <div class='col-xxl-12'>
@@ -391,14 +400,7 @@ if (isset($_SESSION['alert'])) {
                              style='background-image:url(assets/img/icons/spot-illustrations/corner-7.png);'>
                         </div>
                         <?php
-                        $submittedFilesQuery = 'SELECT * FROM tbl_task_files WHERE task_id = ? AND file_type = "submitted" AND is_deleted = 0 ORDER BY upload_time ASC';
-                        $stmt = mysqli_prepare($con, $submittedFilesQuery);
-                        mysqli_stmt_bind_param($stmt, 'i', $taskId);
-                        mysqli_stmt_execute($stmt);
-                        $submittedFilesResult = mysqli_stmt_get_result($stmt);
-
-                        if (mysqli_num_rows($submittedFilesResult) > 0) {
-                            while ($fileRow = mysqli_fetch_assoc($submittedFilesResult)) {
+                        while ($fileRow = mysqli_fetch_assoc($submittedFilesResult)) {
                                 $fileName = $fileRow['original_file_name'];
                                 $fileUrl = $fileRow['file_url'];
                                 $fileSize = $fileRow['file_size'];
@@ -485,9 +487,6 @@ if (isset($_SESSION['alert'])) {
                                 <hr class="text-200"/>
                                 <?php
                             }
-                        } else {
-                            echo '<div>No submitted files.</div>';
-                        }
                         mysqli_stmt_close($stmt);
                         ?>
                     </div>
@@ -495,6 +494,7 @@ if (isset($_SESSION['alert'])) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <style>
         /* The theme's base .dz-remove is opacity:0 (only meant to reveal on

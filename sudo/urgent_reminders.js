@@ -22,11 +22,15 @@ class UrgentReminderSystem {
     }
 
     createToastContainer() {
+        // Kept as its own container (rather than the shared one from
+        // assets/js/toast.js) since urgent reminders are persistent
+        // (no autohide) and need their own scrollable stack, but positioned
+        // to match the canonical bottom-0 end-0 spot used everywhere else.
         if (!document.getElementById('urgent-toast-container')) {
             const container = document.createElement('div');
             container.id = 'urgent-toast-container';
-            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-            container.style.zIndex = '1055';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '9999';
             container.style.maxHeight = '80vh';
             container.style.overflowY = 'auto';
             document.body.appendChild(container);

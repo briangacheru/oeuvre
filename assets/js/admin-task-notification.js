@@ -136,9 +136,3 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(checkForNewTasks, 30000);
 });
 
-// Optional: Manual function to clear all toasts and reset tracking (for testing)
-function clearAllToastsAndReset() {
-    const toasts = document.querySelectorAll('.custom-toast');
-    toasts.forEach(toast => toast.remove());
-    clearShownNotifications();
-}

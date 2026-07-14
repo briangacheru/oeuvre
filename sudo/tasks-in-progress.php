@@ -242,7 +242,7 @@ if (isset($_GET['del'])) {
         <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>-->
     <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
 
 <?php
 if (isset($_SESSION['alert'])) {

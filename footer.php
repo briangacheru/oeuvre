@@ -161,6 +161,7 @@
 <script src="assets/js/sessiontimeout.js"></script>
 <script>const GLOBAL_CSRF_TOKEN = document.getElementById('csrf-data').dataset.token;</script>
 <script src="assets/js/task-notification.js"></script>
+<script src="assets/js/toast.js"></script>
 <script src="vendors/tinymce/tinymce.min.js"></script>
 <script src="vendors/dropzone/dropzone-min.js"></script>
 <script src="vendors/inputmask/inputmask.min.js"></script>

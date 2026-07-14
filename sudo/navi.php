@@ -366,11 +366,12 @@
         }
     }
 
+    /* Position now comes from the canonical position-fixed bottom-0 end-0
+       classes on each .toast-container div (see assets/js/toast.js) - this
+       rule used to also set position:fixed/top/right here, which fought
+       those classes. Keeping just the overflow behavior for when many
+       toasts stack up. */
     .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1055;
         max-height: 80vh;
         overflow-y: auto;
     }

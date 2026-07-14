@@ -2225,7 +2225,7 @@ echo $_headHtml;
             ]);
         } catch (error) {
             console.error('Error loading dashboard data:', error);
-            showError('Failed to load dashboard data. Please check your API connection.');
+            showToast('Failed to load dashboard data. Please check your API connection.', 'danger');
         }
     }
 
@@ -2382,7 +2382,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading account types:', error);
-            showError('Failed to load account types');
+            showToast('Failed to load account types', 'danger');
         }
     }
     // Setup real-time account preview
@@ -2717,25 +2717,25 @@ echo $_headHtml;
 
         // Validation
         if (!accountName) {
-            showError('Account name is required');
+            showToast('Account name is required', 'danger');
             document.getElementById('accountName').focus();
             return;
         }
 
         if (!accountType) {
-            showError('Please select an account type');
+            showToast('Please select an account type', 'danger');
             document.getElementById('accountType').focus();
             return;
         }
 
         if (!accountCurrency) {
-            showError('Please select a currency');
+            showToast('Please select a currency', 'danger');
             document.getElementById('accountCurrency').focus();
             return;
         }
 
         if (initialBalance < 0) {
-            showError('Initial balance cannot be negative');
+            showToast('Initial balance cannot be negative', 'danger');
             document.getElementById('initialBalance').focus();
             return;
         }
@@ -2777,7 +2777,7 @@ echo $_headHtml;
             try {
                 result = JSON.parse(responseText);
             } catch (jsonError) {
-                showError('Server returned invalid response. Check console for details.');
+                showToast('Server returned invalid response. Check console for details.', 'danger');
                 return;
             }
 
@@ -2785,17 +2785,17 @@ echo $_headHtml;
                 // Success
                 bootstrap.Modal.getInstance(document.getElementById('addAccountModal')).hide();
                 await loadDashboardData();
-                showSuccess(`Account "${accountName}" created successfully with initial balance of ${formatCurrency(initialBalance, accountCurrency)}!`);
+                showToast(`Account "${accountName}" created successfully with initial balance of ${formatCurrency(initialBalance, accountCurrency)}!`, 'success');
 
                 // Clear form
                 document.getElementById('addAccountForm').reset();
                 document.getElementById('accountSummaryCard').style.display = 'none';
             } else {
-                showError(result.message || 'Failed to create account');
+                showToast(result.message || 'Failed to create account', 'danger');
             }
 
         } catch (error) {
-            showError('Failed to create account. Please try again.');
+            showToast('Failed to create account. Please try again.', 'danger');
         } finally {
             // Restore button
             submitButton.innerHTML = originalText;
@@ -2823,15 +2823,8 @@ echo $_headHtml;
         </div>
     `;
 
-        // Add to toast container
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-
-        toastContainer.appendChild(toast);
+        // Add to the shared toast container (assets/js/toast.js)
+        getToastContainer().appendChild(toast);
 
         // Show toast
         const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
@@ -2848,7 +2841,7 @@ echo $_headHtml;
         // Find the account data
         const account = accountsData.find(a => a.id == accountId);
         if (!account) {
-            showError('Account not found');
+            showToast('Account not found', 'danger');
             return;
         }
 
@@ -2907,9 +2900,9 @@ echo $_headHtml;
 
         try {
             await loadDashboardData();
-            showSuccess('Data refreshed successfully!');
+            showToast('Data refreshed successfully!', 'success');
         } catch (error) {
-            showError('Failed to refresh data.');
+            showToast('Failed to refresh data.', 'danger');
         } finally {
             spinner.classList.remove('show');
             refreshBtn.disabled = false;
@@ -3027,56 +3020,7 @@ echo $_headHtml;
         document.getElementById('accountCount').textContent = countText;
     }
 
-    // Enhanced notification functions
-    function showSuccess(message) {
-        // Create a toast notification
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed';
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="fas fa-check-circle me-2"></i>${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-
-        document.body.appendChild(toast);
-        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
-        bsToast.show();
-
-        // Remove from DOM after hiding
-        toast.addEventListener('hidden.bs.toast', () => {
-            document.body.removeChild(toast);
-        });
-    }
-
-    function showError(message) {
-        // Create a toast notification
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-white bg-danger border-0 position-fixed';
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="fas fa-exclamation-circle me-2"></i>${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-
-        document.body.appendChild(toast);
-        const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
-        bsToast.show();
-
-        // Remove from DOM after hiding
-        toast.addEventListener('hidden.bs.toast', () => {
-            document.body.removeChild(toast);
-        });
-    }
+    // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
     function exportData() {
         // Convert accounts data to CSV
@@ -3468,7 +3412,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading accounts for update:', error);
-            showError('Failed to load accounts for balance update');
+            showToast('Failed to load accounts for balance update', 'danger');
         }
     }
 
@@ -3722,7 +3666,7 @@ echo $_headHtml;
         }
 
         if (updates.length === 0) {
-            showError('No balance changes detected');
+            showToast('No balance changes detected', 'danger');
             return;
         }
 
@@ -3767,11 +3711,11 @@ echo $_headHtml;
         if (successCount > 0) {
             bootstrap.Modal.getInstance(document.getElementById('updateBalanceModal')).hide();
             await loadDashboardData();
-            showSuccess(`Successfully updated ${successCount} account balances!`);
+            showToast(`Successfully updated ${successCount} account balances!`, 'success');
         }
 
         if (errorCount > 0) {
-            showError(`Failed to update ${errorCount} accounts. Check console for details.`);
+            showToast(`Failed to update ${errorCount} accounts. Check console for details.`, 'danger');
         }
     }
 
@@ -3850,13 +3794,13 @@ echo $_headHtml;
             if (result.success) {
                 await loadAccountTypes();
                 await populateAccountTypesDropdown(); // Refresh dropdown
-                showSuccess(result.message);
+                showToast(result.message, 'success');
             } else {
-                showError(result.message);
+                showToast(result.message, 'danger');
             }
         } catch (error) {
             console.error('Error reactivating account type:', error);
-            showError('Failed to reactivate account type');
+            showToast('Failed to reactivate account type', 'danger');
         }
     }
 
@@ -3867,7 +3811,7 @@ echo $_headHtml;
         const iconClass = document.getElementById('newTypeIcon').value.trim();
 
         if (!typeName) {
-            showError('Please enter a type name');
+            showToast('Please enter a type name', 'danger');
             return;
         }
 
@@ -3891,13 +3835,13 @@ echo $_headHtml;
                 document.getElementById('addTypeForm').reset();
                 document.getElementById('newTypeColor').value = '#007bff'; // Reset color
                 await loadAccountTypes();
-                showSuccess(result.message);
+                showToast(result.message, 'success');
             } else {
-                showError(result.message);
+                showToast(result.message, 'danger');
             }
         } catch (error) {
             console.error('Error adding account type:', error);
-            showError('Failed to add account type');
+            showToast('Failed to add account type', 'danger');
         }
     }
 
@@ -3917,13 +3861,13 @@ echo $_headHtml;
             if (result.success) {
                 await loadAccountTypes();
                 await populateAccountTypesDropdown(); // Refresh dropdown
-                showSuccess('Account type deactivated successfully');
+                showToast('Account type deactivated successfully', 'success');
             } else {
-                showError(result.message);
+                showToast(result.message, 'danger');
             }
         } catch (error) {
             console.error('Error deactivating account type:', error);
-            showError('Failed to deactivate account type');
+            showToast('Failed to deactivate account type', 'danger');
         }
     }
 
@@ -3946,7 +3890,7 @@ echo $_headHtml;
             // Find the account type data
             const accountType = accountTypes.find(type => type.id == typeId);
             if (!accountType) {
-                showError('Account type not found');
+                showToast('Account type not found', 'danger');
                 return;
             }
 
@@ -3954,7 +3898,7 @@ echo $_headHtml;
             showEditAccountTypeModal(accountType);
         } catch (error) {
             console.error('Error editing account type:', error);
-            showError('Failed to open edit form');
+            showToast('Failed to open edit form', 'danger');
         }
     }
 
@@ -4102,17 +4046,17 @@ echo $_headHtml;
 
         // Validation
         if (!formData.type_name) {
-            showError('Please enter a type name');
+            showToast('Please enter a type name', 'danger');
             return;
         }
 
         if (!formData.color_code) {
-            showError('Please select a color');
+            showToast('Please select a color', 'danger');
             return;
         }
 
         if (!formData.icon_class) {
-            showError('Please enter an icon class');
+            showToast('Please enter an icon class', 'danger');
             return;
         }
 
@@ -4133,13 +4077,13 @@ echo $_headHtml;
                 await loadAccountTypes();
                 await populateAccountTypesDropdown();
 
-                showSuccess('Account type updated successfully!');
+                showToast('Account type updated successfully!', 'success');
             } else {
-                showError('Failed to update account type: ' + result.message);
+                showToast('Failed to update account type: ' + result.message, 'danger');
             }
         } catch (error) {
             console.error('Error updating account type:', error);
-            showError('Failed to update account type. Please try again.');
+            showToast('Failed to update account type. Please try again.', 'danger');
         }
     }
 
@@ -4298,7 +4242,7 @@ echo $_headHtml;
             const data = await response.json();
 
             if (data.error) {
-                showError(data.error);
+                showToast(data.error, 'danger');
                 return;
             }
 
@@ -4306,7 +4250,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading month balances:', error);
-            showError('Failed to load month data');
+            showToast('Failed to load month data', 'danger');
         }
     }
 
@@ -4402,7 +4346,7 @@ echo $_headHtml;
         const endMonth = document.getElementById('endMonth').value;
 
         if (!startMonth || !endMonth) {
-            showError('Please select both start and end months');
+            showToast('Please select both start and end months', 'danger');
             return;
         }
 
@@ -4411,7 +4355,7 @@ echo $_headHtml;
             const data = await response.json();
 
             if (data.error) {
-                showError(data.error);
+                showToast(data.error, 'danger');
                 return;
             }
 
@@ -4419,7 +4363,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading comparison:', error);
-            showError('Failed to load comparison data');
+            showToast('Failed to load comparison data', 'danger');
         }
     }
 
@@ -4520,7 +4464,7 @@ echo $_headHtml;
             // Get account details
             const account = accountsData.find(acc => acc.id == accountId);
             if (!account) {
-                showError('Account not found');
+                showToast('Account not found', 'danger');
                 return;
             }
 
@@ -4532,7 +4476,7 @@ echo $_headHtml;
             showAccountHistoryModal(account, historyData);
         } catch (error) {
             console.error('Error loading account history:', error);
-            showError('Failed to load account history');
+            showToast('Failed to load account history', 'danger');
         }
     }
 
@@ -4784,7 +4728,7 @@ echo $_headHtml;
     function exportMonthData() {
         const selectedMonth = document.getElementById('viewMonth').value;
         if (!selectedMonth) {
-            showError('Please select a month first');
+            showToast('Please select a month first', 'danger');
             return;
         }
 
@@ -4804,7 +4748,7 @@ echo $_headHtml;
             // Find account in current data
             currentAccount = accountsData.find(acc => acc.id == accountId);
             if (!currentAccount) {
-                showError('Account not found');
+                showToast('Account not found', 'danger');
                 return;
             }
 
@@ -4850,7 +4794,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error viewing account details:', error);
-            showError('Failed to load account details');
+            showToast('Failed to load account details', 'danger');
         }
     }
 
@@ -4939,7 +4883,7 @@ echo $_headHtml;
             // Find account in current data
             currentAccount = accountsData.find(acc => acc.id == accountId);
             if (!currentAccount) {
-                showError('Account not found');
+                showToast('Account not found', 'danger');
                 return;
             }
 
@@ -4977,7 +4921,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading account for editing:', error);
-            showError('Failed to load account for editing');
+            showToast('Failed to load account for editing', 'danger');
         }
     }
 
@@ -5001,7 +4945,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading account types:', error);
-            showError('Failed to load account types');
+            showToast('Failed to load account types', 'danger');
         }
     }
 
@@ -5024,13 +4968,13 @@ echo $_headHtml;
 
             // Validation
             if (!formData.account_name) {
-                showError('Account name is required');
+                showToast('Account name is required', 'danger');
                 document.getElementById('editAccountName').focus();
                 return;
             }
 
             if (!formData.account_type) {
-                showError('Account type is required');
+                showToast('Account type is required', 'danger');
                 document.getElementById('editAccountType').focus();
                 return;
             }
@@ -5056,14 +5000,14 @@ echo $_headHtml;
                 // Success
                 bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
                 await loadDashboardData(); // Refresh all data
-                showSuccess('Account updated successfully!');
+                showToast('Account updated successfully!', 'success');
             } else {
-                showError(result.message || 'Failed to update account');
+                showToast(result.message || 'Failed to update account', 'danger');
             }
 
         } catch (error) {
             console.error('Error updating account:', error);
-            showError('Failed to update account. Please try again.');
+            showToast('Failed to update account. Please try again.', 'danger');
         } finally {
             // Restore button
             const saveButton = document.querySelector('[onclick="saveAccountChanges()"]');
@@ -5145,7 +5089,7 @@ echo $_headHtml;
     function copyAccountNameToClipboard() {
         if (deleteAccountData && deleteAccountData.name) {
             navigator.clipboard.writeText(deleteAccountData.name).then(() => {
-                showSuccess('Account name copied to clipboard!');
+                showToast('Account name copied to clipboard!', 'success');
             }).catch(err => {
                 console.error('Failed to copy:', err);
                 // Fallback for older browsers
@@ -5155,7 +5099,7 @@ echo $_headHtml;
                 textArea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
-                showSuccess('Account name copied to clipboard!');
+                showToast('Account name copied to clipboard!', 'success');
             });
         }
     }
@@ -5169,7 +5113,7 @@ echo $_headHtml;
             const history = await response.json();
 
             if (history.length === 0) {
-                showError('No balance history to export');
+                showToast('No balance history to export', 'danger');
                 return;
             }
 
@@ -5198,10 +5142,10 @@ echo $_headHtml;
             a.click();
             window.URL.revokeObjectURL(url);
 
-            showSuccess('Balance history exported successfully!');
+            showToast('Balance history exported successfully!', 'success');
         } catch (error) {
             console.error('Error exporting history:', error);
-            showError('Failed to export balance history');
+            showToast('Failed to export balance history', 'danger');
         }
     }
 
@@ -5317,7 +5261,7 @@ echo $_headHtml;
     // Confirm and execute delete
     async function confirmDeleteAccount() {
         if (!deleteAccountData) {
-            showError('No account selected for deletion');
+            showToast('No account selected for deletion', 'danger');
             return;
         }
 
@@ -5326,12 +5270,12 @@ echo $_headHtml;
 
         // Final validation
         if (confirmInput.value.trim() !== deleteAccountData.name.trim()) {
-            showError('Account name does not match. Please type it exactly.');
+            showToast('Account name does not match. Please type it exactly.', 'danger');
             return;
         }
 
         if (!checkbox.checked) {
-            showError('Please confirm that you understand this action is irreversible.');
+            showToast('Please confirm that you understand this action is irreversible.', 'danger');
             return;
         }
 
@@ -5371,17 +5315,17 @@ echo $_headHtml;
                 await loadDashboardData();
 
                 // Show success message
-                showSuccess('Account has been permanently deleted.');
+                showToast('Account has been permanently deleted.', 'success');
 
             } else {
-                showError(result.message || 'Failed to delete account');
+                showToast(result.message || 'Failed to delete account', 'danger');
                 deleteBtn.disabled = false;
                 deleteBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Permanently Delete Account';
             }
 
         } catch (error) {
             console.error('Error deleting account:', error);
-            showError('Failed to delete account. Please try again.');
+            showToast('Failed to delete account. Please try again.', 'danger');
             deleteBtn.disabled = false;
             deleteBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Permanently Delete Account';
         }
@@ -5432,7 +5376,7 @@ echo $_headHtml;
 
         } catch (error) {
             console.error('Error loading balance history:', error);
-            showError('Failed to load balance history');
+            showToast('Failed to load balance history', 'danger');
         }
     }
 
@@ -5553,7 +5497,7 @@ echo $_headHtml;
         const rows = Array.from(table.querySelectorAll('tr'));
 
         if (rows.length === 0 || rows[0].cells.length === 1) {
-            showError('No data to export');
+            showToast('No data to export', 'danger');
             return;
         }
 
@@ -5653,7 +5597,7 @@ echo $_headHtml;
             console.error('Error loading savings breakdown:', error);
             document.getElementById('savingsBreakdownLoading').style.display = 'none';
             document.getElementById('savingsBreakdownNoData').style.display = 'block';
-            showError('Failed to load savings breakdown');
+            showToast('Failed to load savings breakdown', 'danger');
         }
     }
 
@@ -5761,7 +5705,7 @@ echo $_headHtml;
     // Export savings breakdown to CSV
     function exportSavingsBreakdown() {
         if (!savingsBreakdownData || !savingsBreakdownData.accounts || savingsBreakdownData.accounts.length === 0) {
-            showError('No data to export');
+            showToast('No data to export', 'danger');
             return;
         }
 
@@ -5805,7 +5749,7 @@ echo $_headHtml;
         a.click();
         window.URL.revokeObjectURL(url);
 
-        showSuccess('Savings breakdown exported successfully');
+        showToast('Savings breakdown exported successfully', 'success');
     }
 
     // =====================================================
@@ -5883,7 +5827,7 @@ echo $_headHtml;
             console.error('Error loading total balance breakdown:', error);
             document.getElementById('totalBalanceLoading').style.display = 'none';
             document.getElementById('totalBalanceNoData').style.display = 'block';
-            showError('Failed to load balance breakdown');
+            showToast('Failed to load balance breakdown', 'danger');
         }
     }
 
@@ -6021,7 +5965,7 @@ echo $_headHtml;
     // Export total balance breakdown
     function exportTotalBalanceBreakdown() {
         if (!totalBalanceData || !totalBalanceData.success) {
-            showError('No data to export');
+            showToast('No data to export', 'danger');
             return;
         }
 
@@ -6066,7 +6010,7 @@ echo $_headHtml;
         a.click();
         window.URL.revokeObjectURL(url);
 
-        showSuccess('Balance breakdown exported successfully');
+        showToast('Balance breakdown exported successfully', 'success');
     }
 
     // =====================================================
@@ -6170,7 +6114,7 @@ echo $_headHtml;
             console.error('Error loading latest month details:', error);
             document.getElementById('latestMonthLoading').style.display = 'none';
             document.getElementById('latestMonthNoData').style.display = 'block';
-            showError('Failed to load month details');
+            showToast('Failed to load month details', 'danger');
         }
     }
 
@@ -6313,7 +6257,7 @@ echo $_headHtml;
     // Export latest month data
     function exportLatestMonthData() {
         if (!latestMonthDetailsData || !latestMonthDetailsData.success) {
-            showError('No data to export');
+            showToast('No data to export', 'danger');
             return;
         }
 
@@ -6366,7 +6310,7 @@ echo $_headHtml;
         a.click();
         window.URL.revokeObjectURL(url);
 
-        showSuccess('Month overview exported successfully');
+        showToast('Month overview exported successfully', 'success');
     }
 
 </script>

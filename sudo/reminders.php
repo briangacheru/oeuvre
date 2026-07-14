@@ -2948,7 +2948,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
     </div>
 
     <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container" style="z-index: 9999;"></div>
 
     <!-- Category Management Modal -->
     <div class="modal fade" id="manageCategoriesModal" tabindex="-1">
@@ -3262,7 +3262,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         // Handle bulk delete
         document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
             if (selectedReminders.size === 0) {
-                showToast('Warning!', 'No reminders selected', 'warning');
+                showToast('No reminders selected', 'warning');
                 return;
             }
 
@@ -3324,14 +3324,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(data => {
                         if (data.success) {
                             modal.hide();
-                            showToast('Success!', data.message, 'success');
+                            showToast(data.message, 'success');
                             setTimeout(() => location.reload(), 1500);
                         } else {
-                            showToast('Error!', data.message, 'danger');
+                            showToast(data.message, 'danger');
                         }
                     })
                     .catch(error => {
-                        showToast('Error!', 'Something went wrong!', 'danger');
+                        showToast('Something went wrong!', 'danger');
                     });
             });
 
@@ -3428,7 +3428,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             // Validation for multiple days
             const reminderType = document.getElementById('reminder_type').value;
             if (reminderType === 'multiple_days' && selectedDates.length === 0) {
-                showToast('Error!', 'Please select at least one date', 'danger');
+                showToast('Please select at least one date', 'danger');
                 return;
             }
 
@@ -3443,7 +3443,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 const timeValue = document.getElementById('single_time').value;
 
                 if (!dateValue) {
-                    showToast('Error!', 'Please select a date', 'danger');
+                    showToast('Please select a date', 'danger');
                     return;
                 }
 
@@ -3455,7 +3455,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 const timeValue = document.getElementById('recurring_time').value;
 
                 if (!dateValue) {
-                    showToast('Error!', 'Please select a start date', 'danger');
+                    showToast('Please select a start date', 'danger');
                     return;
                 }
 
@@ -3470,15 +3470,15 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', data.message, 'success');
+                        showToast(data.message, 'success');
                         bootstrap.Modal.getInstance(document.getElementById('addReminderModal')).hide();
                         setTimeout(() => location.reload(), 5000);
                     } else {
-                        showToast('Error!', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                 });
         });
 
@@ -3511,14 +3511,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', 'Reminder marked as complete!', 'success');
+                        showToast('Reminder marked as complete!', 'success');
                         setTimeout(() => location.reload(), 1500);
                     } else {
-                        showToast('Error!', data.message || 'Failed to complete reminder', 'danger');
+                        showToast(data.message || 'Failed to complete reminder', 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                     console.error('Error:', error);
                 });
         }
@@ -3582,14 +3582,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(data => {
                         if (data.success) {
                             modal.hide();
-                            showToast('Success!', 'Reminder dismissed!', 'success');
+                            showToast('Reminder dismissed!', 'success');
                             setTimeout(() => location.reload(), 5000);
                         } else {
-                            showToast('Error!', 'Failed to dismiss reminder', 'danger');
+                            showToast('Failed to dismiss reminder', 'danger');
                         }
                     })
                     .catch(error => {
-                        showToast('Error!', 'Something went wrong!', 'danger');
+                        showToast('Something went wrong!', 'danger');
                     });
             });
 
@@ -3658,14 +3658,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(data => {
                         if (data.success) {
                             modal.hide();
-                            showToast('Success!', 'Reminder dismissed!', 'success');
+                            showToast('Reminder dismissed!', 'success');
                             setTimeout(() => location.reload(), 5000);
                         } else {
-                            showToast('Error!', 'Failed to dismiss reminder', 'danger');
+                            showToast('Failed to dismiss reminder', 'danger');
                         }
                     })
                     .catch(error => {
-                        showToast('Error!', 'Something went wrong!', 'danger');
+                        showToast('Something went wrong!', 'danger');
                     });
             });
 
@@ -3734,14 +3734,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(data => {
                         if (data.success) {
                             modal.hide();
-                            showToast('Success!', 'Reminder deleted!', 'success');
+                            showToast('Reminder deleted!', 'success');
                             setTimeout(() => location.reload(), 5000);
                         } else {
-                            showToast('Error!', 'Failed to delete reminder', 'danger');
+                            showToast('Failed to delete reminder', 'danger');
                         }
                     })
                     .catch(error => {
-                        showToast('Error!', 'Something went wrong!', 'danger');
+                        showToast('Something went wrong!', 'danger');
                     });
             });
 
@@ -3763,15 +3763,15 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', 'Reminder instance completed!', 'success');
+                        showToast('Reminder instance completed!', 'success');
                         setTimeout(() => location.reload(), 1500);
                     } else {
-                        showToast('Error!', data.message || 'Failed to complete reminder instance', 'error');
+                        showToast(data.message || 'Failed to complete reminder instance', 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showToast('Error!', 'An error occurred', 'error');
+                    showToast('An error occurred', 'error');
                 });
         }
 
@@ -3847,11 +3847,11 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
 
                         new bootstrap.Modal(document.getElementById('editReminderModal')).show();
                     } else {
-                        showToast('Error!', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Failed to load reminder details', 'danger');
+                    showToast('Failed to load reminder details', 'danger');
                     console.error('Error:', error);
                 });
         }
@@ -3938,11 +3938,11 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                             // Submit the form
                             submitEditForm(formData, action);
                         } else {
-                            showToast('Error!', 'Failed to get current dates for multiple days reminder', 'danger');
+                            showToast('Failed to get current dates for multiple days reminder', 'danger');
                         }
                     })
                     .catch(error => {
-                        showToast('Error!', 'Failed to update multiple days reminder', 'danger');
+                        showToast('Failed to update multiple days reminder', 'danger');
                         console.error('Error:', error);
                     });
                 return; // Exit early since we're handling submission in the callback
@@ -3963,38 +3963,20 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', data.message, 'success');
+                        showToast(data.message, 'success');
                         bootstrap.Modal.getInstance(document.getElementById('editReminderModal')).hide();
                         setTimeout(() => location.reload(), 1500);
                     } else {
-                        showToast('Error!', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                     console.error('Error:', error);
                 });
         }
 
-        // Toast function
-        function showToast(title, message, type = 'info') {
-            const toastId = 'toast-' + Date.now();
-            const toast = `
-                            <div class="toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
-                                <div class="toast-body bg-${type} text-white d-flex align-items-center justify-content-between p-3">
-                                    <div class="d-flex align-items-center">
-                                        <strong class="me-2">${title}</strong>
-                                        <span>${message}</span>
-                                    </div>
-                                    <button type="button" class="btn-close btn-close-white ms-3" data-bs-dismiss="toast" aria-label="Close"></button>
-                                </div>
-                            </div>
-                            `;
-
-            document.getElementById('toast-container').insertAdjacentHTML('beforeend', toast);
-            const toastElement = new bootstrap.Toast(document.getElementById(toastId));
-            toastElement.show();
-        }
+        // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
 
         // Check for due reminders every minute
@@ -4050,7 +4032,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                             setTimeout(() => toast.remove(), 300);
                         }
                         const message = isInstance ? 'Reminder instance marked as complete!' : 'Reminder marked as complete!';
-                        showToast('Success!', message, 'success');
+                        showToast(message, 'success');
                         setTimeout(() => location.reload(), 1500);
                     }
                 });
@@ -4124,7 +4106,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                                 setTimeout(() => toast.remove(), 300);
                             }
                             const message = isInstance ? 'Reminder instance dismissed!' : 'Urgent reminder dismissed!';
-                            showToast('Success!', message, 'success');
+                            showToast(message, 'success');
                             setTimeout(() => location.reload(), 1500);
                         }
                     });
@@ -4135,145 +4117,16 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             });
         }
 
-        function showUrgentReminderToast(reminder, hoursRemaining) {
-            const toastId = 'urgent-toast-' + reminder.id + (reminder.is_instance ? '-instance-' + reminder.instance_id : '');
+        // showUrgentReminderToast() is defined further down (with snooze-count
+        // tracking and the skip-if-snoozed check) - this was a duplicate,
+        // earlier, strictly-subset definition. JS function redeclaration means
+        // only the later one was ever actually used; this one was dead code.
 
-            // Check if toast already exists for this reminder
-            if (document.getElementById(toastId)) {
-                return; // Don't create duplicate toasts
-            }
-
-            // Format time remaining
-            let timeText = '';
-            if (hoursRemaining < 1) {
-                const minutesRemaining = Math.floor((hoursRemaining * 60));
-                timeText = minutesRemaining > 0 ? `${minutesRemaining} minutes` : 'Less than a minute';
-            } else {
-                const hours = Math.floor(hoursRemaining);
-                const minutes = Math.floor((hoursRemaining - hours) * 60);
-                timeText = minutes > 0 ? `${hours}h ${minutes}m` : `${hours} hours`;
-            }
-
-            const priorityClass = reminder.priority === 'high' ? 'danger' :
-                reminder.priority === 'medium' ? 'warning' : 'info';
-
-            const recurringBadge = reminder.is_recurring ?
-                `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
-            <i class="fas fa-redo me-1"></i>${reminder.is_instance ? 'Recurring Instance' : 'Recurring'}
-        </span>` : '';
-
-            const toast = `
-    <div class="toast urgent-reminder-toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true"
-         data-bs-autohide="false" data-is-instance="${reminder.is_instance || false}"
-         data-instance-id="${reminder.instance_id || ''}">
-        <div class="toast-header bg-${priorityClass} text-white">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong class="me-auto">Urgent Reminder</strong>
-            <small class="text-white-50">${timeText} remaining</small>
-            <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body">
-            <div class="d-flex align-items-start">
-                <div class="flex-grow-1">
-                    <h6 class="mb-1 fw-bold">${reminder.title}</h6>
-                    ${reminder.description ? `<p class="mb-2 text-muted small">${reminder.description}</p>` : ''}
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-${priorityClass} bg-opacity-10 text-${priorityClass} border border-${priorityClass} border-opacity-25">
-                            <i class="fas fa-flag me-1"></i>${reminder.priority.charAt(0).toUpperCase() + reminder.priority.slice(1)}
-                        </span>
-                        <span class="badge bg-light text-dark border">
-                            <i class="fas fa-tag me-1"></i>${reminder.category.charAt(0).toUpperCase() + reminder.category.slice(1)}
-                        </span>
-                        ${recurringBadge}
-                    </div>
-                    <div class="d-flex align-items-center text-muted small mb-2">
-                        <i class="fas fa-calendar me-1"></i>
-                        <span>${new Date(reminder.reminder_date + ' ' + reminder.reminder_time).toLocaleString()}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex gap-2 mt-3">
-                <button class="btn btn-success btn-sm flex-fill" onclick="completeReminderFromToast(${reminder.id}, '${toastId}')">
-                    <i class="fas fa-check me-1"></i>Mark Complete
-                </button>
-                <button class="btn btn-warning btn-sm flex-fill" onclick="dismissReminderFromToast(${reminder.id}, '${toastId}')">
-                    <i class="fas fa-eye-slash me-1"></i>Dismiss
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="snoozeReminder(${reminder.id}, '${toastId}')">
-                    <i class="fas fa-clock me-1"></i>Snooze
-                </button>
-            </div>
-        </div>
-    </div>
-    `;
-
-            document.getElementById('toast-container').insertAdjacentHTML('beforeend', toast);
-            const toastElement = new bootstrap.Toast(document.getElementById(toastId));
-            toastElement.show();
-        }
-
-        function snoozeReminder(id, toastId) {
-            // Create snooze options modal
-            const snoozeModal = `
-        <div class="modal fade" id="snoozeModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header border-0 pb-0">
-                        <h5 class="modal-title text-info">
-                            <i class="fas fa-clock me-2"></i>Snooze Reminder
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-3">How long would you like to snooze this reminder?</p>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary" onclick="applySnooze(${id}, '${toastId}', 15)">
-                                <i class="fas fa-clock me-2"></i>15 minutes
-                            </button>
-                            <button class="btn btn-outline-primary" onclick="applySnooze(${id}, '${toastId}', 30)">
-                                <i class="fas fa-clock me-2"></i>30 minutes
-                            </button>
-                            <button class="btn btn-outline-primary" onclick="applySnooze(${id}, '${toastId}', 60)">
-                                <i class="fas fa-clock me-2"></i>1 hour
-                            </button>
-                            <button class="btn btn-outline-primary" onclick="applySnooze(${id}, '${toastId}', 120)">
-                                <i class="fas fa-clock me-2"></i>2 hours
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            document.body.insertAdjacentHTML('beforeend', snoozeModal);
-            const modal = new bootstrap.Modal(document.getElementById('snoozeModal'));
-            modal.show();
-
-            document.getElementById('snoozeModal').addEventListener('hidden.bs.modal', function() {
-                this.remove();
-            });
-        }
-
-        function applySnooze(id, toastId, minutes) {
-            // Hide the urgent toast temporarily
-            const toast = document.getElementById(toastId);
-            if (toast) {
-                bootstrap.Toast.getInstance(toast).hide();
-                setTimeout(() => toast.remove(), 300);
-            }
-
-            // Close snooze modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('snoozeModal'));
-            modal.hide();
-
-            showToast('Snoozed!', `Reminder snoozed for ${minutes} minutes`, 'info');
-
-            // Set timeout to show the toast again after snooze period
-            setTimeout(() => {
-                checkDueReminders(); // This will re-check and show the toast if still urgent
-            }, minutes * 60 * 1000);
-        }
+        // snoozeReminder() and applySnooze() are defined further down (with
+        // snooze-count tracking, max-snooze-limit handling, and a custom-time
+        // option) - these were duplicate, earlier, simpler definitions. JS
+        // function redeclaration means only the later ones were ever actually
+        // used; these were dead code.
 
         function restoreReminder(id, sourceType = 'reminder', instanceId = null) {
             const formData = new FormData();
@@ -4292,14 +4145,14 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', data.message, 'success');
+                        showToast(data.message, 'success');
                         setTimeout(() => location.reload(), 1500);
                     } else {
-                        showToast('Error!', 'Failed to restore reminder', 'danger');
+                        showToast('Failed to restore reminder', 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                 });
         }
 
@@ -4337,10 +4190,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 if (response.success) {
                     displayCategories(response.categories);
                 } else {
-                    showToast('Error', 'Failed to load categories', 'danger');
+                    showToast('Failed to load categories', 'danger');
                 }
             }, 'json').fail(function() {
-                showToast('Error', 'Failed to connect to server', 'danger');
+                showToast('Failed to connect to server', 'danger');
             });
         }
 
@@ -4449,12 +4302,12 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     loadCategories();
 
                     // Show success toast
-                    showToast('Success', 'Category added!', 'success');
+                    showToast('Category added!', 'success');
                 } else {
-                    showToast('Error', response.message || 'Error adding category', 'danger');
+                    showToast(response.message || 'Error adding category', 'danger');
                 }
             }, 'json').fail(function() {
-                showToast('Error', 'Failed to connect to server', 'danger');
+                showToast('Failed to connect to server', 'danger');
             }).always(function() {
                 submitBtn.html(originalText).prop('disabled', false);
             });
@@ -4491,12 +4344,12 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 if (response.success) {
                     $('#editCategoryModal').modal('hide');
                     loadCategories();
-                    showToast('Success', 'Category updated!', 'success');
+                    showToast('Category updated!', 'success');
                 } else {
-                    showToast('Error', response.message || 'Error updating category', 'danger');
+                    showToast(response.message || 'Error updating category', 'danger');
                 }
             }, 'json').fail(function() {
-                showToast('Error', 'Failed to connect to server', 'danger');
+                showToast('Failed to connect to server', 'danger');
             }).always(function() {
                 submitBtn.html(originalText).prop('disabled', false);
             });
@@ -4543,7 +4396,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             dismissConfirmToast(toastId);
 
             // Show loading toast
-            showToast('Deleting', 'Deleting category...', 'info');
+            showToast('Deleting category...', 'info');
 
             $.post('reminders', {
                 action: 'delete_category',
@@ -4551,12 +4404,12 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             }, function(response) {
                 if (response.success) {
                     loadCategories();
-                    showToast('Success', 'Category deleted!', 'success');
+                    showToast('Category deleted!', 'success');
                 } else {
-                    showToast('Error', response.message || 'Error deleting category', 'danger');
+                    showToast(response.message || 'Error deleting category', 'danger');
                 }
             }, 'json').fail(function() {
-                showToast('Error', 'Failed to connect to server', 'danger');
+                showToast('Failed to connect to server', 'danger');
             });
         }
 
@@ -4975,7 +4828,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', data.message, 'success');
+                        showToast(data.message, 'success');
                         // Refresh calendar
                         if (reminderCalendar) {
                             fetchRemindersForCalendar().then(events => {
@@ -4984,11 +4837,11 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                             });
                         }
                     } else {
-                        showToast('Error!', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                 });
         }
     </script>
@@ -5014,13 +4867,13 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', 'Settings saved!', 'success');
+                        showToast('Settings saved!', 'success');
                     } else {
-                        showToast('Error!', data.message || 'Failed to save settings', 'danger');
+                        showToast(data.message || 'Failed to save settings', 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Something went wrong!', 'danger');
+                    showToast('Something went wrong!', 'danger');
                 });
         });
 
@@ -5037,10 +4890,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            showToast('Success!', 'Settings reset to defaults!', 'success');
+                            showToast('Settings reset to defaults!', 'success');
                             setTimeout(() => location.reload(), 1500);
                         } else {
-                            showToast('Error!', 'Failed to reset settings', 'danger');
+                            showToast('Failed to reset settings', 'danger');
                         }
                     });
             }
@@ -5272,7 +5125,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             const minutes = parseInt(document.getElementById('customSnoozeMinutes').value);
 
             if (!minutes || minutes < 1 || minutes > 1440) {
-                showToast('Invalid Input', 'Please enter a value between 1 and 1440 minutes', 'warning');
+                showToast('Please enter a value between 1 and 1440 minutes', 'warning');
                 return;
             }
 
@@ -5295,7 +5148,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             }
 
             // Show loading state
-            showToast('Snoozing...', 'Processing your snooze request', 'info');
+            showToast('Processing your snooze request', 'info');
 
             fetch('', {
                 method: 'POST',
@@ -5330,11 +5183,11 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         }
 
                     } else {
-                        showToast('Snooze Failed', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error', 'Failed to snooze reminder', 'danger');
+                    showToast('Failed to snooze reminder', 'danger');
                     console.error('Snooze error:', error);
                 });
         }
@@ -5508,17 +5361,17 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     if (data.success) {
                         const modal = bootstrap.Modal.getInstance(document.getElementById('advancedSnoozeModal'));
                         modal.hide();
-                        showToast('Reset Successful', 'Snooze count has been reset', 'success');
+                        showToast('Snooze count has been reset', 'success');
 
                         // Update reminder data and show snooze modal
                         reminderData.snoozeCount = 0;
                         snoozeReminder(id, toastId, reminderData);
                     } else {
-                        showToast('Reset Failed', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error', 'Failed to reset snooze count', 'danger');
+                    showToast('Failed to reset snooze count', 'danger');
                 });
         }
 
@@ -5541,11 +5394,11 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     if (data.success) {
                         displaySnoozeStatsModal(data);
                     } else {
-                        showToast('Error', 'Failed to load snooze statistics', 'danger');
+                        showToast('Failed to load snooze statistics', 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error', 'Failed to load snooze statistics', 'danger');
+                    showToast('Failed to load snooze statistics', 'danger');
                 });
         }
 
@@ -5823,7 +5676,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 currentSnoozeOptions.push('60'); // Default to 1 hour
                 renderSnoozeOptionsInputs();
             } else {
-                showToast('Limit Reached', 'Maximum 8 snooze options allowed', 'warning');
+                showToast('Maximum 8 snooze options allowed', 'warning');
             }
         }
 
@@ -5861,15 +5714,15 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('Success!', 'Snooze settings saved!', 'success');
+                        showToast('Snooze settings saved!', 'success');
                         // Reload snooze options for the toast system
                         loadSnoozeOptions();
                     } else {
-                        showToast('Error!', data.message, 'danger');
+                        showToast(data.message, 'danger');
                     }
                 })
                 .catch(error => {
-                    showToast('Error!', 'Failed to save snooze settings', 'danger');
+                    showToast('Failed to save snooze settings', 'danger');
                 })
                 .finally(() => {
                     this.disabled = false;
@@ -6267,16 +6120,16 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) {
-                                if (typeof showToast === 'function') showToast('Added', data.message || 'Reminder added!', 'success');
+                                if (typeof showToast === 'function') showToast(data.message || 'Reminder added!', 'success');
                                 setTimeout(() => location.reload(), 400);
                             } else {
-                                if (typeof showToast === 'function') showToast('Error', data.message || 'Failed', 'danger');
+                                if (typeof showToast === 'function') showToast(data.message || 'Failed', 'danger');
                                 else alert(data.message || 'Failed');
                             }
                         })
                         .catch(err => {
                             console.error(err);
-                            if (typeof showToast === 'function') showToast('Error', 'Network error', 'danger');
+                            if (typeof showToast === 'function') showToast('Network error', 'danger');
                         });
                 });
             }
@@ -6334,10 +6187,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) {
-                                if (typeof showToast === 'function') showToast('Rescheduled', `Moved to ${newDate}`, 'success');
+                                if (typeof showToast === 'function') showToast(`Moved to ${newDate}`, 'success');
                                 setTimeout(() => location.reload(), 350);
                             } else {
-                                if (typeof showToast === 'function') showToast('Error', data.message || 'Failed', 'danger');
+                                if (typeof showToast === 'function') showToast(data.message || 'Failed', 'danger');
                             }
                         });
                 });
@@ -6372,16 +6225,16 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            if (typeof showToast === 'function') showToast('Snoozed', data.message || 'Reminder snoozed', 'success');
+                            if (typeof showToast === 'function') showToast(data.message || 'Reminder snoozed', 'success');
                             setTimeout(() => location.reload(), 400);
                         } else {
-                            if (typeof showToast === 'function') showToast('Error', data.message || 'Failed to snooze', 'danger');
+                            if (typeof showToast === 'function') showToast(data.message || 'Failed to snooze', 'danger');
                             else alert(data.message || 'Failed to snooze');
                         }
                     })
                     .catch(err => {
                         console.error('Snooze failed', err);
-                        if (typeof showToast === 'function') showToast('Error', 'Network error', 'danger');
+                        if (typeof showToast === 'function') showToast('Network error', 'danger');
                     });
             };
 
@@ -6397,7 +6250,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                 bulkCompleteBtn.addEventListener('click', function() {
                     // selectedReminders is a Set declared in the original script higher up
                     if (typeof selectedReminders === 'undefined' || selectedReminders.size === 0) {
-                        if (typeof showToast === 'function') showToast('Nothing selected', 'Pick at least one reminder', 'warning');
+                        if (typeof showToast === 'function') showToast('Pick at least one reminder', 'warning');
                         return;
                     }
                     if (!confirm(`Mark ${selectedReminders.size} reminder(s) as complete?`)) return;
@@ -6414,10 +6267,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) {
-                                if (typeof showToast === 'function') showToast('Done', data.message, 'success');
+                                if (typeof showToast === 'function') showToast(data.message, 'success');
                                 setTimeout(() => location.reload(), 400);
                             } else {
-                                if (typeof showToast === 'function') showToast('Error', data.message || 'Failed', 'danger');
+                                if (typeof showToast === 'function') showToast(data.message || 'Failed', 'danger');
                                 else alert(data.message || 'Failed');
                                 bulkCompleteBtn.disabled = false;
                                 bulkCompleteBtn.innerHTML = originalHTML;
@@ -6425,7 +6278,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         })
                         .catch(err => {
                             console.error(err);
-                            if (typeof showToast === 'function') showToast('Error', 'Network error', 'danger');
+                            if (typeof showToast === 'function') showToast('Network error', 'danger');
                             bulkCompleteBtn.disabled = false;
                             bulkCompleteBtn.innerHTML = originalHTML;
                         });

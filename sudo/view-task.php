@@ -988,7 +988,7 @@ if (isset($_SESSION['alert'])) {
 
                 <!-- Writer chip -->
                 <?php if ($taskWriter):
-                    $stmt = $con->prepare("SELECT id, last_seen, email FROM tblwriters WHERE username = ?");
+                    $stmt = $con->prepare("SELECT id, last_seen, email, Photo FROM tblwriters WHERE username = ?");
                     $stmt->bind_param("s", $taskWriter);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -1020,21 +1020,31 @@ if (isset($_SESSION['alert'])) {
                             else { $statusText = floor($timeDiff->days / 7) . 'w ago';                $statusClass = 'text-secondary'; }
                         }
                         $initials = strtoupper(substr($taskWriter, 0, 2));
+                        $writerPhoto = $writerData['Photo'] ?? '';
+                        $writerPhotoSrc = (!empty($writerPhoto) && $writerPhoto !== 'avatar.png') ? '../profileimages/' . $writerPhoto : '';
                         ?>
                         <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill border"
                              style="font-size:12px; background:var(--falcon-gray-100);">
-                            <!-- Initials avatar -->
-                            <div class="rounded-circle d-flex align-items-center justify-content-center fw-semibold"
-                                 style="width:22px;height:22px;font-size:10px;background:rgba(var(--falcon-primary-rgb),.15);color:var(--falcon-primary);">
-                                <?php echo $initials; ?>
-                            </div>
+                            <!-- Avatar (photo if present, else initials) -->
+                            <?php if ($writerPhotoSrc): ?>
+                                <img src="<?php echo htmlspecialchars($writerPhotoSrc); ?>"
+                                     alt="<?php echo htmlspecialchars($taskWriter); ?>"
+                                     class="rounded-circle"
+                                     style="width:22px;height:22px;object-fit:cover;">
+                            <?php else: ?>
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-semibold"
+                                     style="width:22px;height:22px;font-size:10px;background:rgba(var(--falcon-primary-rgb),.15);color:var(--falcon-primary);">
+                                    <?php echo $initials; ?>
+                                </div>
+                            <?php endif; ?>
                             <a href="writer.php?writerID=<?php echo $encodedWriterId; ?>"
                                class="fw-semibold text-decoration-none text-body"
                                data-bs-toggle="tooltip" title="View <?php echo htmlspecialchars($taskWriter); ?>'s profile">
                                 <?php echo htmlspecialchars($taskWriter); ?>
                             </a>
                             <!-- Level badge -->
-                            <span class="badge rounded-pill px-2 py-1" style="font-size:10px;background-color:<?php echo $writerLevel['icon_color']; ?>22;color:<?php echo $writerLevel['icon_color']; ?>;border:1px solid <?php echo $writerLevel['icon_color']; ?>44;">
+                            <span class="badge rounded-pill d-flex align-items-center gap-1 px-2 py-1" style="font-size:10px;background-color:<?php echo $writerLevel['icon_color']; ?>22;color:<?php echo $writerLevel['icon_color']; ?>;border:1px solid <?php echo $writerLevel['icon_color']; ?>44;">
+                            <i class="<?php echo htmlspecialchars($writerLevel['icon_class']); ?>" style="font-size:9px;"></i>
                             <?php echo $writerLevel['level_name']; ?>
                         </span>
                             <!-- Online dot -->
@@ -2987,15 +2997,15 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                         }
 
                         // Show success toast notification
-                        showBootstrapToast(toastMessage, 'success');
+                        showToast(toastMessage, 'success');
                     } else {
-                        showBootstrapToast('Failed to update favorite status.', 'danger');
+                        showToast('Failed to update favorite status.', 'danger');
                     }
                 } else {
-                    showBootstrapToast('An error occurred while updating favorite status.', 'danger');
+                    showToast('An error occurred while updating favorite status.', 'danger');
                 }
             };
-            xhr.send('task_id=' + taskId);
+            xhr.send('task_id=' + taskId + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>'));
         }
 
         function completeTask(encodedId, taskId) {
@@ -3017,7 +3027,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     }
 
                     // Show success toast before redirecting
-                    showBootstrapToast('Task completed!', 'success');
+                    showToast('Task completed!', 'success');
 
                     // Delay redirect to allow toast to be seen
                     setTimeout(function() {
@@ -3027,52 +3037,12 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 error: function() {
                     confirmBtn.innerHTML = originalText;
                     confirmBtn.disabled = false;
-                    showBootstrapToast('An error occurred while completing the task.', 'danger');
+                    showToast('An error occurred while completing the task.', 'danger');
                 }
             });
         }
 
-        // Simple Bootstrap toast function
-        function showBootstrapToast(message, type = 'success') {
-            // Remove any existing toast
-            const existingToast = document.getElementById('dynamic-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create the toast alert
-            const toast = document.createElement('div');
-            toast.id = 'dynamic-toast';
-            toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        max-width: 400px;
-    `;
-            toast.innerHTML = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
-
-            document.body.appendChild(toast);
-
-            // Auto-dismiss after 4 seconds
-            setTimeout(() => {
-                const alert = toast.querySelector('.alert');
-                if (alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            }, 4000);
-
-            // Remove toast element when alert is closed
-            toast.addEventListener('closed.bs.alert', function() {
-                toast.remove();
-            });
-        }
+        // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
     </script>
     <script>
@@ -3095,7 +3065,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     }
 
                     // Show success toast before redirecting
-                    showBootstrapToast('Task marked as paid!', 'success');
+                    showToast('Task marked as paid!', 'success');
 
                     // Delay redirect to allow toast to be seen
                     setTimeout(function() {
@@ -3105,7 +3075,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 error: function() {
                     confirmBtn.innerHTML = originalText;
                     confirmBtn.disabled = false;
-                    showBootstrapToast('An error occurred while marking the task as paid.', 'danger');
+                    showToast('An error occurred while marking the task as paid.', 'danger');
                 }
             });
         }
@@ -3549,84 +3519,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             window.reinitLightbox = reinitLightbox;
         });
 
-        // Toast notification function
-        function showToast(message, type = 'info') {
-            // Map types to Bootstrap colors
-            const typeMap = {
-                'success': 'bg-success',
-                'danger': 'bg-danger',
-                'error': 'bg-danger',
-                'warning': 'bg-warning',
-                'info': 'bg-info',
-                'primary': 'bg-primary'
-            };
-
-            // Map types to icons
-            const iconMap = {
-                'success': 'fas fa-check-circle',
-                'danger': 'fas fa-exclamation-circle',
-                'error': 'fas fa-exclamation-circle',
-                'warning': 'fas fa-exclamation-triangle',
-                'info': 'fas fa-info-circle',
-                'primary': 'fas fa-bell'
-            };
-
-            const bgClass = typeMap[type] || 'bg-info';
-            const icon = iconMap[type] || 'fas fa-info-circle';
-
-            // Create unique ID for this toast
-            const toastId = 'toast-' + Date.now();
-
-            // Create toast HTML
-            const toastHTML = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="${icon} me-2"></i>
-                    ${escapeHtml(message)}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    `;
-
-            // Get or create toast container
-            let container = document.querySelector('.toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                container.style.zIndex = '9999';
-                document.body.appendChild(container);
-            }
-
-            // Add toast to container
-            container.insertAdjacentHTML('beforeend', toastHTML);
-
-            // Get the toast element
-            const toastElement = document.getElementById(toastId);
-
-            // Initialize and show toast
-            if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-                const bsToast = new bootstrap.Toast(toastElement);
-                bsToast.show();
-
-                // Remove toast from DOM after it's hidden
-                toastElement.addEventListener('hidden.bs.toast', function () {
-                    toastElement.remove();
-                });
-            } else {
-                // Fallback if Bootstrap is not available
-                toastElement.style.display = 'block';
-                toastElement.style.animation = 'slideInRight 0.3s ease';
-
-                setTimeout(() => {
-                    toastElement.style.animation = 'slideOutRight 0.3s ease';
-                    setTimeout(() => {
-                        toastElement.remove();
-                    }, 300);
-                }, 5000);
-            }
-        }
+        // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
         // Enhanced scroll to bottom function with smooth animation
         function scrollToBottom() {
@@ -3641,63 +3534,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             if (indicator) {
                 indicator.style.display = 'none';
             }
-        }
-
-        // Enhanced toast notification function for comments
-        function showCommentToast(message, type = 'success') {
-            // Remove any existing comment toast
-            const existingToast = document.getElementById('comment-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create enhanced toast
-            const toast = document.createElement('div');
-            toast.id = 'comment-toast';
-            toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        max-width: 350px;
-        animation: slideInRight 0.4s ease;
-    `;
-
-            // Toast icon mapping
-            const icons = {
-                success: 'fa-check-circle',
-                danger: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
-
-            toast.innerHTML = `
-        <div class="alert alert-${type} alert-dismissible fade show shadow-lg border-0" role="alert" style="border-radius: 12px;">
-            <div class="d-flex align-items-center">
-                <i class="fas ${icons[type]} me-2 fs-5"></i>
-                <div class="flex-1">
-                    <span>${message}</span>
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
-
-            document.body.appendChild(toast);
-
-            // Auto-dismiss after 4 seconds
-            setTimeout(() => {
-                const alert = toast.querySelector('.alert');
-                if (alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            }, 4000);
-
-            // Remove toast element when alert is closed
-            toast.addEventListener('closed.bs.alert', function() {
-                toast.remove();
-            });
         }
 
         // Enhanced keyboard shortcuts
@@ -3784,9 +3620,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.count > 0) {
-                        // Show subtle notification
-                        //showCommentToast(`Marked ${data.count} new messages as read`, 'info');
-
                         // Update UI after delay
                         setTimeout(() => {
                             updateCommentsUI();

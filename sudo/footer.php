@@ -157,10 +157,10 @@
 <script src="../vendors/dayjs/dayjs.min.js"></script>
 <script src="../vendors/fontawesome/all.min.js"></script>
 <script src="../vendors/lodash/lodash.min.js"></script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=window.scroll"></script>
 <script src="../vendors/list.js/list.min.js"></script>
 <script src="../assets/js/theme.js"></script>
 <script src="../assets/js/myjs.js"></script>
+<script src="../assets/js/toast.js"></script>
 <script src='../assets/js/pdf-viewer.js'></script>
 <script src="../vendors/dropzone/dropzone-min.js"></script>
 <script src="../vendors/inputmask/inputmask.min.js"></script>

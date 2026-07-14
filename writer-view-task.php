@@ -2042,84 +2042,7 @@ foreach ($comments as $comment) {
             window.reinitLightbox = reinitLightbox;
         });
 
-        // Toast notification function
-        function showToast(message, type = 'info') {
-            // Map types to Bootstrap colors
-            const typeMap = {
-                'success': 'bg-success',
-                'danger': 'bg-danger',
-                'error': 'bg-danger',
-                'warning': 'bg-warning',
-                'info': 'bg-info',
-                'primary': 'bg-primary'
-            };
-
-            // Map types to icons
-            const iconMap = {
-                'success': 'fas fa-check-circle',
-                'danger': 'fas fa-exclamation-circle',
-                'error': 'fas fa-exclamation-circle',
-                'warning': 'fas fa-exclamation-triangle',
-                'info': 'fas fa-info-circle',
-                'primary': 'fas fa-bell'
-            };
-
-            const bgClass = typeMap[type] || 'bg-info';
-            const icon = iconMap[type] || 'fas fa-info-circle';
-
-            // Create unique ID for this toast
-            const toastId = 'toast-' + Date.now();
-
-            // Create toast HTML
-            const toastHTML = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="${icon} me-2"></i>
-                    ${escapeHtml(message)}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    `;
-
-            // Get or create toast container
-            let container = document.querySelector('.toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                container.style.zIndex = '9999';
-                document.body.appendChild(container);
-            }
-
-            // Add toast to container
-            container.insertAdjacentHTML('beforeend', toastHTML);
-
-            // Get the toast element
-            const toastElement = document.getElementById(toastId);
-
-            // Initialize and show toast
-            if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-                const bsToast = new bootstrap.Toast(toastElement);
-                bsToast.show();
-
-                // Remove toast from DOM after it's hidden
-                toastElement.addEventListener('hidden.bs.toast', function () {
-                    toastElement.remove();
-                });
-            } else {
-                // Fallback if Bootstrap is not available
-                toastElement.style.display = 'block';
-                toastElement.style.animation = 'slideInRight 0.3s ease';
-
-                setTimeout(() => {
-                    toastElement.style.animation = 'slideOutRight 0.3s ease';
-                    setTimeout(() => {
-                        toastElement.remove();
-                    }, 300);
-                }, 5000);
-            }
-        }
+        // showToast() is now defined in the shared assets/js/toast.js (loaded via footer.php)
 
         // Enhanced scroll to bottom function with smooth animation
         function scrollToBottom() {
@@ -2134,63 +2057,6 @@ foreach ($comments as $comment) {
             if (indicator) {
                 indicator.style.display = 'none';
             }
-        }
-
-        // Enhanced toast notification function for comments
-        function showCommentToast(message, type = 'success') {
-            // Remove any existing comment toast
-            const existingToast = document.getElementById('comment-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create enhanced toast
-            const toast = document.createElement('div');
-            toast.id = 'comment-toast';
-            toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        max-width: 350px;
-        animation: slideInRight 0.4s ease;
-    `;
-
-            // Toast icon mapping
-            const icons = {
-                success: 'fa-check-circle',
-                danger: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
-
-            toast.innerHTML = `
-        <div class="alert alert-${type} alert-dismissible fade show shadow-lg border-0" role="alert" style="border-radius: 12px;">
-            <div class="d-flex align-items-center">
-                <i class="fas ${icons[type]} me-2 fs-5"></i>
-                <div class="flex-1">
-                    <span>${message}</span>
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
-
-            document.body.appendChild(toast);
-
-            // Auto-dismiss after 4 seconds
-            setTimeout(() => {
-                const alert = toast.querySelector('.alert');
-                if (alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            }, 4000);
-
-            // Remove toast element when alert is closed
-            toast.addEventListener('closed.bs.alert', function() {
-                toast.remove();
-            });
         }
 
         // Enhanced keyboard shortcuts
@@ -2277,9 +2143,6 @@ foreach ($comments as $comment) {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.count > 0) {
-                        // Show subtle notification
-                        //showCommentToast(`Marked ${data.count} new messages as read`, 'info');
-
                         // Update UI after delay
                         setTimeout(() => {
                             updateCommentsUI();

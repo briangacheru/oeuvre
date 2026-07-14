@@ -394,7 +394,7 @@ $msg = "";
                         }
 
                         // Show success message (optional)
-                        showTaskToast('Task marked as unread!', 'success');
+                        showToast('Task marked as unread!', 'success');
                     } else {
                         alert('Failed to mark task as unread: ' + (data.error || 'Unknown error'));
                     }
@@ -408,31 +408,7 @@ $msg = "";
                 });
         }
 
-        // Optional: Simple toast notification function
-        function showTaskToast(message, type = 'info') {
-            // Create a simple toast notification
-            const toast = document.createElement('div');
-            toast.className = `alert alert-${type} position-fixed`;
-            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
-            toast.innerHTML = `
-        <div class="d-flex align-items-center">
-            <div class="bg-${type} me-3 icon-item">
-                <span class="fas fa-${type === 'success' ? 'check' : 'info'}-circle text-white fs-5"></span>
-            </div>
-            <p class="mb-0 flex-1">${message} </p>
-            <button class="btn-close" type="button" onclick="this.parentElement.parentElement.remove()"></button>
-        </div>
-    `;
-
-            document.body.appendChild(toast);
-
-            // Auto remove after 3 seconds
-            setTimeout(() => {
-                if (toast.parentElement) {
-                    toast.remove();
-                }
-            }, 6000);
-        }
+        // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
         // Event listener setup
         document.addEventListener('DOMContentLoaded', function () {
