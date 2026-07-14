@@ -821,6 +821,30 @@ if (isset($_SESSION['alert'])) {
                             </div>
                         </div>
                     </div>
+                    <!-- Mark As Paid Confirmation Modal -->
+                    <div class="modal fade" id="markAsPaidModal" tabindex="-1" aria-labelledby="markAsPaidModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-success-subtle text-white">
+                                    <h5 class="modal-title" id="markAsPaidModalLabel">
+                                        <i class="fas fa-check-circle me-2"></i>Mark Task as Paid
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="mb-1">Are you sure you have paid for this task?</p>
+                                    <p class="fw-bold text-primary mb-0">Task ID: #<?php echo $taskId; ?></p>
+                                    <p class="text-muted small mb-0"><?php echo htmlspecialchars($taskTopic); ?></p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-outline-success" id="confirmMarkAsPaidBtn" onclick="markAsPaidConfirm('<?php echo $encodedId; ?>', <?php echo $taskId; ?>)">
+                                        <i class="fas fa-check me-1"></i>Yes, Mark as Paid
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -891,7 +915,7 @@ if (isset($_SESSION['alert'])) {
                             <?php if ($is_paid == 0): ?>
                                 <button class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-1"
                                         style="font-size:11px; cursor:pointer;"
-                                        onclick="markAsPaidConfirm('<?php echo $encodedId; ?>', <?php echo $taskId; ?>)">
+                                        data-bs-toggle="modal" data-bs-target="#markAsPaidModal">
                                     Unpaid
                                 </button>
                             <?php else: ?>
@@ -2927,7 +2951,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             $.ajax({
                 url: 'complete-task',
                 type: 'POST',
-                data: { task_id: encodedId },
+                data: { task_id: encodedId, csrf_token: '<?php echo csrf_token(); ?>' },
                 success: function() {
                     // Hide modal
                     var modalEl = document.getElementById('completeTaskModal');
@@ -2997,20 +3021,37 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
     </script>
     <script>
         function markAsPaidConfirm(encodedId, taskId) {
-            if (confirm('Are you sure you have paid task ID: #' + taskId + '?')) {
-                $.ajax({
-                    url: 'confirm-paid',
-                    type: 'POST',
-                    data: { task_id: encodedId },
-                    success: function() {
-                        // Redirect to the task details page after completing the task
-                        window.location.href = 'view-task?task_id=' + encodedId;
-                    },
-                    error: function() {
-                        showToast('An error occurred while marking the task as paid.');
+            const confirmBtn = document.getElementById('confirmMarkAsPaidBtn');
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+            confirmBtn.disabled = true;
+
+            $.ajax({
+                url: 'confirm-paid',
+                type: 'POST',
+                data: { task_id: encodedId, csrf_token: '<?php echo csrf_token(); ?>' },
+                success: function() {
+                    // Hide modal
+                    var modalEl = document.getElementById('markAsPaidModal');
+                    var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) {
+                        modalInstance.hide();
                     }
-                });
-            }
+
+                    // Show success toast before redirecting
+                    showBootstrapToast('Task marked as paid!', 'success');
+
+                    // Delay redirect to allow toast to be seen
+                    setTimeout(function() {
+                        window.location.href = 'view-task?task_id=' + encodedId;
+                    }, 2000);
+                },
+                error: function() {
+                    confirmBtn.innerHTML = originalText;
+                    confirmBtn.disabled = false;
+                    showBootstrapToast('An error occurred while marking the task as paid.', 'danger');
+                }
+            });
         }
     </script>
     <script>

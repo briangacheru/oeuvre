@@ -6,9 +6,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $taskId = (int) base64_decode($encodedId);
 
     // Update the task status to 'Completed'
-    $sql = "UPDATE tbltasks SET status = 'Completed', completed_on = NOW() WHERE id = ?";
+    // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
+    // setting (see check-login.php), so the timestamp is computed here instead
+    // (matches mark-inprogress-complete.php / mark-tasks-completed.php).
+    $completedOn = date('Y-m-d H:i:s');
+    $sql = "UPDATE tbltasks SET status = 'Completed', completed_on = ? WHERE id = ?";
     $stmt = $con->prepare($sql);
-    $stmt->bind_param("i", $taskId);
+    $stmt->bind_param("si", $completedOn, $taskId);
 
     if ($stmt->execute()) {
         $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert">
