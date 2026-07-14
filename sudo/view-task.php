@@ -851,85 +851,133 @@ if (isset($_SESSION['alert'])) {
     </div>
 
     <!-- Task Details Card -->
+    <?php
+    // Admin-view metric strip: a different composition than the Writer View's
+    // countdown-banner-plus-sidebar layout (title on top, then a full-width
+    // row of equal metric boxes) while keeping the same underlying data and
+    // the same live-updating "time remaining" behavior.
+    $due_date = new DateTime($rowTask['due_date']);
+    $currentDateTime = new DateTime();
+    $isLate = ($due_date < $currentDateTime);
+    $isFinalStatus_admin = in_array($taskStatus, ['Completed', 'Cancelled', 'Submitted']) || $rowTask['is_confirmed'] == 2;
+    $totalCost = $taskPages * $taskCPP;
+
+    $adminStatusColorKey = 'success';
+    $adminMetricIcon = 'fa-clock';
+    $adminMetricLabel = 'Time Remaining';
+    $adminMetricValue = ''; // filled client-side with a live countdown when not a final/overdue state
+
+    if ($taskStatus == 'Completed') {
+        $adminMetricValue = 'Completed';
+        $adminStatusColorKey = 'success'; $adminMetricIcon = 'fa-check-circle'; $adminMetricLabel = 'Status';
+    } elseif ($taskStatus == 'Cancelled') {
+        $adminMetricValue = 'Cancelled';
+        $adminStatusColorKey = 'secondary'; $adminMetricIcon = 'fa-ban'; $adminMetricLabel = 'Status';
+    } elseif ($taskStatus == 'Submitted') {
+        $adminMetricValue = 'Submitted';
+        $adminStatusColorKey = 'info'; $adminMetricIcon = 'fa-paper-plane'; $adminMetricLabel = 'Status';
+    } elseif ($rowTask['is_confirmed'] == 2) {
+        $adminMetricValue = 'Declined';
+        $adminStatusColorKey = 'danger'; $adminMetricIcon = 'fa-times-circle'; $adminMetricLabel = 'Status';
+    } elseif ($isLate) {
+        $adminMetricValue = 'Past Due';
+        $adminStatusColorKey = 'danger'; $adminMetricIcon = 'fa-exclamation-triangle'; $adminMetricLabel = 'Overdue';
+    }
+    ?>
+    <style>
+        .task-meta-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--falcon-secondary-color); }
+        .task-meta-title { font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 700; line-height: 1.25; color: var(--falcon-emphasis-color); }
+        .task-metric-strip { display: flex; flex-wrap: wrap; gap: 10px; }
+        .task-metric {
+            flex: 1 1 150px;
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid var(--falcon-border-color);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: var(--falcon-body-bg-tertiary, rgba(127,127,127,.05));
+        }
+        .task-metric-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+        }
+        .task-metric-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--falcon-secondary-color); margin-bottom: 2px; line-height: 1; }
+        .task-metric-value { font-size: 16px; font-weight: 800; color: var(--falcon-emphasis-color); line-height: 1; }
+        .task-metric-total { background: linear-gradient(135deg, rgba(34,197,94,.14) 0%, rgba(16,185,129,.08) 100%); border-color: rgba(34,197,94,.3); }
+        .task-metric-total .task-metric-value { color: var(--falcon-success); }
+        .task-due-chip {
+            display: inline-flex; align-items: center;
+            font-size: 13px; font-weight: 600;
+            padding: 7px 14px; border-radius: 999px;
+            background: rgba(var(--falcon-info-rgb), .1);
+            color: var(--falcon-info);
+            border: 1px solid rgba(var(--falcon-info-rgb), .25);
+        }
+        @keyframes admin-metric-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .admin-metric-pulse { animation: admin-metric-pulse 1.4s ease-in-out infinite; }
+    </style>
     <div class="card border overflow-hidden mb-3">
         <div class="card-body p-0">
 
             <!-- Header Section -->
             <div class="p-4 pb-0">
-                <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                <p class="task-meta-label mb-1"><i class="fas fa-book me-1"></i><?php echo htmlspecialchars($taskSubject); ?></p>
+                <h2 class="task-meta-title mb-3"><?php echo htmlspecialchars($taskTopic); ?></h2>
 
-                    <!-- Left: Subject + Title + Due -->
-                    <div class="flex-grow-1">
-                        <p class="text-uppercase fw-semibold mb-1" style="font-size:11px; letter-spacing:.07em; color:var(--falcon-gray-600);">
-                            <i class="fas fa-book me-1"></i><?php echo htmlspecialchars($taskSubject); ?>
-                        </p>
-                        <h2 class="fw-semibold mb-2 text-uppercase" style="font-size:20px; line-height:1.2;">
-                            <?php echo htmlspecialchars($taskTopic); ?>
-                        </h2>
-                        <p class="mb-0" style="font-size:12px; color:var(--falcon-gray-600);">
-                            <i class="fas fa-calendar me-1"></i> Due
-                            <span class="text-info fw-semibold ms-1">
-                            <?php echo date("d M Y, g:i A", strtotime($taskDueDate)); ?>
-                        </span>
-                        </p>
-                    </div>
-
-                    <!-- Right: Status + Cost -->
-                    <div class="d-flex flex-column align-items-end gap-2">
-                        <!-- Status badge -->
-                        <?php
-                        $due_date = new DateTime($rowTask['due_date']);
-                        $currentDateTime = new DateTime();
-                        $isLate = ($due_date < $currentDateTime);
-
-                        if ($taskStatus == 'Completed') {
-                            echo '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1" style="font-size:11px;">Completed</span>';
-                        } elseif ($taskStatus == 'Cancelled') {
-                            echo '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1" style="font-size:11px;">Cancelled</span>';
-                        } elseif ($taskStatus == 'Submitted') {
-                            echo '<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1" style="font-size:11px;">Submitted</span>';
-                        } elseif ($rowTask['is_confirmed'] == 2) {
-                            echo '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1" style="font-size:11px;">Declined</span>';
-                        } else {
-                            if ($isLate) {
-                                echo '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1" style="font-size:11px;">Past Due</span>';
-                            } else {
-                                echo '<span id="time-remaining" class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-1" style="font-size:11px;"></span>';
-                            }
-                        }
-                        ?>
-
-                        <!-- Cost -->
-                        <?php $totalCost = $taskPages * $taskCPP; ?>
-                        <div class="text-end">
-                            <p class="fw-semibold mb-0" style="font-size:20px;">
-                                Ksh. <?php echo number_format($totalCost); ?>
-                            </p>
-                            <p class="mb-0" style="font-size:11px; color:var(--falcon-gray-600);">
-                                Ksh. <?php echo htmlspecialchars($taskCPP); ?> per page
-                            </p>
+                <div class="task-metric-strip mb-3">
+                    <div class="task-metric">
+                        <div class="task-metric-icon" id="time-remaining-icon" style="background: rgba(var(--falcon-<?php echo $adminStatusColorKey; ?>-rgb), .15); color: var(--falcon-<?php echo $adminStatusColorKey; ?>);">
+                            <i class="fas <?php echo $adminMetricIcon; ?><?php echo ($isLate && !$isFinalStatus_admin) ? ' admin-metric-pulse' : ''; ?>"></i>
                         </div>
+                        <div>
+                            <div class="task-metric-label"><?php echo $adminMetricLabel; ?></div>
+                            <div class="task-metric-value" id="time-remaining"<?php echo $adminMetricValue ? '' : ' style="color: var(--falcon-' . $adminStatusColorKey . ');"'; ?>><?php echo htmlspecialchars($adminMetricValue); ?></div>
+                        </div>
+                    </div>
+                    <div class="task-metric">
+                        <div class="task-metric-icon" style="background: rgba(var(--falcon-info-rgb), .15); color: var(--falcon-info);"><i class="fas fa-file-alt"></i></div>
+                        <div>
+                            <div class="task-metric-label">Pages</div>
+                            <div class="task-metric-value"><?php echo $taskPages; ?></div>
+                        </div>
+                    </div>
+                    <div class="task-metric">
+                        <div class="task-metric-icon" style="background: rgba(var(--falcon-primary-rgb), .15); color: var(--falcon-primary);"><i class="fas fa-tag"></i></div>
+                        <div>
+                            <div class="task-metric-label">CPP</div>
+                            <div class="task-metric-value">Ksh <?php echo number_format($taskCPP, 2); ?></div>
+                        </div>
+                    </div>
+                    <div class="task-metric task-metric-total">
+                        <div class="task-metric-icon" style="background: rgba(34,197,94,.18); color: var(--falcon-success);"><i class="fas fa-coins"></i></div>
+                        <div>
+                            <div class="task-metric-label">Total</div>
+                            <div class="task-metric-value">Ksh <?php echo number_format($totalCost, 2); ?></div>
+                        </div>
+                    </div>
+                </div>
 
-                        <!-- Paid status -->
-                        <?php if ($taskStatus == 'Completed'): ?>
-                            <?php if ($is_paid == 0): ?>
-                                <button class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-1"
-                                        style="font-size:11px; cursor:pointer;"
-                                        data-bs-toggle="modal" data-bs-target="#markAsPaidModal">
-                                    Unpaid
-                                </button>
-                            <?php else: ?>
-                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 d-flex align-items-center gap-1" style="font-size:11px;">
-                                <i class="fas fa-check" style="font-size:9px;"></i>
-                                Paid
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="task-due-chip"><i class="far fa-calendar-alt me-1"></i>Due <?php echo date("D, d M Y, g:i A", strtotime($taskDueDate)); ?></span>
+                    <?php if ($isLate && !$isFinalStatus_admin): ?>
+                        <span class="badge rounded-pill badge-subtle-danger fs-10">OVERDUE</span>
+                    <?php endif; ?>
+                    <?php if ($taskStatus == 'Completed'): ?>
+                        <?php if ($is_paid == 0): ?>
+                            <button class="badge rounded-pill badge-subtle-warning fs-10 px-3 py-2 border-0"
+                                    style="cursor:pointer;"
+                                    data-bs-toggle="modal" data-bs-target="#markAsPaidModal">
+                                <i class="fas fa-exclamation-circle me-1"></i>Unpaid
+                            </button>
+                        <?php else: ?>
+                            <span class="badge rounded-pill badge-subtle-success fs-10 px-3 py-2">
+                                <i class="fas fa-check-circle me-1"></i>Paid
                                 <?php if ($is_paid == 1): ?>
                                     &middot; <?php echo date("d M Y", strtotime($rowTask['paid_on'])); ?>
                                 <?php endif; ?>
                             </span>
-                            <?php endif; ?>
                         <?php endif; ?>
-                    </div>
-
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -1012,13 +1060,6 @@ if (isset($_SESSION['alert'])) {
                      style="font-size:12px; background:var(--falcon-gray-100);">
                     <i class="fas fa-user" style="font-size:11px; color:var(--falcon-gray-600);"></i>
                     <span><?php echo htmlspecialchars($taskAccount); ?></span>
-                </div>
-
-                <!-- Pages chip -->
-                <div class="d-flex align-items-center gap-1 px-3 py-2 rounded-pill border"
-                     style="font-size:12px; background:var(--falcon-gray-100);">
-                    <i class="fas fa-file" style="font-size:11px; color:var(--falcon-gray-600);"></i>
-                    <span><?php echo htmlspecialchars($taskPages); ?> pages</span>
                 </div>
 
             </div>
@@ -2333,19 +2374,34 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 $wv_cTs = strtotime($taskCreatedOn); $wv_dTs = $wv_due_date_obj->getTimestamp(); $wv_nTs = $wv_currentDT->getTimestamp();
                 $wv_totalDur = max(1, $wv_dTs - $wv_cTs); $wv_elapsed = $wv_nTs - $wv_cTs;
             }
-            $wv_pct   = min(100, max(0, ($wv_elapsed / $wv_totalDur) * 100));
-            $wv_ring  = $wv_pct < 50 ? '#22c55e' : ($wv_pct < 80 ? '#f59e0b' : '#ef4444');
+            $wv_pct = min(100, max(0, ($wv_elapsed / $wv_totalDur) * 100));
+            $wv_statusColorKey = $wv_pct < 50 ? 'success' : ($wv_pct < 80 ? 'warning' : 'danger');
+            $wv_countdownIcon = 'fa-hourglass-half';
+            $wv_countdownLabel = 'Time Remaining';
+            $wv_countdownText = ''; // filled client-side with a live countdown when not a final/overdue state
+            $wv_isFinalStatus = in_array($rowTask['status'], ['Completed', 'Cancelled', 'Submitted']) || $rowTask['is_confirmed'] == 2;
 
-            if      ($rowTask['status'] == 'Completed') { $wv_tdc = "<span class='fw-bold'>Completed</span>"; $wv_ring = '#22c55e'; $wv_pct = 100; }
-            elseif  ($rowTask['status'] == 'Cancelled') { $wv_tdc = "<span class='fw-bold'>Cancelled</span>"; $wv_ring = '#6b7280'; $wv_pct = 100; }
-            elseif  ($rowTask['status'] == 'Submitted') { $wv_tdc = "<span class='fw-bold'>Submitted</span>"; $wv_ring = '#3b82f6'; $wv_pct = 100; }
-            elseif  ($rowTask['is_confirmed'] == 2)     { $wv_tdc = "<span class='fw-bold'>Declined</span>";  $wv_ring = '#ef4444'; $wv_pct = 100; }
-            elseif  ($wv_isLate_card)                   { $wv_tdc = "<span id='wv-time-remaining-card' class='fw-bold' style='color:#ef4444;'>Past Due</span>"; $wv_ring = '#ef4444'; $wv_pct = 100; }
-            else                                        { $wv_tdc = "<span id='wv-time-remaining-card' class='fw-bold'></span>"; }
-
-            $wv_circ   = 2 * M_PI * 42;
-            $wv_offset = $wv_circ * (1 - $wv_pct / 100);
-            $wv_overdue_ring = $wv_isLate_card && !in_array($rowTask['status'], ['Completed','Cancelled','Submitted']);
+            if ($rowTask['status'] == 'Completed') {
+                $wv_countdownText = 'Completed';
+                $wv_statusColorKey = 'success'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-check-circle'; $wv_countdownLabel = 'Status';
+            } elseif ($rowTask['status'] == 'Cancelled') {
+                $wv_countdownText = 'Cancelled';
+                $wv_statusColorKey = 'secondary'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-ban'; $wv_countdownLabel = 'Status';
+            } elseif ($rowTask['status'] == 'Submitted') {
+                $wv_countdownText = 'Submitted';
+                $wv_statusColorKey = 'info'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-paper-plane'; $wv_countdownLabel = 'Status';
+            } elseif ($rowTask['is_confirmed'] == 2) {
+                $wv_countdownText = 'Declined';
+                $wv_statusColorKey = 'danger'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-times-circle'; $wv_countdownLabel = 'Status';
+            } elseif ($wv_isLate_card) {
+                $wv_countdownText = 'Past Due';
+                $wv_statusColorKey = 'danger'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-exclamation-triangle'; $wv_countdownLabel = 'Overdue';
+            }
             ?>
 
             <!-- Writer-View: Status bar -->
@@ -2394,101 +2450,90 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 </div>
             </div>
 
-            <!-- Writer-View: Task detail card with progress ring -->
+            <!-- Writer-View: Task detail card with countdown banner -->
             <style>
-                .wv-tdc{border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;position:relative;}
-                .wv-tdc::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(59,130,246,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
-                .wv-tdc::after{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(168,85,247,.12) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
-                .wv-ring-wrap{position:relative;width:100px;height:100px;flex-shrink:0;}
-                .wv-ring-wrap svg{transform:rotate(-90deg);}
-                .wv-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;text-align:center;overflow:hidden;}
-                .wv-ring-center .rl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(148,163,184,.6);line-height:1;margin-bottom:3px;}
-                .wv-ring-center span{font-size:10px!important;font-weight:700;line-height:1.2;max-width:72px;word-break:break-word;display:block;}
-                .wv-subj{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;}
-                .wv-title{font-size:clamp(1.2rem,3vw,1.7rem);font-weight:800;line-height:1.2;letter-spacing:-.5px;}
-                .wv-stat-pill{display:flex;align-items:center;gap:8px;border-radius:12px;padding:10px 16px;}
-                .wv-stat-pill .si{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
-                .wv-stat-pill .sl{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;line-height:1;}
-                .wv-stat-pill .sv{font-size:13px;font-weight:700;line-height:1;}
-                .wv-cost{background:linear-gradient(135deg,rgba(34,197,94,.15) 0%,rgba(16,185,129,.1) 100%);border:1px solid rgba(34,197,94,.25);border-radius:14px;padding:12px 20px;}
-                .wv-cost-amt{font-weight:900;color:#4ade80;letter-spacing:-1px;line-height:1;}
-                .wv-due{border-radius:14px;padding:12px 16px;}
-                @keyframes wv-rop{0%,100%{opacity:1}50%{opacity:.35}}
-                .wv-ring-overdue{animation:wv-rop 1.2s ease-in-out infinite;}
+                .wv-tdc{border:1px solid var(--falcon-border-color);border-radius:20px;overflow:hidden;position:relative;background:var(--falcon-card-bg);}
+                .wv-tdc::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(59,130,246,.12) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+                .wv-tdc::after{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(168,85,247,.1) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+                .wv-subj{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--falcon-secondary-color);}
+                .wv-title{font-size:clamp(1.35rem,3vw,1.85rem);font-weight:800;line-height:1.2;letter-spacing:-.5px;color:var(--falcon-emphasis-color);}
+                .wv-countdown{display:flex;align-items:center;gap:16px;border-radius:16px;padding:16px 18px;background:var(--falcon-body-bg-tertiary,rgba(127,127,127,.06));border:1px solid var(--falcon-border-color);}
+                .wv-countdown-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+                .wv-countdown-body{flex-grow:1;min-width:0;}
+                .wv-countdown-text{font-size:clamp(1.1rem,2.6vw,1.4rem);font-weight:800;line-height:1.15;color:var(--falcon-emphasis-color);}
+                .wv-countdown-track{height:7px;border-radius:4px;background:var(--falcon-border-color);overflow:hidden;margin-top:10px;}
+                .wv-countdown-fill{height:100%;border-radius:4px;transition:width 1s ease,background-color .3s ease;}
+                @keyframes wv-countdown-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+                .wv-countdown-pulse{animation:wv-countdown-pulse 1.4s ease-in-out infinite;}
+                .wv-due{border-radius:14px;padding:12px 16px;background:var(--falcon-body-bg-tertiary,rgba(127,127,127,.04));}
+                .wv-due-value{font-size:15px;font-weight:700;color:var(--falcon-emphasis-color);}
+                .wv-stat-pill{display:flex;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;background:var(--falcon-body-bg-tertiary,rgba(127,127,127,.06));border:1px solid var(--falcon-border-color);}
+                .wv-stat-pill .si{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+                .wv-stat-pill .sl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;line-height:1;color:var(--falcon-secondary-color);margin-bottom:2px;}
+                .wv-stat-pill .sv{font-size:16px;font-weight:800;line-height:1;color:var(--falcon-emphasis-color);}
+                .wv-cost{background:linear-gradient(135deg,rgba(34,197,94,.14) 0%,rgba(16,185,129,.08) 100%);border:1px solid rgba(34,197,94,.3);border-radius:14px;padding:14px 18px;}
+                .wv-cost-amt{font-weight:900;color:var(--falcon-success);letter-spacing:-1px;line-height:1;font-size:1.5rem;}
             </style>
 
             <div class="card wv-tdc mb-3">
                 <div class="card-body p-4">
                     <div class="row g-4 align-items-start">
                         <div class="col-lg-9">
-                            <div class="d-flex align-items-start gap-4">
-                                <div class="wv-ring-wrap d-none d-sm-block">
-                                    <svg viewBox="0 0 100 100" width="100" height="100" class="<?php echo $wv_overdue_ring ? 'wv-ring-overdue' : ''; ?>">
-                                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
-                                        <circle cx="50" cy="50" r="42" fill="none" stroke="<?php echo $wv_ring; ?>" stroke-width="7" stroke-linecap="round"
-                                                stroke-dasharray="<?php echo $wv_circ; ?>" stroke-dashoffset="<?php echo $wv_offset; ?>" style="transition:stroke-dashoffset 1s ease;"/>
-                                        <?php if ($wv_overdue_ring): ?>
-                                            <g transform="translate(50,50)">
-                                                <line x1="-8" y1="-8" x2="8" y2="8" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-                                                <line x1="8" y1="-8" x2="-8" y2="8" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-                                            </g>
-                                        <?php endif; ?>
-                                    </svg>
-                                    <div class="wv-ring-center">
-                                        <span class="rl"><?php echo $wv_overdue_ring ? 'Overdue' : 'Time'; ?></span>
-                                        <?php echo $wv_tdc; ?>
-                                    </div>
+                            <div class="wv-subj mb-1"><i class="fas fa-book me-1"></i><?php echo htmlspecialchars($taskSubject); ?></div>
+                            <div class="wv-title mb-3"><?php echo htmlspecialchars($taskTopic); ?></div>
+
+                            <div class="wv-countdown mb-3">
+                                <div class="wv-countdown-icon" style="background: rgba(var(--falcon-<?php echo $wv_statusColorKey; ?>-rgb), .15); color: var(--falcon-<?php echo $wv_statusColorKey; ?>);">
+                                    <i class="fas <?php echo $wv_countdownIcon; ?><?php echo ($wv_isLate_card && !$wv_isFinalStatus) ? ' wv-countdown-pulse' : ''; ?>"></i>
                                 </div>
-                                <div class="flex-grow-1">
-                                    <div class="wv-subj mb-1"><i class="fas fa-book me-1" style="color:#64748b;"></i><?php echo htmlspecialchars($taskSubject); ?></div>
-                                    <div class="wv-title mb-3"><?php echo htmlspecialchars($taskTopic); ?></div>
-                                    <div class="wv-due d-flex align-items-center gap-3 mb-3">
-                                        <div>
-                                            <div class="wv-subj mb-1">Due Date</div>
-                                            <div style="font-size:13px;font-weight:600;color:#94a3b8;">
-                                                <i class="far fa-calendar-alt me-1 text-info"></i><?php echo date("D, d M Y", strtotime($taskDueDate)); ?>
-                                                <span class="mx-1 text-muted">·</span>
-                                                <i class="far fa-clock me-1 text-info"></i><?php echo date("g:i A", strtotime($taskDueDate)); ?>
-                                            </div>
-                                        </div>
-                                        <?php if ($wv_overdue_ring): ?>
-                                            <span class="badge" style="background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3);font-size:10px;font-weight:700;letter-spacing:1px;">OVERDUE</span>
-                                        <?php endif; ?>
+                                <div class="wv-countdown-body">
+                                    <div class="wv-subj mb-1"><?php echo $wv_countdownLabel; ?></div>
+                                    <div class="wv-countdown-text" id="wv-time-remaining-card"<?php echo $wv_countdownText ? '' : ' style="color: var(--falcon-' . $wv_statusColorKey . ');"'; ?>><?php echo htmlspecialchars($wv_countdownText); ?></div>
+                                    <div class="wv-countdown-track">
+                                        <div class="wv-countdown-fill" id="wv-countdown-fill" style="width: <?php echo $wv_pct; ?>%; background: var(--falcon-<?php echo $wv_statusColorKey; ?>);"></div>
                                     </div>
-                                    <div class="d-sm-none mb-2" style="font-size:13px;color:#94a3b8;">
-                                        <i class="far fa-clock me-1"></i>
-                                        <span id="wv-time-remaining-card-mobile"><?php
-                                            if (in_array($rowTask['status'],['Completed','Cancelled','Submitted'])) echo $rowTask['status'];
-                                            elseif ($rowTask['is_confirmed']==2) echo 'Declined';
-                                            elseif ($wv_isLate_card) echo 'Past Due';
-                                            ?></span>
-                                    </div>
-                                    <?php if ($taskStatus == 'Completed'): ?>
-                                        <?php if ($is_paid == 0): ?>
-                                            <span class="badge" style="background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3);padding:6px 14px;font-size:11px;"><i class="fas fa-exclamation-circle me-1"></i>Unpaid</span>
-                                        <?php else: ?>
-                                            <span class="badge" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);padding:6px 14px;font-size:11px;"><i class="fas fa-check-circle me-1"></i>Paid · <?php echo date("d M Y", strtotime($rowTask['paid_on'])); ?></span>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
                                 </div>
                             </div>
+
+                            <div class="wv-due d-flex align-items-center gap-3 mb-3">
+                                <div>
+                                    <div class="wv-subj mb-1">Due Date</div>
+                                    <div class="wv-due-value">
+                                        <i class="far fa-calendar-alt me-1" style="color:var(--falcon-info);"></i><?php echo date("D, d M Y", strtotime($taskDueDate)); ?>
+                                        <span class="mx-1 text-body-tertiary">·</span>
+                                        <i class="far fa-clock me-1" style="color:var(--falcon-info);"></i><?php echo date("g:i A", strtotime($taskDueDate)); ?>
+                                    </div>
+                                </div>
+                                <?php if ($wv_isLate_card && !$wv_isFinalStatus): ?>
+                                    <span class="badge rounded-pill badge-subtle-danger fs-10">OVERDUE</span>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($taskStatus == 'Completed'): ?>
+                                <?php if ($is_paid == 0): ?>
+                                    <span class="badge rounded-pill badge-subtle-warning fs-10 px-3 py-2"><i class="fas fa-exclamation-circle me-1"></i>Unpaid</span>
+                                <?php else: ?>
+                                    <span class="badge rounded-pill badge-subtle-success fs-10 px-3 py-2"><i class="fas fa-check-circle me-1"></i>Paid · <?php echo date("d M Y", strtotime($rowTask['paid_on'])); ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         </div>
                         <div class="col-lg-3">
                             <div class="mb-3 d-flex flex-column gap-2">
-                                <div class="d-flex gap-2">
-                                    <div class="wv-stat-pill flex-grow-1">
-                                        <div class="si" style="background:rgba(59,130,246,.2);"><i class="fas fa-file-alt" style="color:#93c5fd;"></i></div>
-                                        <div><div class="sl">Pages</div><div class="sv"><?php echo $taskPages; ?></div></div>
-                                    </div>
+                                <div class="wv-stat-pill">
+                                    <div class="si" style="background: rgba(var(--falcon-info-rgb), .15); color: var(--falcon-info);"><i class="fas fa-file-alt"></i></div>
+                                    <div><div class="sl">Pages</div><div class="sv"><?php echo $taskPages; ?></div></div>
+                                </div>
+                                <div class="wv-stat-pill">
+                                    <div class="si" style="background: rgba(var(--falcon-primary-rgb), .15); color: var(--falcon-primary);"><i class="fas fa-tag"></i></div>
+                                    <div><div class="sl">CPP</div><div class="sv">Ksh <?php echo number_format($taskCPP, 2); ?></div></div>
                                 </div>
                             </div>
                             <div class="wv-cost d-flex align-items-center justify-content-between">
                                 <div>
-                                    <div class="fs-10">CPP (Ksh): <?php echo number_format($taskCPP, 2); ?></div>
                                     <div class="sl mb-1">Total</div>
                                     <div class="wv-cost-amt">Ksh <?php echo number_format($wv_totalCost, 2); ?></div>
                                 </div>
-                                <div style="opacity:.4;font-size:2rem;"><i class="fas fa-coins" style="color:#4ade80;"></i></div>
+                                <div style="opacity:.35;font-size:1.8rem;"><i class="fas fa-coins" style="color: var(--falcon-success);"></i></div>
                             </div>
                         </div>
                     </div>
@@ -2498,23 +2543,34 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             <script>
                 (function() {
                     var dueTs = <?php echo $wv_due_date_obj->getTimestamp(); ?> * 1000;
+                    var createdTs = <?php echo strtotime($taskCreatedOn) * 1000; ?>;
                     var isLate = <?php echo $wv_isLate_card ? 'true' : 'false'; ?>;
                     var status = <?php echo json_encode($rowTask['status']); ?>;
-                    if (['Completed','Cancelled','Submitted'].includes(status) || isLate) return;
+                    if (['Completed', 'Cancelled', 'Submitted'].includes(status) || isLate) return;
+
+                    var textEl = document.getElementById('wv-time-remaining-card');
+                    var fillEl = document.getElementById('wv-countdown-fill');
+
                     function fmt(ms) {
-                        if (ms<=0) return 'Past Due';
-                        var s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60), sec=s%60;
-                        return d>0 ? d+'d '+h+'h '+m+'m' : h>0 ? h+'h '+m+'m '+sec+'s' : m+'m '+sec+'s';
+                        if (ms <= 0) return 'Past Due';
+                        var s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+                        return d > 0 ? d + 'd ' + h + 'h ' + m + 'm' : h > 0 ? h + 'h ' + m + 'm ' + sec + 's' : m + 'm ' + sec + 's';
                     }
-                    function applyColor(el, remaining) {
-                        el.style.color = remaining<3600000 ? '#ef4444' : remaining<86400000 ? '#f59e0b' : '#4ade80';
+                    function colorFor(remaining) {
+                        if (remaining < 3600000) return 'var(--falcon-danger)';
+                        if (remaining < 86400000) return 'var(--falcon-warning)';
+                        return 'var(--falcon-success)';
                     }
                     function tick() {
-                        var r = dueTs - Date.now(), t = fmt(r);
-                        var re = document.getElementById('wv-time-remaining-card');
-                        if (re) { re.textContent = t; applyColor(re, r); }
-                        var me = document.getElementById('wv-time-remaining-card-mobile');
-                        if (me) { me.textContent = t; applyColor(me, r); }
+                        var now = Date.now();
+                        var remaining = dueTs - now;
+                        var color = colorFor(remaining);
+                        if (textEl) { textEl.textContent = fmt(remaining); textEl.style.color = color; }
+                        if (fillEl) {
+                            var pct = Math.min(100, Math.max(0, ((now - createdTs) / (dueTs - createdTs)) * 100));
+                            fillEl.style.width = pct + '%';
+                            fillEl.style.background = color;
+                        }
                     }
                     tick(); setInterval(tick, 1000);
                 })();
@@ -3059,7 +3115,22 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             const el = document.getElementById('time-remaining');
             if (!el) return;
 
+            const iconWrapEl = document.getElementById('time-remaining-icon');
             const due = new Date("<?php echo $taskDueDate; ?>").getTime();
+
+            function colorKeyFor(diff) {
+                if (diff < 3600000) return 'danger';
+                if (diff < 86400000) return 'warning';
+                return 'success';
+            }
+
+            function applyColor(key) {
+                el.style.color = `var(--falcon-${key})`;
+                if (iconWrapEl) {
+                    iconWrapEl.style.background = `rgba(var(--falcon-${key}-rgb), .15)`;
+                    iconWrapEl.style.color = `var(--falcon-${key})`;
+                }
+            }
 
             function update() {
                 const now = Date.now();
@@ -3067,7 +3138,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
 
                 if (diff <= 0) {
                     el.textContent = 'Past Due';
-                    el.className = el.className.replace(/text-\w+/, '') + ' text-danger';
+                    applyColor('danger');
                     return;
                 }
 
@@ -3083,12 +3154,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 else                  text = `${seconds}s`;
 
                 el.textContent = text;
-
-                // Swap badge color as deadline approaches
-                const cls = el.className.replace(/\b(text-\w+|bg-\w+-subtle|border-\w+-subtle)\b/g, '').trim();
-                if (diff < 3600000)         el.className = cls + ' text-danger bg-danger-subtle border-danger-subtle';
-                else if (diff < 86400000)   el.className = cls + ' text-warning bg-warning-subtle border-warning-subtle';
-                else                        el.className = cls + ' text-success bg-success-subtle border-success-subtle';
+                applyColor(colorKeyFor(diff));
 
                 setTimeout(update, 1000);
             }
