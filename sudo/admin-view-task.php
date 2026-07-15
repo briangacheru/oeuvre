@@ -2380,7 +2380,7 @@ foreach ($comments as $comment) {
                     showToast('An error occurred while updating favorite status.', 'danger');
                 }
             };
-            xhr.send('task_id=' + taskId);
+            xhr.send('task_id=' + taskId + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>'));
         }
 
         function completeTask(encodedId, taskId) {
@@ -3958,7 +3958,7 @@ foreach ($comments as $comment) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'comment_id=' + commentId
+                body: 'comment_id=' + commentId + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
             })
                 .then(response => response.json())
                 .then(data => {
@@ -4241,7 +4241,8 @@ foreach ($comments as $comment) {
 
             const params = 'file_id=' + encodeURIComponent(deleteFileId) +
                 '&file_type=' + encodeURIComponent(deleteFileType) +
-                '&task_id=' + encodeURIComponent('<?php echo $taskId; ?>');
+                '&task_id=' + encodeURIComponent('<?php echo $taskId; ?>') +
+                '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>');
 
             xhr.send(params);
 
@@ -4368,7 +4369,8 @@ foreach ($comments as $comment) {
                 xhr.send(
                     'task_id=' + encodeURIComponent('<?php echo $taskId; ?>') +
                     '&writer=' + encodeURIComponent(selectedWriterUsername) +
-                    '&email=' + encodeURIComponent(selectedWriterEmail)
+                    '&email=' + encodeURIComponent(selectedWriterEmail) +
+                    '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
                 );
             });
         })();

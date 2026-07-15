@@ -496,7 +496,7 @@ if ($row = mysqli_fetch_array($result)) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'filePath=' + encodeURIComponent(filePath)
+                body: 'filePath=' + encodeURIComponent(filePath) + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
             })
                 .then(response => response.json())
                 .then(data => {

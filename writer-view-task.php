@@ -3101,7 +3101,7 @@ foreach ($comments as $comment) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'comment_id=' + commentId
+                body: 'comment_id=' + commentId + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
             })
                 .then(response => response.json())
                 .then(data => {

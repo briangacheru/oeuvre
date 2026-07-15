@@ -107,7 +107,7 @@ class SessionManager {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: 'extend=true'
+            body: 'extend=true&csrf_token=' + encodeURIComponent(GLOBAL_CSRF_TOKEN)
         })
             .then(response => response.json())
             .then(data => {

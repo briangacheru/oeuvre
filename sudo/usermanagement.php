@@ -1027,6 +1027,7 @@ if (isset($_SESSION['alert'])) {
                 <div class="modal-body py-4 px-5">
                     <div id="user-modal-alert" class="alert d-none"></div>
                     <form id="writer-form">
+<?= csrf_field() ?>
                         <input type="hidden" id="writer-id" name="writer-id">
                         <div class="mb-3">
                             <label class="form-label" for="modal-auth-writer">Username</label>

@@ -179,6 +179,7 @@ class UrgentReminderSystem {
             formData.append('action', 'complete_reminder');
             formData.append('id', id);
         }
+        formData.append('csrf_token', GLOBAL_CSRF_TOKEN);
 
         try {
             const response = await fetch('reminders', { // Adjust path as needed
@@ -262,9 +263,10 @@ class UrgentReminderSystem {
             formData.append('action', 'dismiss_reminder');
             formData.append('id', id);
         }
+        formData.append('csrf_token', GLOBAL_CSRF_TOKEN);
 
         try {
-            const response = await fetch('/reminders', { // Adjust path as needed
+            const response = await fetch('reminders', { // Adjust path as needed
                 method: 'POST',
                 body: formData
             });

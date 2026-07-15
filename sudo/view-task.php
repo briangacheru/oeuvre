@@ -4740,7 +4740,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'comment_id=' + commentId
+                body: 'comment_id=' + commentId + '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
             })
                 .then(response => response.json())
                 .then(data => {
@@ -5151,7 +5151,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 xhr.send(
                     'task_id=' + encodeURIComponent('<?php echo $taskId; ?>') +
                     '&writer=' + encodeURIComponent(selectedWriterUsername) +
-                    '&email=' + encodeURIComponent(selectedWriterEmail)
+                    '&email=' + encodeURIComponent(selectedWriterEmail) +
+                    '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>')
                 );
             });
         })();

@@ -546,6 +546,7 @@ if (isset($_SESSION['alert'])) {
                 <div class="modal-body py-4 px-5">
                     <div id="modal-alert" class="alert d-none"></div>
                     <form id="overdraft-form">
+<?= csrf_field() ?>
                         <input type="hidden" id="overdraft-id" name="id">
                         <div class="mb-3">
                             <label class="form-label" for="modal-record-type">Record Type</label>
@@ -925,7 +926,7 @@ if (isset($_SESSION['alert'])) {
             $.ajax({
                 type: 'POST',
                 url: 'send_invoice',
-                data: { writer_name: currentWriterName, preview_only: 1 },
+                data: { writer_name: currentWriterName, preview_only: 1, csrf_token: '<?php echo csrf_token(); ?>' },
                 success: function(html) {
                     loading.style.display = 'none';
                     frame.style.display   = 'block';
@@ -962,7 +963,7 @@ if (isset($_SESSION['alert'])) {
             $.ajax({
                 type: 'POST',
                 url: 'send_invoice',
-                data: { writer_name: currentWriterName },
+                data: { writer_name: currentWriterName, csrf_token: '<?php echo csrf_token(); ?>' },
                 dataType: 'json',
                 success: function(response) {
                     if (btn) {
