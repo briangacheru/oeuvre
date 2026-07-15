@@ -255,7 +255,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 <script src="../vendors/is/is.min.js"></script>
 <script src="../vendors/fontawesome/all.min.js"></script>
 <script src="../vendors/lodash/lodash.min.js"></script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=window.scroll"></script>
 <script src="../vendors/list.js/list.min.js"></script>
 <script src="../assets/js/theme.js"></script>
 
