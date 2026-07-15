@@ -878,9 +878,12 @@ if (isset($_SESSION['alert'])) {
     $adminMetricLabel = 'Time Remaining';
     $adminMetricValue = ''; // filled client-side with a live countdown when not a final/overdue state
 
-    if ($taskStatus == 'Completed') {
-        $adminMetricValue = 'Completed';
+    if ($taskStatus == 'Completed' && $is_paid == 1) {
+        $adminMetricValue = 'Closed';
         $adminStatusColorKey = 'success'; $adminMetricIcon = 'fa-check-circle'; $adminMetricLabel = 'Status';
+    } elseif ($taskStatus == 'Completed') {
+        $adminMetricValue = 'Pending';
+        $adminStatusColorKey = 'warning'; $adminMetricIcon = 'fa-hourglass-half'; $adminMetricLabel = 'Status';
     } elseif ($taskStatus == 'Cancelled') {
         $adminMetricValue = 'Cancelled';
         $adminStatusColorKey = 'secondary'; $adminMetricIcon = 'fa-ban'; $adminMetricLabel = 'Status';
@@ -2503,10 +2506,14 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             $wv_countdownText = ''; // filled client-side with a live countdown when not a final/overdue state
             $wv_isFinalStatus = in_array($rowTask['status'], ['Completed', 'Cancelled', 'Submitted']) || $rowTask['is_confirmed'] == 2;
 
-            if ($rowTask['status'] == 'Completed') {
-                $wv_countdownText = 'Completed';
+            if ($rowTask['status'] == 'Completed' && $is_paid == 1) {
+                $wv_countdownText = 'Closed';
                 $wv_statusColorKey = 'success'; $wv_pct = 100;
                 $wv_countdownIcon = 'fa-check-circle'; $wv_countdownLabel = 'Status';
+            } elseif ($rowTask['status'] == 'Completed') {
+                $wv_countdownText = 'Pending';
+                $wv_statusColorKey = 'warning'; $wv_pct = 100;
+                $wv_countdownIcon = 'fa-hourglass-half'; $wv_countdownLabel = 'Status';
             } elseif ($rowTask['status'] == 'Cancelled') {
                 $wv_countdownText = 'Cancelled';
                 $wv_statusColorKey = 'secondary'; $wv_pct = 100;
@@ -3214,6 +3221,12 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         (function () {
             const el = document.getElementById('time-remaining');
             if (!el) return;
+
+            // Final-status tasks (Completed/Cancelled/Submitted/Declined) already
+            // show their real status server-side (e.g. "Closed"/"Pending") - don't
+            // let the live countdown below overwrite it with "Past Due".
+            const isFinalStatus = <?php echo ($isFinalStatus_admin ? 'true' : 'false'); ?>;
+            if (isFinalStatus) return;
 
             const iconWrapEl = document.getElementById('time-remaining-icon');
             const due = new Date("<?php echo $taskDueDate; ?>").getTime();
@@ -5010,7 +5023,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
 
             const params = 'file_id=' + encodeURIComponent(deleteFileId) +
                 '&file_type=' + encodeURIComponent(deleteFileType) +
-                '&task_id=' + encodeURIComponent('<?php echo $taskId; ?>');
+                '&task_id=' + encodeURIComponent('<?php echo $taskId; ?>') +
+                '&csrf_token=' + encodeURIComponent('<?php echo csrf_token(); ?>');
 
             xhr.send(params);
 

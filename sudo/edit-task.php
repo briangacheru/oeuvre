@@ -660,6 +660,7 @@ if ($row = mysqli_fetch_array($result)) {
                         const formData = new FormData();
                         formData.append('action', 'delete_file');
                         formData.append('file_id', fileId);
+                        formData.append('csrf_token', csrfToken);
 
                         const response = await fetch('update-task', {
                             method: 'POST',
