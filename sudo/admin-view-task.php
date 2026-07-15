@@ -711,7 +711,18 @@ if (isset($_SESSION['alert'])) {
                         <i class="fas fa-share-alt" aria-hidden="true"></i>
                         <span class="d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1">Share Task</span>
                     </a>
-                    <a class="btn btn-outline-info btn-sm mx-2" type="button" href="#" data-bs-toggle="modal" data-bs-target="#duplicateModal" data-task-id="<?php echo base64_encode($taskId); ?>" data-task-title="<?php echo htmlspecialchars($rowTask['topic'], ENT_QUOTES); ?>" data-bs-placement="top" title="Duplicate Task">
+                    <a class="btn btn-outline-info btn-sm mx-2" type="button" href="#" data-bs-toggle="modal" data-bs-target="#duplicateModal"
+                       data-task-id="<?php echo $encodedId; ?>"
+                       data-task-topic="<?php echo htmlspecialchars($taskTopic, ENT_QUOTES); ?>"
+                       data-task-subject="<?php echo htmlspecialchars($taskSubject, ENT_QUOTES); ?>"
+                       data-task-account="<?php echo htmlspecialchars($taskAccount, ENT_QUOTES); ?>"
+                       data-task-writer="<?php echo htmlspecialchars($taskWriter, ENT_QUOTES); ?>"
+                       data-task-pages="<?php echo $taskPages; ?>"
+                       data-task-cpp="<?php echo $taskCPP; ?>"
+                       data-task-price="<?php echo number_format($taskCPP * $taskPages, 2); ?>"
+                       data-task-duedate="<?php echo date('M j, Y g:ia', strtotime($taskDueDate)); ?>"
+                       data-task-status="<?php echo htmlspecialchars($taskStatus, ENT_QUOTES); ?>"
+                       data-bs-placement="top" title="Duplicate Task">
                         <i class="fas fa-copy" aria-hidden="true"></i>
                         <span class="d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1">Duplicate</span>
                     </a>
@@ -2051,79 +2062,181 @@ foreach ($comments as $comment) {
         </div>
     </div>
     <!-- Task Duplicate Modal-->
+    <!-- Duplicate Confirmation Modal -->
     <div class="modal fade" id="duplicateModal" tabindex="-1" aria-labelledby="duplicateModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-info-subtle bg-gradient border-0 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h5 class="modal-title d-flex align-items-center" id="duplicateModalLabel">
-                        <div class="rounded-circle bg-white bg-opacity-25 p-2 me-3">
-                            <i class="fas fa-clone fa-lg"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold">Duplicate Task</div>
-                            <small class="opacity-75" style="font-size: 0.85rem;">Create a copy of this task</small>
-                        </div>
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="alert alert-info border-0 d-flex align-items-start mb-4">
-                        <i class="fas fa-info-circle text-info me-3 mt-1"></i>
-                        <div class="flex-grow-1">
-                            <strong>Confirmation Required</strong>
-                            <p class="mb-0 small text-muted mt-1">You are about to create a duplicate of the following task. All task details will be copied.</p>
+                <!-- Header with gradient background -->
+                <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 2rem;">
+                    <div class="position-absolute" style="top: 0; left: 0; right: 0; bottom: 0; opacity: 0.1; background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+                <div class="d-flex align-items-center w-100 position-relative">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-copy text-white" style="font-size: 28px;"></i>
                         </div>
                     </div>
+                    <div class="flex-grow-1">
+                        <h4 class="modal-title text-white fw-bold mb-1" id="duplicateModalLabel">Duplicate Task</h4>
+                        <p class="text-white text-opacity-75 mb-0 small">Review task details before duplicating</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute" style="top: 1.5rem; right: 1.5rem;" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
-                    <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-body p-4">
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
-                                            <i class="fas fa-hashtag text-primary"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <small class="text-muted text-uppercase fw-semibold d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Task ID</small>
-                                            <span id="modalTaskId" class="fw-bold fs-6"></span>
-                                        </div>
+            <!-- Body with modern card layout -->
+            <div class="modal-body p-4">
+                <!-- Info Alert -->
+                <div class="alert alert-info border-0 shadow-sm mb-4" role="alert" style="border-left: 4px solid #0dcaf0 !important;">
+                    <div class="d-flex align-items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-info" style="font-size: 20px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="alert-heading fw-bold mb-1">Duplicate Task</h6>
+                            <p class="mb-0 small">This will create a copy of the task with all details. You can modify the duplicate after creation.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Details Card -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="mb-0 fw-bold text-warning">
+                            <i class="fas fa-file-alt me-2"></i>Task Information to Duplicate
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Task ID & Status Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-hashtag text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block mb-1">Task ID</small>
+                                        <strong class="d-block" id="modalTaskId"></strong>
                                     </div>
                                 </div>
-                                <div class="col-12">
-                                    <hr class="my-2 opacity-25">
-                                </div>
-                                <div class="col-12">
-                                    <div class="d-flex align-items-start">
-                                        <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3 mt-1">
-                                            <i class="fas fa-tasks text-success"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <small class="text-muted text-uppercase fw-semibold d-block mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Task Title</small>
-                                            <span id="modalTaskTitle" class="fw-medium"></span>
-                                        </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-flag text-info"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block mb-1">Current Status</small>
+                                        <span id="modalTaskStatus" class="badge"></span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="rounded p-3 border-start border-4 border-warning">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                            <small class="text-muted mb-0">The duplicated task will appear as a new entry in drafts task list.</small>
+                        <!-- Task Title -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-heading text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Task Title</small>
+                                    <strong class="d-block text-warning fs-6" id="modalTaskTopic"></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-warning bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-book text-warning"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Subject</small>
+                                    <strong class="d-block" id="modalTaskSubject"></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Account & Writer Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-secondary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-user-circle text-secondary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Account</small>
+                                        <strong class="d-block" id="modalTaskAccount"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-user-edit text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Writer</small>
+                                        <strong class="d-block" id="modalTaskWriter"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pages & Pricing Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-file-invoice text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Pages</small>
+                                        <strong class="d-block"><span id="modalTaskPages"></span> page(s) @ $<span id="modalTaskCpp"></span> per page</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-dollar-sign text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Total Amount</small>
+                                        <span class="badge bg-success fs-6 fw-bold">$<span id="modalTaskPrice"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="mb-0">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-clock text-danger"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Original Due Date</small>
+                                    <strong class="d-block" id="modalTaskDueDate"></strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0  p-4">
-                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancel
-                    </button>
-                    <button type="button" class="btn btn-primary px-4 shadow-sm" id="confirmDuplicateBtn">
-                        <i class="fas fa-clone me-2"></i>Duplicate Task
-                    </button>
-                </div>
+            </div>
+
+            <!-- Footer with modern buttons -->
+            <div class="modal-footer border-0 px-4 py-3">
+                <button type="button" class="btn btn-light border px-4 py-2" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-warning px-4 py-2 shadow-sm" id="confirmDuplicateBtn">
+                    <i class="fas fa-copy me-2"></i>Yes, Duplicate Task
+                </button>
             </div>
         </div>
+    </div>
     </div>
     <!-- Delete File Confirmation Modal -->
     <div class="modal fade" id="deleteFileModal" tabindex="-1" aria-labelledby="deleteFileModalLabel" aria-hidden="true">
@@ -2171,31 +2284,49 @@ foreach ($comments as $comment) {
         document.addEventListener('DOMContentLoaded', function() {
             const duplicateModal = document.getElementById('duplicateModal');
             const confirmBtn = document.getElementById('confirmDuplicateBtn');
-            const modalTaskId = document.getElementById('modalTaskId');
-            const modalTaskTitle = document.getElementById('modalTaskTitle');
             let taskId = ''; // This will store the encoded ID
 
             duplicateModal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
                 taskId = button.getAttribute('data-task-id'); // Encoded ID
-                const taskTitle = button.getAttribute('data-task-title');
 
-                // Decode the task ID for display purposes only
-                const decodedTaskId = atob(taskId);
+                document.getElementById('modalTaskId').textContent = atob(taskId); // Show decoded ID
+                document.getElementById('modalTaskTopic').textContent = button.getAttribute('data-task-topic');
+                document.getElementById('modalTaskSubject').textContent = button.getAttribute('data-task-subject');
+                document.getElementById('modalTaskAccount').textContent = button.getAttribute('data-task-account');
+                document.getElementById('modalTaskWriter').textContent = button.getAttribute('data-task-writer');
+                document.getElementById('modalTaskPages').textContent = button.getAttribute('data-task-pages');
+                document.getElementById('modalTaskCpp').textContent = button.getAttribute('data-task-cpp');
+                document.getElementById('modalTaskPrice').textContent = button.getAttribute('data-task-price');
+                document.getElementById('modalTaskDueDate').textContent = button.getAttribute('data-task-duedate');
 
-                // Update modal content with animation
-                modalTaskId.style.opacity = '0';
-                modalTaskTitle.style.opacity = '0';
+                const taskStatus = button.getAttribute('data-task-status');
+                const statusBadge = document.getElementById('modalTaskStatus');
+                statusBadge.textContent = taskStatus;
+                statusBadge.className = 'badge';
 
-                setTimeout(() => {
-                    modalTaskId.textContent = decodedTaskId; // Show decoded ID
-                    modalTaskTitle.textContent = taskTitle;
-
-                    modalTaskId.style.transition = 'opacity 0.3s ease-in';
-                    modalTaskTitle.style.transition = 'opacity 0.3s ease-in';
-                    modalTaskId.style.opacity = '1';
-                    modalTaskTitle.style.opacity = '1';
-                }, 100);
+                switch (taskStatus) {
+                    case 'Active':
+                        statusBadge.classList.add('bg-primary');
+                        break;
+                    case 'In Progress':
+                        statusBadge.classList.add('bg-warning');
+                        break;
+                    case 'Revision':
+                        statusBadge.classList.add('bg-danger');
+                        break;
+                    case 'Unconfirmed':
+                        statusBadge.classList.add('bg-secondary');
+                        break;
+                    case 'Submitted':
+                        statusBadge.classList.add('bg-info');
+                        break;
+                    case 'Completed':
+                        statusBadge.classList.add('bg-success');
+                        break;
+                    default:
+                        statusBadge.classList.add('bg-secondary');
+                }
             });
 
             confirmBtn.addEventListener('click', function() {
@@ -2205,7 +2336,7 @@ foreach ($comments as $comment) {
 
                 // Redirect with the encoded task_id parameter
                 setTimeout(() => {
-                    window.location.href = 'duplicate-task.php?task_id=' + taskId; // Use encoded ID in URL
+                    window.location.href = 'duplicate-task?task_id=' + taskId; // Use encoded ID in URL
                 }, 300);
             });
         });
