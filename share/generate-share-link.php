@@ -6,7 +6,10 @@
  * Call via AJAX from the task view page
  */
 
-require_once __DIR__ . '/../session-name.php';
+// This endpoint checks the admin session ($_SESSION['odmsaid']) and is only
+// ever called from the sudo interface, so it needs sudo's session name, not
+// the writer one (unlike share/task-view.php, which is genuinely public).
+require_once __DIR__ . '/../sudo/session-name.php';
 session_start();
 error_reporting(E_ALL);
 ini_set('error_log', __DIR__ . '/php-errors.log');
