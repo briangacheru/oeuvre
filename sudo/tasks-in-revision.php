@@ -457,7 +457,7 @@ if (isset($_GET['del'])) {
                                         </div>
                                         <div class="flex-grow-1">
                                             <small class="text-muted d-block mb-1">Pages</small>
-                                            <strong class="d-block"><span id="modalDuplicateTaskPages"></span> page(s) @ $<span id="modalDuplicateTaskCpp"></span> per page</strong>
+                                            <strong class="d-block"><span id="modalDuplicateTaskPages"></span> page(s) @ Ksh <span id="modalDuplicateTaskCpp"></span> per page</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -468,7 +468,7 @@ if (isset($_GET['del'])) {
                                         </div>
                                         <div class="flex-grow-1">
                                             <small class="text-muted d-block mb-1">Total Amount</small>
-                                            <span class="badge bg-success fs-6 fw-bold">$<span id="modalDuplicateTaskPrice"></span></span>
+                                            <span class="badge bg-success fw-bold">Ksh <span id="modalDuplicateTaskPrice"></span></span>
                                         </div>
                                     </div>
                                 </div>

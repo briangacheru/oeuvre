@@ -2340,7 +2340,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                             </div>
                                             <div class="flex-grow-1">
                                                 <small class="text-muted d-block mb-1">Pages</small>
-                                                <strong class="d-block"><span id="modalTaskPages"></span> page(s) @ $<span id="modalTaskCpp"></span> per page</strong>
+                                                <strong class="d-block"><span id="modalTaskPages"></span> page(s) @ Ksh <span id="modalTaskCpp"></span> per page</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -2351,7 +2351,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                             </div>
                                             <div class="flex-grow-1">
                                                 <small class="text-muted d-block mb-1">Total Amount</small>
-                                                <span class="badge bg-success fs-6 fw-bold">$<span id="modalTaskPrice"></span></span>
+                                                <span class="badge bg-success fw-bold">Ksh <span id="modalTaskPrice"></span></span>
                                             </div>
                                         </div>
                                     </div>
