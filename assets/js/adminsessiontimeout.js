@@ -1,8 +1,7 @@
 class SessionManager {
     constructor() {
-        // FOR TESTING: Use shorter timeouts
-        this.sessionTimeout = 3600; // 5 minutes for testing (change to 3600 for production)
-        this.warningTime = 300; // Show warning 2 minutes before expiry
+        this.sessionTimeout = 86400; // 24 hrs - matches the server-side timeout in sudo/check-login.php
+        this.warningTime = 300; // Show warning 5 minutes before expiry
         this.countdownInterval = null;
         this.sessionCheckInterval = null;
         this.lastActivity = Date.now();
