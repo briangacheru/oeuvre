@@ -1,9 +1,9 @@
 <?php
 require_once __DIR__ . '/../shared-functions.php';
 ob_start();
-ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
-ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
-session_set_cookie_params(86400); // 24 hours
+ini_set('session.gc_maxlifetime', 604800); // 7 days in seconds
+ini_set('session.cookie_lifetime', 604800); // 7 days in seconds
+session_set_cookie_params(604800); // 7 days
 require_once __DIR__ . '/session-name.php';
 session_start();
 require_once __DIR__ . '/../env.php';
@@ -53,7 +53,7 @@ function logout() {
 }
 
 $self = $_SERVER["PHP_SELF"];
-$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'public-task-view.php'];
+$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'public-task-view.php', 'verify-login-code.php'];
 
 // Get current script name
 $currentScript = basename($_SERVER['PHP_SELF']);
@@ -113,17 +113,14 @@ if (stripos($self, 'index.php') !== false) {
 }
 
 // Define session timeout duration - 24 hours
-$session_timeout_duration = 86400; // 24 hours in seconds (24 * 60 * 60)
+$session_timeout_duration = 604800; // 7 days in seconds (7 * 24 * 60 * 60)
 
 // Check if last_activity is set
 if (isset($_SESSION['last_activity'])) {
-    // Check if the session is older than 24 hours
+    // Check if the session is older than 7 days
     if (time() - $_SESSION['last_activity'] > $session_timeout_duration) {
         // Get the last page before logout
         $last_page = $_SESSION['last_page'] ?? 'index';
-
-        // Add session timeout logging
-        //error_log("Session timeout - Last activity: " . (time() - $_SESSION['last_activity']) . " seconds ago. Redirecting to: " . $last_page);
 
         // Store the redirect URL before destroying session
         $redirect_url = urlencode($last_page);
@@ -131,8 +128,10 @@ if (isset($_SESSION['last_activity'])) {
         // Logout the user
         logout();
 
-        // Redirect to login page with last page parameter
-        header("Location: login?redirect=" . $redirect_url);
+        // Redirect to login page with last page parameter. timeout=1 tells
+        // login.php this is a returning-after-expiry login, which requires
+        // an emailed verification code (see login.php / verify-login-code.php).
+        header("Location: login?redirect=" . $redirect_url . "&timeout=1");
         exit();
     }
 }

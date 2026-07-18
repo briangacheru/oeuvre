@@ -1,11 +1,11 @@
 <?php
 ob_start();
 // Without these, PHP's default session.gc_maxlifetime (often ~24 min) can
-// garbage-collect the session data well before the 24-hour app-level timeout
+// garbage-collect the session data well before the 7-day app-level timeout
 // below ever runs, silently logging writers out early. Mirrors sudo/check-login.php.
-ini_set('session.gc_maxlifetime', 86400); // 24 hours in seconds
-ini_set('session.cookie_lifetime', 86400); // 24 hours in seconds
-session_set_cookie_params(86400); // 24 hours
+ini_set('session.gc_maxlifetime', 604800); // 7 days in seconds
+ini_set('session.cookie_lifetime', 604800); // 7 days in seconds
+session_set_cookie_params(604800); // 7 days
 require_once __DIR__ . '/session-name.php';
 session_start();
 require_once __DIR__ . '/env.php';
@@ -22,7 +22,7 @@ include('functions.php');
 require_once 'session_tracker.php';
 
 $self = $_SERVER["PHP_SELF"];
-$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php'];
+$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'verify-login-code.php'];
 $currentScript = basename($_SERVER['PHP_SELF']);
 
 // AJAX/polling endpoints that shouldn't be recorded as the "last page" used
@@ -72,7 +72,7 @@ if (stripos($self, 'index.php') !== false) {
 }
 
 // Define session timeout duration
-$session_timeout_duration = 86400; // 24 hrs
+$session_timeout_duration = 604800; // 7 days
 
 // Check if last_activity is set
 if (isset($_SESSION['last_activity'])) {

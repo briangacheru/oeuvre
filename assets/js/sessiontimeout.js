@@ -1,7 +1,7 @@
 // Session timeout warning system
 class SessionTimeoutWarning {
     constructor() {
-        this.sessionTimeout = 86400; // 24 hrs
+        this.sessionTimeout = 604800; // 7 days
         this.warningTime = 300; // Show warning 5 minutes before timeout
         this.countdownInterval = null;
         this.warningShown = false;

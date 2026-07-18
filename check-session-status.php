@@ -10,7 +10,7 @@ $response = ['timeRemaining' => 0, 'loggedIn' => false];
 
 try {
     if (isset($_SESSION['sessionWriter']) && isset($_SESSION['last_activity'])) {
-        $sessionTimeout = 86400; // 24 hrs
+        $sessionTimeout = 604800; // 7 days
         $timeElapsed = time() - $_SESSION['last_activity'];
         $timeRemaining = $sessionTimeout - $timeElapsed;
 

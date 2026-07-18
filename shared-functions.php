@@ -521,3 +521,77 @@ if (!function_exists('format_lockout_message')) {
             . ', or contact the administrator at ' . htmlspecialchars(env('ADMIN_EMAIL'), ENT_QUOTES, 'UTF-8') . ' for help.';
     }
 }
+
+// ---- Login email verification codes ----
+// Required after a 7-day (normal) or 14-day (remember-me) session has
+// expired and the writer/admin logs back in with their password. Only the
+// hash is stored (mirrors reset_token), and codes are single-use.
+// $table must always be a hardcoded literal ('tblwriters' or 'tbladmin')
+// supplied by the calling code, never derived from request input.
+
+if (!function_exists('generate_login_otp')) {
+    // Creates a fresh 6-digit code for $email in $table, stores its hash with
+    // a 10-minute expiry, and resets the attempt counter. Returns the raw
+    // code (for emailing) - this is the only place it exists in plaintext.
+    // Returns null if the login_otp_* columns don't exist yet (migration not
+    // run) rather than fatal-erroring the whole login flow - callers should
+    // treat null as "skip the OTP step for now, this account isn't ready".
+    function generate_login_otp($con, $table, $email) {
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $codeHash = hash('sha256', $code);
+        $expires = date('Y-m-d H:i:s', time() + 600); // 10 minutes
+
+        $stmt = $con->prepare("UPDATE `$table` SET login_otp_hash = ?, login_otp_expires = ?, login_otp_attempts = 0 WHERE email = ?");
+        if (!$stmt) {
+            error_log("generate_login_otp: prepare failed (has db-migrations/2026_07_18_add_login_otp.sql been run?) - " . $con->error);
+            return null;
+        }
+        $stmt->bind_param('sss', $codeHash, $expires, $email);
+        $stmt->execute();
+
+        return $code;
+    }
+}
+
+if (!function_exists('verify_login_otp')) {
+    // Checks $submittedCode against the stored hash for $email in $table.
+    // Returns ['success' => true] and clears the code on match, or
+    // ['success' => false, 'error' => 'expired'|'locked'|'invalid'|'unavailable'].
+    function verify_login_otp($con, $table, $email, $submittedCode) {
+        $maxAttempts = 5;
+
+        $stmt = $con->prepare("SELECT login_otp_hash, login_otp_expires, login_otp_attempts FROM `$table` WHERE email = ?");
+        if (!$stmt) {
+            error_log("verify_login_otp: prepare failed (has db-migrations/2026_07_18_add_login_otp.sql been run?) - " . $con->error);
+            return ['success' => false, 'error' => 'unavailable'];
+        }
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+
+        if (!$row || empty($row['login_otp_hash']) || empty($row['login_otp_expires'])
+            || strtotime($row['login_otp_expires']) < time()) {
+            return ['success' => false, 'error' => 'expired'];
+        }
+
+        if ((int) $row['login_otp_attempts'] >= $maxAttempts) {
+            return ['success' => false, 'error' => 'locked'];
+        }
+
+        $submittedHash = hash('sha256', trim((string) $submittedCode));
+
+        if (!hash_equals($row['login_otp_hash'], $submittedHash)) {
+            $upd = $con->prepare("UPDATE `$table` SET login_otp_attempts = login_otp_attempts + 1 WHERE email = ?");
+            $upd->bind_param('s', $email);
+            $upd->execute();
+            return ['success' => false, 'error' => 'invalid'];
+        }
+
+        // Single-use: clear the code once it's been consumed.
+        $clear = $con->prepare("UPDATE `$table` SET login_otp_hash = NULL, login_otp_expires = NULL, login_otp_attempts = 0 WHERE email = ?");
+        $clear->bind_param('s', $email);
+        $clear->execute();
+
+        return ['success' => true];
+    }
+}

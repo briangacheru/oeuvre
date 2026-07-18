@@ -1,6 +1,6 @@
 class SessionManager {
     constructor() {
-        this.sessionTimeout = 86400; // 24 hrs - matches the server-side timeout in sudo/check-login.php
+        this.sessionTimeout = 604800; // 7 days - matches the server-side timeout in sudo/check-login.php
         this.warningTime = 300; // Show warning 5 minutes before expiry
         this.countdownInterval = null;
         this.sessionCheckInterval = null;

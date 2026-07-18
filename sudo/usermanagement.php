@@ -583,10 +583,10 @@ if (isset($_SESSION['alert'])) {
                                         <?php
                                         $query=mysqli_query($con,"SELECT * FROM tblwriters ORDER BY created_at DESC");
 
-                                        // Active logged-in device count per writer (sessions active within the last 24h).
+                                        // Active logged-in device count per writer (sessions active within the last 7 days).
                                         // Keyed by writer email; will be 0 until writer-login recording is wired.
                                         $writerDeviceCounts = [];
-                                        $activeCutoff = date('Y-m-d H:i:s', time() - 86400); // matches the 24h session timeout
+                                        $activeCutoff = date('Y-m-d H:i:s', time() - 604800); // matches the 7-day session timeout
                                         $wdcStmt = mysqli_prepare($con, "SELECT writer_email, COUNT(*) AS device_count
                                                                          FROM tblwriter_sessions
                                                                          WHERE last_activity >= ?

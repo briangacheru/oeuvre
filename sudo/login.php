@@ -1,5 +1,6 @@
 <?php
 require_once('check-login.php');
+require_once('login-helpers.php');
 csrf_verify_or_redirect();
 
 $loginMessage = ''; // Initialize a variable to hold the login message
@@ -40,36 +41,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>";
             } elseif (password_verify($password, $hashedPasswordFromDatabase)) {
                 reset_failed_login($con, 'tbladmin', $email);
-                $_SESSION['odmsaid'] = $email;
-                require_once 'session_tracker.php';
-                record_login_session($dbh, $email);
 
-                if (isset($_POST['remember'])) {
-                    $rememberToken = bin2hex(random_bytes(16)); // Secure random token
-                    // Securely hash the remember token before storing it
-                    $hashedRememberToken = password_hash($rememberToken, PASSWORD_DEFAULT);
-                    $updateTokenSql = "UPDATE tbladmin SET remember_token = ? WHERE email = ?";
-                    $stmt = $con->prepare($updateTokenSql);
-                    $stmt->bind_param('ss', $hashedRememberToken, $email);
-                    $stmt->execute();
+                $redirectParam = $_POST['redirect'] ?? $_GET['redirect'] ?? '';
 
-                    setcookie('rememberme', $rememberToken, time() + 86400, '/', '', true, true); // Secure cookie attributes
+                // Returning after a fully-expired session (7-day normal timeout,
+                // or the remember-me cookie itself lapsing after 2 weeks) requires
+                // an emailed verification code before the session is established.
+                // A fresh/first-time login does not.
+                $otpCode = (isset($_GET['timeout']) && $_GET['timeout'] == '1')
+                    ? generate_login_otp($con, 'tbladmin', $email)
+                    : null;
+
+                if ($otpCode !== null) {
+                    send_login_otp_code_email($email, $otpCode);
+
+                    $_SESSION['otp_pending_email'] = $email;
+                    $_SESSION['otp_pending_remember'] = isset($_POST['remember']);
+                    $_SESSION['otp_pending_redirect'] = $redirectParam;
+
+                    header('Location: verify-login-code.php');
+                    exit;
                 }
 
-                updateUserStatus($email, 'admin', true);
-                $redirectUrl = 'index';
-                $redirect = $_POST['redirect'] ?? $_GET['redirect'] ?? '';
-
-                if (!empty($redirect)) {
-                    $redirect = trim($redirect);
-
-                    // Security check: ensure it's a safe URL
-                    if (strpos($redirect, '/') === 0 && strpos($redirect, '//') === false &&
-                        !preg_match('/[<>"\'\s]|javascript:|data:|vbscript:/i', $redirect) &&
-                        preg_match('/^[a-zA-Z0-9\-_\/\?&=\.]+$/', $redirect)) {
-                        $redirectUrl = $redirect;
-                    }
-                }
+                $redirectUrl = finalize_admin_login($con, $dbh, $email, isset($_POST['remember']), $redirectParam);
 
                 $loginMessage = "
                     <div class='alert alert-success alert-dismissible fade show' role='alert'>

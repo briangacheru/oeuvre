@@ -1,5 +1,6 @@
 <?php
 require_once('check-login.php');
+require_once('login-helpers.php');
 csrf_verify_or_redirect();
 $loginMessage = ''; // Initialize a variable to hold the login message
 $loginError = ''; // Initialize a variable to hold the login error message
@@ -35,72 +36,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>";
             } elseif (password_verify($password, $hashedPasswordFromDatabase)) {
                 reset_failed_login($con, 'tblwriters', $email);
-                $_SESSION['sessionWriter'] = $email;
-                require_once 'session_tracker.php';
-                record_writer_session($con, $email);
 
-                if (isset($_POST['remember'])) {
-                    $rememberToken = bin2hex(random_bytes(16));
-                    $hashedRememberToken = password_hash($rememberToken, PASSWORD_DEFAULT);
-                    $updateTokenSql = "UPDATE tblwriters SET remember_token = ? WHERE email = ?";
-                    $stmt = $con->prepare($updateTokenSql);
-                    $stmt->bind_param('ss', $hashedRememberToken, $email);
-                    $stmt->execute();
+                $sharedTaskIdEncoded = $_POST['task_id'] ?? $_GET['task_id'] ?? null;
 
-                    setcookie('rememberme', $rememberToken, time() + 86400, '/', '', true, true);
+                // Returning after a fully-expired session (7-day normal timeout,
+                // or the remember-me cookie itself lapsing after 2 weeks) requires
+                // an emailed verification code before the session is established.
+                // A fresh/first-time login does not.
+                $otpCode = (isset($_GET['timeout']) && $_GET['timeout'] == '1')
+                    ? generate_login_otp($con, 'tblwriters', $email)
+                    : null;
+
+                if ($otpCode !== null) {
+                    send_login_otp_code_email($email, $otpCode);
+
+                    $_SESSION['otp_pending_email'] = $email;
+                    $_SESSION['otp_pending_remember'] = isset($_POST['remember']);
+                    $_SESSION['otp_pending_task_id'] = $sharedTaskIdEncoded;
+
+                    header('Location: verify-login-code.php');
+                    exit;
                 }
 
-                // Update user status to online
-                updateUserStatus($email, 'writer', true);
-
-                // If arriving from a shared task link, send the writer straight to
-                // that task if they have access to it, or flag it if they don't.
-                // Prefer the hidden form field (set on the GET render below) since it
-                // doesn't depend on the query string surviving the .htaccess redirect
-                // that strips .php from the URL between the initial link click and this POST.
-                $sharedTaskIdEncoded = $_POST['task_id'] ?? $_GET['task_id'] ?? null;
-                $taskRedirectUrl = resolve_shared_task_redirect($con, $email, $sharedTaskIdEncoded);
+                $redirectUrl = finalize_writer_login($con, $email, isset($_POST['remember']), $sharedTaskIdEncoded);
 
                 $loginMessage = "
                     <div class='alert alert-success alert-dismissible fade show' role='alert'>
                     <i class='bi bi-check-circle me-1'></i> Login successful. Redirecting!
                     <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
                     </div>";
-
-                // Determine redirect location
-                $redirectUrl = 'index.php'; // Default redirect
-
-                // Debug: Check what cookies exist
-                error_log("Available cookies: " . print_r($_COOKIE, true));
-
-                // Check for last page cookies
-                if ($taskRedirectUrl !== null) {
-                    $redirectUrl = $taskRedirectUrl;
-                    error_log("Redirecting to shared task: " . $redirectUrl);
-                } elseif (isset($_COOKIE['last_page_before_timeout'])) {
-                    $redirectUrl = $_COOKIE['last_page_before_timeout'];
-                    setcookie('last_page_before_timeout', '', time() - 420, '/'); // Clear cookie
-                    error_log("Redirecting to timeout page: " . $redirectUrl);
-                } elseif (isset($_COOKIE['last_page_before_logout'])) {
-                    $redirectUrl = $_COOKIE['last_page_before_logout'];
-                    setcookie('last_page_before_logout', '', time() - 420, '/'); // Clear cookie
-                    error_log("Redirecting to logout page: " . $redirectUrl);
-                }
-
-                // Ensure redirect URL is safe - only check for external URLs
-                if (strpos($redirectUrl, 'http://') === 0 || strpos($redirectUrl, 'https://') === 0) {
-                    // Check if it's the same domain
-                    $parsedUrl = parse_url($redirectUrl);
-                    $currentDomain = $_SERVER['HTTP_HOST'];
-                    if ($parsedUrl['host'] !== $currentDomain) {
-                        $redirectUrl = 'index.php'; // Fallback for external URLs
-                    }
-                }
-
-                // Remove any login.php references to avoid loops
-                if (strpos($redirectUrl, 'login.php') !== false) {
-                    $redirectUrl = 'index.php';
-                }
 
                 echo "<script>
                     console.log('Redirecting to: $redirectUrl');
