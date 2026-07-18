@@ -93,6 +93,20 @@ if ($rowTask = mysqli_fetch_array($result)) {
     $taskSubmitTime = $rowTask['submitted_on'];
     $submittedOn = $rowTask['submitted_on'];
     $completedOn = $rowTask['completed_on'];
+
+    // Mark the task as viewed the moment the writer actually opens it here,
+    // regardless of how they navigated in - the task/message/notification
+    // counters at the top all link straight to this page, bypassing
+    // tasks-in-progress.php's/tasks-in-revision.php's old click-triggered
+    // tracking, which only ever covered navigation from those two lists.
+    if (in_array($taskStatus, ['In Progress', 'In Revision']) && (int) $rowTask['acknowledged'] === 0) {
+        $acknowledgedAt = date('Y-m-d H:i:s');
+        $ackStmt = $con->prepare('UPDATE tbltasks SET acknowledged = 1, acknowledged_at = ? WHERE id = ? AND email = ?');
+        $ackStmt->bind_param('sis', $acknowledgedAt, $taskId, $aid);
+        $ackStmt->execute();
+        $ackStmt->close();
+        $rowTask['acknowledged'] = 1;
+    }
 }
 $due_date = new DateTime($rowTask['due_date']);
 $currentDateTime = new DateTime();

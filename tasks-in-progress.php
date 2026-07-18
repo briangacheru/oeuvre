@@ -145,7 +145,7 @@
                                                 <div class="d-flex align-items-center position-relative">
                                                     <div class="flex-1">
                                                         <h6 class="mb-1 fw-semi-bold text-nowrap">
-                                                            <a class="text-900 stretched-link view-task-link"  href="view-task?task_id=<?php echo $encodedId; ?>" data-task-id="<?php echo $row['id']; ?>" data-acknowledged="<?php echo $row['acknowledged']; ?>"><?php echo htmlspecialchars($row["topic"], ENT_QUOTES, 'UTF-8'); ?></a>
+                                                            <a class="text-900 stretched-link" href="view-task?task_id=<?php echo $encodedId; ?>"><?php echo htmlspecialchars($row["topic"], ENT_QUOTES, 'UTF-8'); ?></a>
                                                         </h6>
                                                         <p class="fw-semi-bold mb-0 text-500"><?php echo $row["pages"];?> Page(s) | CPP: <?php echo $row["cpp"];?></p>
                                                     </div>
@@ -179,50 +179,6 @@
                 </div>
             </div>
         </div>
-
-    <script>
-        // Function to mark task as read
-        function markAsRead(taskId, linkElement) {
-            // Send AJAX request to update acknowledged
-            fetch('update-task-acknowledgement', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'task_id=' + taskId + '&acknowledged=1&csrf_token=' + encodeURIComponent(GLOBAL_CSRF_TOKEN)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Find the parent row and remove the table-active styling
-                        const row = linkElement.closest('tr');
-                        if (row) {
-                            row.classList.remove('table-active');
-                        }
-                    }
-                })
-                .catch(error => {
-                    // Silent error handling - you can add user notification here if needed
-                });
-        }
-
-        // Add event listeners
-        document.addEventListener('DOMContentLoaded', function () {
-            const viewTaskLinks = document.querySelectorAll('.view-task-link');
-
-            viewTaskLinks.forEach(link => {
-                link.addEventListener('click', function (e) {
-                    const taskId = this.getAttribute('data-task-id');
-                    const acknowledged = this.getAttribute('data-acknowledged');
-
-                    // Only mark as read if it's currently unread (acknowledged = 0)
-                    if (acknowledged === '0') {
-                        markAsRead(taskId, this);
-                    }
-                });
-            });
-        });
-    </script>
 
 <?php
 include "footer.php";
