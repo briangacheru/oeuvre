@@ -757,6 +757,9 @@ if (isset($_SESSION['alert'])) {
                                 <p class='mb-0'>Viewed on <span class='text-info ms-2'><?php echo date('d M Y, g:i A', strtotime($rowTask['acknowledged_at'])); ?></span></p>
                             <?php endif; ?>
                             <div class="fs-9 mt-2 mb-2 text-primary"><strong class="me-2">Status: </strong><?php  echo $statusBadge;?>
+                                <?php if (!empty($rowTask['revision_count']) && (int) $rowTask['revision_count'] > 0): ?>
+                                    <span class="badge badge-subtle-warning rounded-pill ms-2"><i class="fas fa-history me-1"></i>Revisions: <?php echo (int) $rowTask['revision_count']; ?></span>
+                                <?php endif; ?>
                                 <?php if ($taskStatus == 'Submitted' && !empty($submittedOn)): ?>
                                     <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                 <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
@@ -1499,6 +1502,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                 <h6 class="mb-1">
                                                     <a class="stretched-link text-900 fw-semi-bold"
                                                        href="<?php echo $fileUrl; ?>"><?php echo htmlspecialchars($fileName); ?></a>
+                                                    <?php if (!empty($fileRow['revision_number']) && (int) $fileRow['revision_number'] > 0): ?>
+                                                        <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision <?php echo (int) $fileRow['revision_number']; ?></span>
+                                                    <?php endif; ?>
                                                 </h6>
                                                 <div class="fs-10">
                                                     <span class="fw-medium text-600"><?php echo $formattedSize; ?></span>
@@ -2551,6 +2557,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                     <p class="fw-semi-bold fs-10"><span class="me-1">Posted:</span><span class="text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($taskCreatedOn . ' UTC')); ?></span></p>
                                     <div class="fs-9 mb-3 mb-sm-0 text-primary">
                                         <strong class="me-2">Status: </strong><?php echo $statusBadge; ?>
+                                        <?php if (!empty($rowTask['revision_count']) && (int) $rowTask['revision_count'] > 0): ?>
+                                            <span class="badge badge-subtle-warning rounded-pill ms-2"><i class="fas fa-history me-1"></i>Revisions: <?php echo (int) $rowTask['revision_count']; ?></span>
+                                        <?php endif; ?>
                                         <?php if ($taskStatus == 'Submitted' && !empty($submittedOn)): ?>
                                             <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                         <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
@@ -2744,7 +2753,11 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     echo '<div class="d-flex mb-3 hover-actions-trigger align-items-center">';
                     echo '<div class="file-thumbnail"><img class="border h-100 w-100 object-fit-cover rounded-2" src="' . $th . '" alt=""/></div>';
                     echo '<div class="ms-3 flex-shrink-1 flex-grow-1">';
-                    echo '<h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold" href="' . $fu . '" target="_blank">' . htmlspecialchars($fn) . '</a></h6>';
+                    $revisionBadge = '';
+                    if ($fileType === 'submitted' && !empty($row['revision_number']) && (int) $row['revision_number'] > 0) {
+                        $revisionBadge = ' <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision ' . (int) $row['revision_number'] . '</span>';
+                    }
+                    echo '<h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold" href="' . $fu . '" target="_blank">' . htmlspecialchars($fn) . '</a>' . $revisionBadge . '</h6>';
                     echo '<div class="fs-10"><span class="fw-medium text-600">' . $sz . '</span><span class="fw-medium text-600 mx-1">•</span><span class="fw-medium text-600">' . $fd . '</span></div>';
                     echo '<div class="hover-actions end-0 top-50 translate-middle-y"><a class="btn btn-tertiary border-300 btn-sm me-1 text-600" data-bs-toggle="tooltip" data-bs-placement="top" title="Download" href="' . $fu . '" download="' . htmlspecialchars($fn) . '"><img src="' . $pathPrefix . 'assets/img/icons/cloud-download.svg" alt="" width="15"/></a></div>';
                     echo '</div></div><hr class="text-200"/>';

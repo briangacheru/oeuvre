@@ -345,6 +345,9 @@ if (isset($_GET['message'])) {
                             </p>
                             <div class="fs-9 mb-3 mb-sm-0 text-primary">
                                 <strong class="me-2">Status: </strong><?php echo $statusBadge; ?>
+                                <?php if (!empty($rowTask['revision_count']) && (int) $rowTask['revision_count'] > 0): ?>
+                                    <span class="badge badge-subtle-warning rounded-pill ms-2"><i class="fas fa-history me-1"></i>Revisions: <?php echo (int) $rowTask['revision_count']; ?></span>
+                                <?php endif; ?>
                                 <?php if ($taskStatus == 'Submitted' && !empty($submittedOn)): ?>
                                     <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                 <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
@@ -836,7 +839,7 @@ if ($rowTask['status'] == 'Completed') {
                                     <div class="file-thumbnail"><img
                                                 class="border h-100 w-100 object-fit-cover rounded-2"
                                                 src="<?php echo $thumbnailPath; ?>" alt=""/></div>
-                                    <div class="ms-3 flex-shrink-1 flex-g$rowTask-1">
+                                    <div class="ms-3 flex-shrink-1 flex-grow-1">
                                         <h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold"
                                                             href="<?php echo $fileUrl; ?>"
                                                             target="_blank"><?php echo $fileName; ?></a></h6>
@@ -959,7 +962,11 @@ if ($rowTask['status'] == 'Completed') {
                                     <div class="ms-3 flex-shrink-1 flex-grow-1">
                                         <h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold"
                                                             href="<?php echo $fileUrl; ?>"
-                                                            target="_blank"><?php echo $fileName; ?></a></h6>
+                                                            target="_blank"><?php echo $fileName; ?></a>
+                                            <?php if (!empty($fileRow['revision_number']) && (int) $fileRow['revision_number'] > 0): ?>
+                                                <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision <?php echo (int) $fileRow['revision_number']; ?></span>
+                                            <?php endif; ?>
+                                        </h6>
                                         <div class="fs-10">
                                             <span class='fw-medium text-600'><?php echo $formattedSize; ?>
                                                 <span class='fw-medium text-600 mx-1'>•</span>

@@ -44,6 +44,23 @@ if ($_POST['action'] == 'submitForm') {
     $allFiles = array_merge($existingFiles, $uploadedFileNames);
     $filesString = implode(',', $allFiles); // Convert the array of file names to a comma-separated string
 
+    // Was the task already "In Revision" before this save? Used below to
+    // decide whether this is a fresh transition into revision (bumps the
+    // counter) - checked before the main save so we're comparing against
+    // the pre-update state. Kept independent of the main UPDATE below so a
+    // missing revision_count column (migration not yet run) can never break
+    // saving a task, only skip the revision-tracking bump.
+    $wasInRevision = null;
+    if ($prevStmt = mysqli_prepare($con, "SELECT status FROM tbltasks WHERE id = ?")) {
+        mysqli_stmt_bind_param($prevStmt, 'i', $taskId);
+        mysqli_stmt_execute($prevStmt);
+        $prevResult = mysqli_stmt_get_result($prevStmt);
+        if ($prevRow = mysqli_fetch_assoc($prevResult)) {
+            $wasInRevision = ($prevRow['status'] === 'In Revision');
+        }
+        mysqli_stmt_close($prevStmt);
+    }
+
     // Prepare SQL statement with placeholders
     $sql = "UPDATE tbltasks SET topic=?, subject=?, account=?, description=?, writer=?, email=?, status=?, due_date=?, cpp=?, pages=?, is_confirmed=?, task_files=? WHERE id=?";
 
@@ -54,6 +71,19 @@ if ($_POST['action'] == 'submitForm') {
         if (mysqli_stmt_execute($stmt)) {
             // Check if insert was successful
             if (mysqli_stmt_affected_rows($stmt) > 0) {
+                // A fresh transition into "In Revision" starts a new resubmission
+                // cycle - bump revision_count so files submitted after this point
+                // can be badged "Revision 1", "Revision 2", etc. Separate,
+                // best-effort UPDATE: if revision_count doesn't exist yet, this
+                // silently no-ops rather than failing the task save above.
+                if ($status === 'In Revision' && $wasInRevision === false) {
+                    if ($revStmt = mysqli_prepare($con, "UPDATE tbltasks SET revision_count = revision_count + 1 WHERE id = ?")) {
+                        mysqli_stmt_bind_param($revStmt, 'i', $taskId);
+                        mysqli_stmt_execute($revStmt);
+                        mysqli_stmt_close($revStmt);
+                    }
+                }
+
                 header('Content-Type: application/json');
                 echo json_encode(['status' => 'success', 'message' => 'Task updated successfully.', 'task_id' => base64_encode($taskId)]);
             } else {

@@ -64,11 +64,12 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
     $cpp = $_POST['cpp'] ?? '';
 
     // Fetch additional details from the database if needed
-    $query = 'SELECT due_date, writer, pages, cpp FROM tbltasks WHERE id = ?';
+    $query = 'SELECT due_date, writer, pages, cpp, revision_count FROM tbltasks WHERE id = ?';
+    $revisionCount = 0;
     if ($stmt = mysqli_prepare($con, $query)) {
         mysqli_stmt_bind_param($stmt, 'i', $taskId);
         mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $due_date, $writer_db, $pages_db, $cpp_db);
+        mysqli_stmt_bind_result($stmt, $due_date, $writer_db, $pages_db, $cpp_db, $revisionCount_db);
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
 
@@ -77,6 +78,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
         $writer = $writer_db ?? $writer;
         $cpp = $cpp_db ?? $cpp;
         $pages = $pages_db ?? $pages;
+        $revisionCount = (int) ($revisionCount_db ?? 0);
     }
 
     if (empty($taskId) || empty($topic) || empty($account) || empty($writerEmail)) {
@@ -117,6 +119,23 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
                 if (!mysqli_stmt_execute($fileStmt)) {
                     throw new Exception('Failed to insert file record: ' . mysqli_stmt_error($fileStmt));
+                }
+
+                // revision_number is 0 for a task's first/normal submission
+                // (never been sent back for revision) and only becomes >0 -
+                // matching tbltasks.revision_count at the time of this
+                // submission - once the task has actually been through at
+                // least one revision cycle, so the UI can badge only real
+                // resubmissions as "Revision N". Separate, best-effort UPDATE:
+                // if revision_number doesn't exist yet, this silently no-ops
+                // rather than failing the whole submission above.
+                if ($revisionCount > 0) {
+                    $newFileId = mysqli_insert_id($con);
+                    if ($revNumStmt = mysqli_prepare($con, "UPDATE tbl_task_files SET revision_number = ? WHERE id = ?")) {
+                        mysqli_stmt_bind_param($revNumStmt, 'ii', $revisionCount, $newFileId);
+                        mysqli_stmt_execute($revNumStmt);
+                        mysqli_stmt_close($revNumStmt);
+                    }
                 }
 
                 mysqli_stmt_close($fileStmt);
