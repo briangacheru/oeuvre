@@ -266,10 +266,10 @@ if (isset($_SESSION['alert'])) {
                 </div>
                 <!-- Action buttons -->
                 <div class="d-flex gap-2 mt-2">
-                    <button type="button" class="btn btn-falcon-default btn-sm" onclick="previewInvoice()">
+                    <button type="button" class="btn btn-falcon-default btn-sm" id="preview-invoice-btn" onclick="previewInvoice()" disabled>
                         <span class="fas fa-eye me-1"></span> Preview Email
                     </button>
-                    <button type="button" class="btn btn-falcon-primary btn-sm" id="send-invoice-btn" onclick="sendInvoiceEmail()">
+                    <button type="button" class="btn btn-falcon-primary btn-sm" id="send-invoice-btn" onclick="sendInvoiceEmail()" disabled>
                         <span class="fas fa-paper-plane me-1"></span> Send Invoice
                     </button>
                 </div>
@@ -832,6 +832,14 @@ if (isset($_SESSION['alert'])) {
         var currentWriterEmail = '';
         var currentWriterName  = '';
 
+        // ── setInvoiceButtonsEnabled: enable/disable preview & send buttons ──
+        function setInvoiceButtonsEnabled(enabled) {
+            var previewBtn = document.getElementById('preview-invoice-btn');
+            var sendBtn    = document.getElementById('send-invoice-btn');
+            if (previewBtn) previewBtn.disabled = !enabled;
+            if (sendBtn)    sendBtn.disabled    = !enabled;
+        }
+
         // ── toggleInvoiceBody: show/hide card body via the header toggle ──
         function toggleInvoiceBody(checkbox) {
             var body = document.getElementById('invoice-card-body');
@@ -839,19 +847,19 @@ if (isset($_SESSION['alert'])) {
         }
 
         // ── loadInvoiceData: triggered by the invoice card's own writer dropdown ──
-        function loadInvoiceData(writerName) {
+        function loadInvoiceData(writerName, preserveStatus) {
             var summaryStrip = document.getElementById('invoice-summary-strip');
             var emailField   = document.getElementById('invoice-email-addr');
             var invoiceStatus = document.getElementById('invoice-status');
             var loadingEl    = document.getElementById('invoice-loading');
-            var btn          = document.getElementById('send-invoice-btn');
 
             // Reset state
-            if (invoiceStatus) invoiceStatus.innerHTML = '';
+            if (invoiceStatus && !preserveStatus) invoiceStatus.innerHTML = '';
             ['inv-tasks-total','inv-bonus-total','inv-grand-total'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) el.textContent = '—';
             });
+            setInvoiceButtonsEnabled(false);
 
             if (!writerName) {
                 if (summaryStrip) summaryStrip.style.display = 'none';
@@ -872,7 +880,6 @@ if (isset($_SESSION['alert'])) {
             if (summaryStrip) summaryStrip.style.display = 'block';
             if (emailField)   emailField.value = currentWriterEmail || 'Email not found';
             if (loadingEl)    loadingEl.style.display = 'block';
-            if (btn) { btn.disabled = true; }
 
             // Fetch totals
             $.ajax({
@@ -882,12 +889,12 @@ if (isset($_SESSION['alert'])) {
                 dataType: 'json',
                 success: function(response) {
                     if (loadingEl) loadingEl.style.display = 'none';
-                    if (btn) { btn.disabled = false; }
 
                     var tasksTotal     = parseFloat(response.totalCompletedTasks) || 0;
                     var overdraftTotal = parseFloat(response.totalOverdrafts)     || 0;
                     var bonusTotal     = parseFloat(response.totalBonuses)        || 0;
                     var amountDue      = tasksTotal + bonusTotal - overdraftTotal;
+                    var taskCount      = parseInt(response.completedTaskCount, 10) || 0;
 
                     var elTasks     = document.getElementById('inv-tasks-total');
                     var elBonus     = document.getElementById('inv-bonus-total');
@@ -897,10 +904,15 @@ if (isset($_SESSION['alert'])) {
                     if (elBonus)     elBonus.textContent     = 'Ksh ' + bonusTotal.toFixed(2);
                     if (elOverdraft) elOverdraft.textContent = 'Ksh ' + overdraftTotal.toFixed(2);
                     if (elGrand)     elGrand.textContent     = 'Ksh ' + amountDue.toFixed(2);
+
+                    setInvoiceButtonsEnabled(taskCount > 0);
+                    if (taskCount === 0 && invoiceStatus && !preserveStatus) {
+                        invoiceStatus.innerHTML = '<div class="alert alert-warning py-2 mb-0">No completed, unpaid tasks for this writer.</div>';
+                    }
                 },
                 error: function(xhr, status, error) {
                     if (loadingEl) loadingEl.style.display = 'none';
-                    if (btn) { btn.disabled = false; }
+                    setInvoiceButtonsEnabled(false);
                     console.log('Invoice AJAX Error:', status, error);
                 }
             });
@@ -967,7 +979,6 @@ if (isset($_SESSION['alert'])) {
                 dataType: 'json',
                 success: function(response) {
                     if (btn) {
-                        btn.disabled = false;
                         btn.innerHTML = '<span class="fas fa-paper-plane me-1"></span> Send Invoice';
                     }
                     if (statusDiv) {
@@ -976,6 +987,12 @@ if (isset($_SESSION['alert'])) {
                         } else {
                             statusDiv.innerHTML = '<div class="alert alert-danger"><span class="fas fa-exclamation-circle me-1"></span>' + response.message + '</div>';
                         }
+                    }
+                    // Refresh totals/button state — a successful send marks tasks as paid
+                    if (response.success && currentWriterName) {
+                        loadInvoiceData(currentWriterName, true);
+                    } else if (btn) {
+                        btn.disabled = false;
                     }
                 },
                 error: function() {

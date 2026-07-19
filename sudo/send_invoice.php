@@ -124,8 +124,9 @@ $tasksRowsHtml = '';
 foreach ($tasks as $t) {
     $tasksRowsHtml .= "
         <tr>
+            <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; color:#333;'>#" . (int)$t['id'] . "</td>
             <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; color:#333;'>" . htmlspecialchars($t['topic']) . "</td>
-            <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; text-align:center; color:#333;'>" . (int)$t['pages'] . "</td>
+            <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; text-align:center; color:#333;'>" . rtrim(rtrim(number_format((float)$t['pages'], 2, '.', ''), '0'), '.') . "</td>
             <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; text-align:right; color:#333;'>Ksh " . number_format((float)$t['cpp'], 2) . "</td>
             <td style='padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; text-align:right; font-weight:bold; color:#0073e6;'>Ksh " . number_format((float)$t['total_cost'], 2) . "</td>
         </tr>";
@@ -138,6 +139,7 @@ if (!empty($tasks)) {
     <table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse; margin-bottom:16px;'>
         <thead>
             <tr style='background:#0073e6;'>
+                <th style='padding:9px 10px; color:#fff; font-size:13px; text-align:left;'>Task ID</th>
                 <th style='padding:9px 10px; color:#fff; font-size:13px; text-align:left;'>Topic</th>
                 <th style='padding:9px 10px; color:#fff; font-size:13px; text-align:center;'>Pages</th>
                 <th style='padding:9px 10px; color:#fff; font-size:13px; text-align:right;'>CPP</th>
@@ -147,7 +149,7 @@ if (!empty($tasks)) {
         <tbody>
             {$tasksRowsHtml}
             <tr style='background:#eaf4fc;'>
-                <td colspan='3' style='padding:9px 10px; font-size:14px; font-weight:bold; color:#333;'>Tasks Sub-total</td>
+                <td colspan='4' style='padding:9px 10px; font-size:14px; font-weight:bold; color:#333;'>Tasks Sub-total</td>
                 <td style='padding:9px 10px; font-size:14px; font-weight:bold; text-align:right; color:#0073e6;'>Ksh " . number_format($tasksGrandTotal, 2) . "</td>
             </tr>
         </tbody>
@@ -288,18 +290,19 @@ $altBody  = "Hello {$writerUsername},\n\n";
 $altBody .= "Payment invoice as of {$invoiceDate}.\n\n";
 
 if (!empty($tasks)) {
-    $altBody .= "COMPLETED TASKS\n" . str_repeat('-', 62) . "\n";
-    $altBody .= sprintf("%-38s %5s %9s %10s\n", 'Topic', 'Pages', 'CPP', 'Total');
-    $altBody .= str_repeat('-', 62) . "\n";
+    $altBody .= "COMPLETED TASKS\n" . str_repeat('-', 70) . "\n";
+    $altBody .= sprintf("%-8s %-30s %5s %9s %10s\n", 'ID', 'Topic', 'Pages', 'CPP', 'Total');
+    $altBody .= str_repeat('-', 70) . "\n";
     foreach ($tasks as $t) {
-        $altBody .= sprintf("%-38s %5s %9s %10s\n",
-            mb_strimwidth($t['topic'], 0, 37, '…'),
+        $altBody .= sprintf("%-8s %-30s %5s %9s %10s\n",
+            '#' . (int)$t['id'],
+            mb_strimwidth($t['topic'], 0, 29, '…'),
             $t['pages'],
             'Ksh ' . number_format((float)$t['cpp'], 2),
             'Ksh ' . number_format((float)$t['total_cost'], 2)
         );
     }
-    $altBody .= sprintf("%-50s %10s\n\n", 'Tasks Sub-total', 'Ksh ' . number_format($tasksGrandTotal, 2));
+    $altBody .= sprintf("%-58s %10s\n\n", 'Tasks Sub-total', 'Ksh ' . number_format($tasksGrandTotal, 2));
 }
 
 if (!empty($bonuses)) {

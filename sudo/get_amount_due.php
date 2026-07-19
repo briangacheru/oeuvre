@@ -11,13 +11,14 @@ $writer_name = isset($_GET['writer_name']) ? $_GET['writer_name'] : '';
 $response = array();
 
 // Fetch total completed tasks — LOWER() on status handles any casing inconsistencies
-$query = "SELECT SUM(CPP*pages) AS total FROM tbltasks WHERE writer = ? AND is_deleted = 0 AND is_paid = 0 AND LOWER(status) = 'completed'";
+$query = "SELECT SUM(CPP*pages) AS total, COUNT(*) AS cnt FROM tbltasks WHERE writer = ? AND is_deleted = 0 AND is_paid = 0 AND LOWER(status) = 'completed'";
 $stmt = mysqli_prepare($con, $query);
 mysqli_stmt_bind_param($stmt, "s", $writer_name);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 $row = mysqli_fetch_assoc($result);
 $response['totalCompletedTasks'] = (float) ($row['total'] ?? 0);
+$response['completedTaskCount'] = (int) ($row['cnt'] ?? 0);
 
 // Fetch total overdrafts (excludes bonuses, maintains backward compatibility for NULL record_type)
 $query2 = "SELECT SUM(amount) AS total FROM tbloverdrafts WHERE writer = ? AND is_settled = 0 AND is_deleted = 0 AND (record_type IS NULL OR record_type = 'overdraft')";
