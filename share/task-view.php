@@ -185,7 +185,7 @@ if ($taskData) {
 $ogProtocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $ogBasePath = str_replace('/share', '', dirname($_SERVER['SCRIPT_NAME']));
 $ogBaseUrl = rtrim($ogProtocol . '://' . $_SERVER['HTTP_HOST'] . $ogBasePath, '/');
-$ogImage = $ogBaseUrl . '/assets/img/favicons/android-chrome-512x512.png';
+$ogImage = $ogBaseUrl . '/assets/img/favicons/android-chrome-192x192.png';
 $ogUrl = $ogBaseUrl . '/share/task-view' . (isset($_GET['token']) ? '?token=' . urlencode($_GET['token']) : '');
 
 if ($taskData) {
@@ -214,8 +214,8 @@ if ($taskData) {
     <meta property="og:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
     <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <meta property="og:image" content="<?php echo htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8'); ?>">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
+    <meta property="og:image:width" content="192">
+    <meta property="og:image:height" content="192">
     <meta property="og:url" content="<?php echo htmlspecialchars($ogUrl, ENT_QUOTES, 'UTF-8'); ?>">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
@@ -232,6 +232,7 @@ if ($taskData) {
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="../vendors/glightbox/glightbox.min.css" rel="stylesheet">
 
     <style>
         * {
@@ -1059,6 +1060,7 @@ if ($taskData) {
                     $fileSize = formatFileSize($fileSize);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
                     $iconClass = getFileIconClass($extension);
+                    $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
                     ?>
                     <div class="file-item">
                         <div class="file-info">
@@ -1069,11 +1071,21 @@ if ($taskData) {
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="view-btn"
-                                    onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $extension; ?>')">
-                                <i class="fas fa-eye"></i>
-                                View
-                            </button>
+                            <?php if ($isImage) { ?>
+                                <a href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                   class="view-btn glightbox"
+                                   data-gallery="task-files"
+                                   data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </a>
+                            <?php } else { ?>
+                                <button class="view-btn"
+                                        onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $extension; ?>')">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </button>
+                            <?php } ?>
                             <a href="<?php echo htmlspecialchars($fileUrl); ?>"
                                class="download-btn"
                                target="_blank"
@@ -1106,6 +1118,7 @@ if ($taskData) {
                     $fileSize = formatFileSize($fileSize);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
                     $iconClass = getFileIconClass($extension);
+                    $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
                     ?>
                     <div class="file-item">
                         <div class="file-info">
@@ -1116,11 +1129,21 @@ if ($taskData) {
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="view-btn"
-                                    onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $extension; ?>')">
-                                <i class="fas fa-eye"></i>
-                                View
-                            </button>
+                            <?php if ($isImage) { ?>
+                                <a href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                   class="view-btn glightbox"
+                                   data-gallery="submitted-files"
+                                   data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </a>
+                            <?php } else { ?>
+                                <button class="view-btn"
+                                        onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $extension; ?>')">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </button>
+                            <?php } ?>
                             <a href="<?php echo htmlspecialchars($fileUrl); ?>"
                                class="download-btn"
                                target="_blank"
@@ -1176,7 +1199,22 @@ if ($taskData) {
     </div>
 </div>
 
+<script src="../vendors/glightbox/glightbox.min.js"></script>
 <script>
+    // Image files use GLightbox (see the .glightbox links above) instead of
+    // the iframe-based viewer below - Spaces-hosted images can come back
+    // with a Content-Disposition that forces a download on iframe
+    // navigation, but an <a>/<img>-based lightbox isn't affected by that.
+    if (typeof GLightbox !== 'undefined') {
+        GLightbox({
+            touchNavigation: true,
+            loop: true,
+            closeButton: true,
+            closeOnOutsideClick: true,
+            moreLength: 0
+        });
+    }
+
     // File extensions supported by Microsoft Office Viewer
     const MS_VIEWER_EXTS  = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
     // Extensions viewable directly in the browser iframe
