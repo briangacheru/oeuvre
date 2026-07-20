@@ -41,6 +41,10 @@ class SpacesHelper {
                 'Key' => $objectKey,
                 'SourceFile' => $filePath,
                 'ACL' => 'public-read', // Make file publicly accessible
+                // Without this, Spaces stores every object as application/octet-stream,
+                // so browsers can't tell a PDF/image from generic binary data and just
+                // download it instead of rendering it inline (native PDF viewer, <img>, etc).
+                'ContentType' => $this->detectContentType($filePath, $uniqueFileName),
             ]);
 
             // Return the URL to the uploaded file
@@ -83,5 +87,46 @@ class SpacesHelper {
 
         // Otherwise, use the regular Spaces URL - DO NOT URL encode the object key
         return 'https://' . $this->config['bucket'] . '.' . $this->config['region'] . '.digitaloceanspaces.com/' . $objectKey;
+    }
+
+    // Prefers sniffing the actual bytes (works even if the extension is wrong
+    // or missing) and falls back to an extension lookup for types
+    // mime_content_type() commonly gets wrong (docx/xlsx/pptx etc. report as
+    // generic zip archives since that's literally their container format).
+    private function detectContentType($filePath, $fileName) {
+        if (function_exists('mime_content_type')) {
+            $detected = @mime_content_type($filePath);
+            if ($detected && $detected !== 'application/octet-stream' && $detected !== 'application/zip') {
+                return $detected;
+            }
+        }
+
+        $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        $map = [
+            'pdf'  => 'application/pdf',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png'  => 'image/png',
+            'gif'  => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp'  => 'image/bmp',
+            'svg'  => 'image/svg+xml',
+            'txt'  => 'text/plain',
+            'csv'  => 'text/csv',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls'  => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt'  => 'application/vnd.ms-powerpoint',
+            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'odt'  => 'application/vnd.oasis.opendocument.text',
+            'ods'  => 'application/vnd.oasis.opendocument.spreadsheet',
+            'odp'  => 'application/vnd.oasis.opendocument.presentation',
+            'zip'  => 'application/zip',
+            'mp4'  => 'video/mp4',
+            'mp3'  => 'audio/mpeg',
+        ];
+
+        return $map[$extension] ?? 'application/octet-stream';
     }
 }
