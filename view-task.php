@@ -789,7 +789,9 @@ if ($rowTask['status'] == 'Completed') {
 
                                 $thumbnailPath = 'assets/img/icons/docs.png';
                                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                                switch (strtolower($fileExtension)) {
+                                $fileExtLower = strtolower($fileExtension);
+                                $isImage = in_array($fileExtLower, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                switch ($fileExtLower) {
                                     case 'pdf':
                                         $thumbnailPath = 'assets/img/icons/pdf.png';
                                         break;
@@ -849,6 +851,21 @@ if ($rowTask['status'] == 'Completed') {
                                             <span class="fw-medium text-600"><?php echo $formattedDate; ?></span>
                                         </div>
                                         <div class="hover-actions end-0 top-50 translate-middle-y">
+                                            <?php if ($isImage) { ?>
+                                                <a class="btn btn-tertiary border-300 btn-sm me-1 text-600 glightbox"
+                                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                   href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                                   data-gallery="task-files-<?php echo $taskId; ?>"
+                                                   data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                                    <img src="assets/img/icons/eye.svg" alt="" width="15"/>
+                                                </a>
+                                            <?php } else { ?>
+                                                <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
+                                                        data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                        onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $fileExtLower; ?>')">
+                                                    <img src="assets/img/icons/eye.svg" alt="" width="15"/>
+                                                </button>
+                                            <?php } ?>
                                             <a class="btn btn-tertiary border-300 btn-sm me-1 text-600"
                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Download"
                                                href="<?php echo $fileUrl; ?>" download="<?php echo $fileName; ?>"><img
@@ -909,7 +926,9 @@ if ($rowTask['status'] == 'Completed') {
 
                                 $thumbnailPath = 'assets/img/icons/docs.png';
                                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                                switch (strtolower($fileExtension)) {
+                                $fileExtLower = strtolower($fileExtension);
+                                $isImage = in_array($fileExtLower, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                switch ($fileExtLower) {
                                     case 'pdf':
                                         $thumbnailPath = 'assets/img/icons/pdf.png';
                                         break;
@@ -973,6 +992,21 @@ if ($rowTask['status'] == 'Completed') {
                                                 <span class="fw-medium text-600"><?php echo $formattedDate; ?></span>
                                         </div>
                                         <div class="hover-actions end-0 top-50 translate-middle-y">
+                                            <?php if ($isImage) { ?>
+                                                <a class="btn btn-tertiary border-300 btn-sm me-1 text-600 glightbox"
+                                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                   href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                                   data-gallery="submitted-files-<?php echo $taskId; ?>"
+                                                   data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                                    <img src="assets/img/icons/eye.svg" alt="" width="15"/>
+                                                </a>
+                                            <?php } else { ?>
+                                                <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
+                                                        data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                        onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $fileExtLower; ?>')">
+                                                    <img src="assets/img/icons/eye.svg" alt="" width="15"/>
+                                                </button>
+                                            <?php } ?>
                                             <a class="btn btn-tertiary border-300 btn-sm me-1 text-600"
                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Download"
                                                href="<?php echo $fileUrl; ?>" download="<?php echo $fileName; ?>"><img
@@ -1681,27 +1715,82 @@ foreach ($comments as $comment) {
 
     <!-- File Preview Modal -->
     <div class='modal fade' id='filePreviewModal' tabindex='-1' aria-labelledby='filePreviewModalLabel' aria-hidden='true'>
-        <div class='modal-dialog' style='max-width: 100vw; width: 100vw; height: 100vh; margin: 0;'>
-            <div class='modal-content' style='height: 100vh; border-radius: 0;'>
+        <div class='modal-dialog modal-xl modal-dialog-centered' style='max-width: 1100px;'>
+            <div class='modal-content' style='height: 90vh;'>
                 <div class='modal-header' style='flex-shrink: 0;'>
                     <h5 class='modal-title' id='filePreviewModalLabel'>itasker file preview</h5>
                     <button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>
                 </div>
-                <div class='modal-body' id='filePreviewContent'
-                     style='flex: 1; display: flex; justify-content: center; align-items: center; padding: 0; overflow: hidden;'>
-                    <!-- Preview content will be injected here -->
+                <div class='modal-body'
+                     style='flex: 1; display: flex; justify-content: center; align-items: center; padding: 0; overflow: hidden; position: relative;'>
                     <div id='previewLoading' style='text-align:center;'>
                         <div class='spinner-border text-primary' role='status'>
                             <span class='visually-hidden'>Loading...</span>
                         </div>
                         <p>Loading preview...</p>
                     </div>
+                    <div id='previewUnsupported' class='text-center' style='display:none;'>
+                        <i class='fas fa-file-alt fa-3x text-muted mb-3'></i>
+                        <p class='mb-1'>Preview not available</p>
+                        <span class='text-muted'>This file type cannot be previewed. Please download it to view.</span>
+                    </div>
+                    <iframe id='previewFrame' style='width:100%; height:100%; border:none; display:none;' allowfullscreen></iframe>
                 </div>
             </div>
         </div>
     </div>
 
+    <script>
+        // Same viewer logic as share/task-view.php and sudo/view-task.php:
+        // PDFs/text load directly in the iframe, Office docs go through the
+        // Microsoft viewer, and anything else shows the "can't preview,
+        // download instead" message. Images are handled separately via
+        // GLightbox (see the .glightbox links on the file rows above) - not
+        // routed through here.
+        const MS_VIEWER_EXTS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+        const BROWSER_EXTS   = ['pdf', 'bmp', 'svg', 'txt'];
 
+        function openFileViewer(fileUrl, fileName, extension) {
+            const modalElement = document.getElementById('filePreviewModal');
+            const frame        = document.getElementById('previewFrame');
+            const loading      = document.getElementById('previewLoading');
+            const unsupported  = document.getElementById('previewUnsupported');
+            const title        = document.getElementById('filePreviewModalLabel');
+
+            frame.style.display = 'none';
+            frame.src = '';
+            loading.style.display = 'block';
+            unsupported.style.display = 'none';
+            title.textContent = fileName;
+
+            const ext = (extension || '').toLowerCase();
+            let viewerUrl = '';
+
+            if (MS_VIEWER_EXTS.includes(ext)) {
+                viewerUrl = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(fileUrl);
+            } else if (BROWSER_EXTS.includes(ext)) {
+                viewerUrl = fileUrl;
+            } else {
+                loading.style.display = 'none';
+                unsupported.style.display = 'block';
+            }
+
+            if (viewerUrl) {
+                frame.src = viewerUrl;
+                frame.onload = function() {
+                    loading.style.display = 'none';
+                    frame.style.display = 'block';
+                };
+                frame.onerror = function() {
+                    loading.style.display = 'none';
+                    unsupported.style.display = 'block';
+                };
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modal.show();
+        }
+    </script>
 
     <script>
         // Initialize tooltips for online indicators
