@@ -1318,7 +1318,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         // Determine thumbnail based on file extension
                                         $thumbnailPath = '../assets/img/icons/docs.png';
                                         $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                                        switch (strtolower($fileExtension)) {
+                                        $fileExtLower = strtolower($fileExtension);
+                                        $isImage = in_array($fileExtLower, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                        switch ($fileExtLower) {
                                             case 'pdf':
                                                 $thumbnailPath = '../assets/img/icons/pdf.png';
                                                 break;
@@ -1380,11 +1382,21 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                     <span class="fw-medium text-600"><?php echo $formattedDate; ?></span>
                                                 </div>
                                                 <div class="hover-actions end-0 top-50 translate-middle-y">
-                                                    <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
-                                                            data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
-                                                            onclick="previewFile('<?php echo $encodedId; ?>', <?php echo $fileIndex; ?>, 'task')">
-                                                        <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
-                                                    </button>
+                                                    <?php if ($isImage) { ?>
+                                                        <a class="btn btn-tertiary border-300 btn-sm me-1 text-600 glightbox"
+                                                           data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                           href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                                           data-gallery="task-files-<?php echo $taskId; ?>"
+                                                           data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                                            <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
+                                                        </a>
+                                                    <?php } else { ?>
+                                                        <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                                onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $fileExtLower; ?>')">
+                                                            <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
+                                                        </button>
+                                                    <?php } ?>
                                                     <a class="btn btn-tertiary border-300 btn-sm me-1 text-600"
                                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Download"
                                                        href="<?php echo $fileUrl; ?>"
@@ -1447,7 +1459,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         // Determine thumbnail based on file extension
                                         $thumbnailPath = '../assets/img/icons/docs.png';
                                         $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                                        switch (strtolower($fileExtension)) {
+                                        $fileExtLower = strtolower($fileExtension);
+                                        $isImage = in_array($fileExtLower, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                        switch ($fileExtLower) {
                                             case 'pdf':
                                                 $thumbnailPath = '../assets/img/icons/pdf.png';
                                                 break;
@@ -1513,11 +1527,21 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                     <span class="fw-medium text-600"><?php echo $formattedDate; ?></span>
                                                 </div>
                                                 <div class="hover-actions end-0 top-50 translate-middle-y">
-                                                    <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
-                                                            data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
-                                                            onclick="previewFile('<?php echo $encodedId; ?>', <?php echo $fileIndex; ?>, 'submitted')">
-                                                        <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
-                                                    </button>
+                                                    <?php if ($isImage) { ?>
+                                                        <a class="btn btn-tertiary border-300 btn-sm me-1 text-600 glightbox"
+                                                           data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                           href="<?php echo htmlspecialchars($fileUrl); ?>"
+                                                           data-gallery="submitted-files-<?php echo $taskId; ?>"
+                                                           data-glightbox="title: <?php echo htmlspecialchars(addslashes($fileName)); ?>">
+                                                            <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
+                                                        </a>
+                                                    <?php } else { ?>
+                                                        <button class="btn btn-tertiary border-300 btn-sm me-1 text-600"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="View File"
+                                                                onclick="openFileViewer('<?php echo htmlspecialchars(addslashes($fileUrl)); ?>', '<?php echo htmlspecialchars(addslashes($fileName)); ?>', '<?php echo $fileExtLower; ?>')">
+                                                            <img src="../assets/img/icons/eye.svg" alt="" width="15"/>
+                                                        </button>
+                                                    <?php } ?>
                                                     <a class="btn btn-tertiary border-300 btn-sm me-1 text-600"
                                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Download"
                                                        href="<?php echo $fileUrl; ?>"
@@ -2200,21 +2224,26 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             </div>
             <!-- File Preview Modal -->
             <div class='modal fade' id='filePreviewModal' tabindex='-1' aria-labelledby='filePreviewModalLabel' aria-hidden='true'>
-                <div class='modal-dialog' style='max-width: 100vw; width: 100vw; height: 100vh; margin: 0;'>
-                    <div class='modal-content' style='height: 100vh; border-radius: 0;'>
+                <div class='modal-dialog modal-xl modal-dialog-centered' style='max-width: 1100px;'>
+                    <div class='modal-content' style='height: 90vh;'>
                         <div class='modal-header' style='flex-shrink: 0;'>
                             <h5 class='modal-title' id='filePreviewModalLabel'>itasker file preview</h5>
                             <button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>
                         </div>
-                        <div class='modal-body' id='filePreviewContent'
-                             style='flex: 1; display: flex; justify-content: center; align-items: center; padding: 0; overflow: hidden;'>
-                            <!-- Preview content will be injected here -->
+                        <div class='modal-body'
+                             style='flex: 1; display: flex; justify-content: center; align-items: center; padding: 0; overflow: hidden; position: relative;'>
                             <div id='previewLoading' style='text-align:center;'>
                                 <div class='spinner-border text-primary' role='status'>
                                     <span class='visually-hidden'>Loading...</span>
                                 </div>
                                 <p>Loading preview...</p>
                             </div>
+                            <div id='previewUnsupported' class='text-center' style='display:none;'>
+                                <i class='fas fa-file-alt fa-3x text-muted mb-3'></i>
+                                <p class='mb-1'>Preview not available</p>
+                                <span class='text-muted'>This file type cannot be previewed. Please download it to view.</span>
+                            </div>
+                            <iframe id='previewFrame' style='width:100%; height:100%; border:none; display:none;' allowfullscreen></iframe>
                         </div>
                     </div>
                 </div>
@@ -2744,6 +2773,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 if (empty($rows)) { echo '<div>No ' . htmlspecialchars($fileType) . ' files attached.</div>'; return; }
                 $thumbMap = ['pdf'=>'pdf','doc'=>'word','docx'=>'word','rtf'=>'word','xls'=>'excel','xlsx'=>'excel','csv'=>'excel',
                     'ppt'=>'powerpoint','pptx'=>'powerpoint','jpg'=>'image','jpeg'=>'image','png'=>'image','gif'=>'image','zip'=>'zip','rar'=>'zip'];
+                $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
                 foreach ($rows as $row) {
                     $fn  = $row['original_file_name'];
                     $fu  = htmlspecialchars($row['file_url']);
@@ -2751,6 +2781,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     $sz  = $row['file_size'] > 0 ? round($row['file_size'] / pow(1024, floor(log($row['file_size'],1024))), 2) . ' ' . ['B','KB','MB','GB'][floor(log($row['file_size'],1024))] : 'Unknown size';
                     $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
                     $th  = $pathPrefix . 'assets/img/icons/' . ($thumbMap[$ext] ?? 'docs') . '.png';
+                    $isImage = in_array($ext, $imageExts);
                     echo '<div class="d-flex mb-3 hover-actions-trigger align-items-center">';
                     echo '<div class="file-thumbnail"><img class="border h-100 w-100 object-fit-cover rounded-2" src="' . $th . '" alt=""/></div>';
                     echo '<div class="ms-3 flex-shrink-1 flex-grow-1">';
@@ -2760,7 +2791,14 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     }
                     echo '<h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold" href="' . $fu . '" target="_blank">' . htmlspecialchars($fn) . '</a>' . $revisionBadge . '</h6>';
                     echo '<div class="fs-10"><span class="fw-medium text-600">' . $sz . '</span><span class="fw-medium text-600 mx-1">•</span><span class="fw-medium text-600">' . $fd . '</span></div>';
-                    echo '<div class="hover-actions end-0 top-50 translate-middle-y"><a class="btn btn-tertiary border-300 btn-sm me-1 text-600" data-bs-toggle="tooltip" data-bs-placement="top" title="Download" href="' . $fu . '" download="' . htmlspecialchars($fn) . '"><img src="' . $pathPrefix . 'assets/img/icons/cloud-download.svg" alt="" width="15"/></a></div>';
+                    echo '<div class="hover-actions end-0 top-50 translate-middle-y">';
+                    if ($isImage) {
+                        echo '<a class="btn btn-tertiary border-300 btn-sm me-1 text-600 glightbox" data-bs-toggle="tooltip" data-bs-placement="top" title="View File" href="' . $fu . '" data-gallery="wv-' . htmlspecialchars($fileType) . '-files-' . (int) $taskId . '" data-glightbox="title: ' . htmlspecialchars(addslashes($fn)) . '"><img src="' . $pathPrefix . 'assets/img/icons/eye.svg" alt="" width="15"/></a>';
+                    } else {
+                        echo '<button class="btn btn-tertiary border-300 btn-sm me-1 text-600" data-bs-toggle="tooltip" data-bs-placement="top" title="View File" onclick="openFileViewer(\'' . htmlspecialchars(addslashes($row['file_url'])) . '\', \'' . htmlspecialchars(addslashes($fn)) . '\', \'' . $ext . '\')"><img src="' . $pathPrefix . 'assets/img/icons/eye.svg" alt="" width="15"/></button>';
+                    }
+                    echo '<a class="btn btn-tertiary border-300 btn-sm me-1 text-600" data-bs-toggle="tooltip" data-bs-placement="top" title="Download" href="' . $fu . '" download="' . htmlspecialchars($fn) . '"><img src="' . $pathPrefix . 'assets/img/icons/cloud-download.svg" alt="" width="15"/></a>';
+                    echo '</div>';
                     echo '</div></div><hr class="text-200"/>';
                 }
             }
@@ -3117,11 +3155,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             });
         });
 
-        function viewFile(taskId, fileIndex, fileType) {
-            const url = `file-viewer.php?task_id=${taskId}&file=${fileIndex}&type=${fileType}`;
-            window.open(url, 'fileViewer', 'width=1000,height=700,scrollbars=yes,resizable=yes');
-        }
-
         function toggleFavorite(taskId) {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', 'toggle_favorite', true);
@@ -3290,74 +3323,52 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         })();
     </script>
     <script>
-        function previewFile(taskId, fileIndex, fileType) {
-            const modalElement = document.getElementById('filePreviewModal');
-            const contentContainer = document.getElementById('filePreviewContent');
-            const loadingIndicator = document.getElementById('previewLoading');
+        // Same viewer logic as share/task-view.php: PDFs/text load directly in
+        // the iframe, Office docs go through the Microsoft viewer, and
+        // anything else shows the "can't preview, download instead" message.
+        // Images are handled separately via GLightbox (see the .glightbox
+        // links on the file rows below) - not routed through here.
+        const MS_VIEWER_EXTS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+        const BROWSER_EXTS   = ['pdf', 'bmp', 'svg', 'txt'];
 
-            // Clean up any existing modal instance
-            const existingModal = bootstrap.Modal.getInstance(modalElement);
-            if (existingModal) {
-                existingModal.dispose();
+        function openFileViewer(fileUrl, fileName, extension) {
+            const modalElement = document.getElementById('filePreviewModal');
+            const frame        = document.getElementById('previewFrame');
+            const loading      = document.getElementById('previewLoading');
+            const unsupported  = document.getElementById('previewUnsupported');
+            const title        = document.getElementById('filePreviewModalLabel');
+
+            frame.style.display = 'none';
+            frame.src = '';
+            loading.style.display = 'block';
+            unsupported.style.display = 'none';
+            title.textContent = fileName;
+
+            const ext = (extension || '').toLowerCase();
+            let viewerUrl = '';
+
+            if (MS_VIEWER_EXTS.includes(ext)) {
+                viewerUrl = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(fileUrl);
+            } else if (BROWSER_EXTS.includes(ext)) {
+                viewerUrl = fileUrl;
+            } else {
+                loading.style.display = 'none';
+                unsupported.style.display = 'block';
             }
 
-            // Create a fresh modal instance
-            const modal = new bootstrap.Modal(modalElement);
+            if (viewerUrl) {
+                frame.src = viewerUrl;
+                frame.onload = function() {
+                    loading.style.display = 'none';
+                    frame.style.display = 'block';
+                };
+                frame.onerror = function() {
+                    loading.style.display = 'none';
+                    unsupported.style.display = 'block';
+                };
+            }
 
-            // Reset modal content
-            contentContainer.innerHTML = '';
-
-            // Create and show loading indicator
-            const loadingDiv = document.createElement('div');
-            loadingDiv.id = 'previewLoading';
-            loadingDiv.style.textAlign = 'center';
-            loadingDiv.innerHTML = `
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-        <p>Loading preview...</p>
-      `;
-            contentContainer.appendChild(loadingDiv);
-
-            // Build the file viewer URL
-            const url = `file-viewer?task_id=${taskId}&file=${fileIndex}&type=${fileType}`;
-
-            // Create iframe for preview
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.width = '100%';
-            iframe.style.height = '95vh';
-            iframe.style.border = 'none';
-
-            // When iframe loads, hide loading spinner
-            iframe.onload = () => {
-                const currentLoading = document.getElementById('previewLoading');
-                if (currentLoading) {
-                    currentLoading.remove();
-                }
-            };
-
-            // Add error handling
-            iframe.onerror = () => {
-                const currentLoading = document.getElementById('previewLoading');
-                if (currentLoading) {
-                    currentLoading.innerHTML = '<p class="text-danger">Failed to load file preview.</p>';
-                }
-            };
-
-            // Add iframe to content container
-            contentContainer.appendChild(iframe);
-
-            // Clean up when modal is hidden
-            modalElement.addEventListener('hidden.bs.modal', function() {
-                contentContainer.innerHTML = '';
-                const modalInstance = bootstrap.Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    modalInstance.dispose();
-                }
-            }, { once: true }); // Use { once: true } to prevent multiple event listeners
-
-            // Show modal
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
             modal.show();
         }
     </script>
