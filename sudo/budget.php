@@ -2168,7 +2168,7 @@ ORDER BY subcategory, transaction_date;
 
                     // Fetch goal names for the Description field
                     try {
-                        const response = await fetch("fetch-savings-goals.php");
+                        const response = await fetch("fetch-savings-goals");
                         const goals = await response.json(); // Assuming JSON response from the server
 
                         goals.forEach(goal => {

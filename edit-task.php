@@ -76,7 +76,7 @@ if ($row = mysqli_fetch_array($result)) {
     <div class="card-body bg-body-tertiary">
         <div class="tab-content">
             <div class="tab-pane preview-tab-pane active" >
-                <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="update-task.php" enctype="multipart/form-data">
+                <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="update-task" enctype="multipart/form-data">
 <?= csrf_field() ?>
                     <div class="card mb-3">
                         <div class="card-header bg-body-tertiary">
@@ -428,7 +428,7 @@ if ($row = mysqli_fetch_array($result)) {
             formData.append('action', 'submitForm'); // Append the action field here
 
             try {
-                const response = await fetch('update-task.php', {
+                const response = await fetch('update-task', {
                     method: 'POST',
                     body: formData,
                 });
@@ -491,7 +491,7 @@ if ($row = mysqli_fetch_array($result)) {
     });
     function deleteFile(filePath, elementToRemove) {
         if (confirm('Are you sure you want to delete this file?')) {
-            fetch('delete-file.php', {
+            fetch('delete-file', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

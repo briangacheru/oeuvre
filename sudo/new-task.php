@@ -41,7 +41,7 @@ include "head.php";?>
         <div class="card-body bg-body-tertiary">
             <div class="tab-content">
                 <div class="tab-pane preview-tab-pane active" >
-                    <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submit_task.php" enctype="multipart/form-data">
+                    <form class="needs-validation" novalidate="novalidate" id="taskForm" method="post" action="submit_task" enctype="multipart/form-data">
 <?= csrf_field() ?>
                         <div class="card mb-3">
                             <div class="card-header bg-body-tertiary">
@@ -192,7 +192,7 @@ include "footer.php";
 <script>
     // Dropzone configuration
     Dropzone.options.dropzoneMultipleFileUpload = {
-        url: 'file-upload-handler.php',
+        url: 'file-upload-handler',
         autoProcessQueue: true,
         parallelUploads: 5,
         maxFiles: 10,
@@ -218,7 +218,7 @@ include "footer.php";
                 });
 
                 // Ajax to submit form data along with file names
-                fetch('submit_task.php', {
+                fetch('submit_task', {
                     method: 'POST',
                     body: formData,
                 })
