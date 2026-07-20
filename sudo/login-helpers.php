@@ -56,11 +56,14 @@ if (!function_exists('finalize_admin_login')) {
         record_login_session($dbh, $email);
 
         if ($remember) {
+            // Stored raw (not password_hash()'d) - check-login.php looks this
+            // up with a direct `WHERE remember_token = ?` equality match,
+            // which a randomly-salted bcrypt hash could never satisfy. The
+            // token itself is 128 bits of randomness, unguessable either way.
             $rememberToken = bin2hex(random_bytes(16));
-            $hashedRememberToken = password_hash($rememberToken, PASSWORD_DEFAULT);
             $updateTokenSql = "UPDATE tbladmin SET remember_token = ? WHERE email = ?";
             $stmt = $con->prepare($updateTokenSql);
-            $stmt->bind_param('ss', $hashedRememberToken, $email);
+            $stmt->bind_param('ss', $rememberToken, $email);
             $stmt->execute();
 
             setcookie('rememberme', $rememberToken, time() + 1209600, '/', '', true, true); // 2 weeks

@@ -39,11 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 $sharedTaskIdEncoded = $_POST['task_id'] ?? $_GET['task_id'] ?? null;
 
+                $deviceToken = $_COOKIE['writer_device_token'] ?? null;
+                $deviceKnown = is_known_device_token($con, 'tblwriter_known_devices', 'writer_email', $email, $deviceToken);
+
                 // Returning after a fully-expired session (7-day normal timeout,
-                // or the remember-me cookie itself lapsing after 2 weeks) requires
-                // an emailed verification code before the session is established.
-                // A fresh/first-time login does not.
-                $otpCode = (isset($_GET['timeout']) && $_GET['timeout'] == '1')
+                // or the remember-me cookie itself lapsing after 2 weeks), or
+                // logging in from a browser this account hasn't used before,
+                // requires an emailed verification code before the session is
+                // established.
+                $otpCode = ((isset($_GET['timeout']) && $_GET['timeout'] == '1') || !$deviceKnown)
                     ? generate_login_otp($con, 'tblwriters', $email)
                     : null;
 
@@ -53,10 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $_SESSION['otp_pending_email'] = $email;
                     $_SESSION['otp_pending_remember'] = isset($_POST['remember']);
                     $_SESSION['otp_pending_task_id'] = $sharedTaskIdEncoded;
+                    // Only carry the token through if it was already known - a
+                    // missing/unrecognized one must mint a fresh device record
+                    // once the code is verified, not be trusted early.
+                    $_SESSION['otp_pending_device_token'] = $deviceKnown ? $deviceToken : null;
 
                     header('Location: verify-login-code.php');
                     exit;
                 }
+
+                // Device already known and no code was required - slide its
+                // trust window forward.
+                remember_device($con, 'tblwriter_known_devices', 'writer_email', $email, 'writer_device_token', $deviceToken);
 
                 $redirectUrl = finalize_writer_login($con, $email, isset($_POST['remember']), $sharedTaskIdEncoded);
 

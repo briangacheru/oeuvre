@@ -116,35 +116,45 @@ if (!isset($_SESSION['sessionWriter']) && isset($_COOKIE['rememberme'])) {
 
     if ($result->num_rows == 1) {
         $row = $result->fetch_assoc();
-        $_SESSION['sessionWriter'] = $row['email'];
-        record_writer_session($con, $row['email']);
 
-        // Log automatic login via remember me token
-        if (isset($activityLogger)) {
-            $additionalData = [
-                'login_method' => 'remember_token',
-                'auto_login' => true
-            ];
-            $activityLogger->logActivity($row['email'], 'login_success', null, $additionalData);
-        }
+        // A valid remember-me token alone isn't enough - the browser must
+        // also carry this account's known-device cookie, or a stolen/copied
+        // remember-me token would silently re-establish a session with no
+        // verification at all. An unrecognized device falls through here and
+        // continues on to a full password + emailed-code login instead.
+        $deviceToken = $_COOKIE['writer_device_token'] ?? null;
+        if (is_known_device_token($con, 'tblwriter_known_devices', 'writer_email', $row['email'], $deviceToken)) {
+            $_SESSION['sessionWriter'] = $row['email'];
+            record_writer_session($con, $row['email']);
+            remember_device($con, 'tblwriter_known_devices', 'writer_email', $row['email'], 'writer_device_token', $deviceToken);
 
-        // Update user status to online
-        $email = $_SESSION['sessionWriter'];
-        $userType = 'writer';
-        updateUserStatus($email, $userType, true);
-        touch_writer_session($con, $email);
+            // Log automatic login via remember me token
+            if (isset($activityLogger)) {
+                $additionalData = [
+                    'login_method' => 'remember_token',
+                    'auto_login' => true
+                ];
+                $activityLogger->logActivity($row['email'], 'login_success', null, $additionalData);
+            }
 
-        // Check for last page cookies and redirect
-        if (isset($_COOKIE['last_page_before_timeout'])) {
-            $lastPage = $_COOKIE['last_page_before_timeout'];
-            setcookie('last_page_before_timeout', '', time() - 3600, '/');
-            header("Location: $lastPage");
-            exit();
-        } elseif (isset($_COOKIE['last_page_before_logout'])) {
-            $lastPage = $_COOKIE['last_page_before_logout'];
-            setcookie('last_page_before_logout', '', time() - 3600, '/');
-            header("Location: $lastPage");
-            exit();
+            // Update user status to online
+            $email = $_SESSION['sessionWriter'];
+            $userType = 'writer';
+            updateUserStatus($email, $userType, true);
+            touch_writer_session($con, $email);
+
+            // Check for last page cookies and redirect
+            if (isset($_COOKIE['last_page_before_timeout'])) {
+                $lastPage = $_COOKIE['last_page_before_timeout'];
+                setcookie('last_page_before_timeout', '', time() - 3600, '/');
+                header("Location: $lastPage");
+                exit();
+            } elseif (isset($_COOKIE['last_page_before_logout'])) {
+                $lastPage = $_COOKIE['last_page_before_logout'];
+                setcookie('last_page_before_logout', '', time() - 3600, '/');
+                header("Location: $lastPage");
+                exit();
+            }
         }
     }
 }

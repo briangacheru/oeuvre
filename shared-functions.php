@@ -731,3 +731,75 @@ if (!function_exists('verify_login_otp')) {
         return ['success' => true];
     }
 }
+
+// ---- Known-device login detection ----
+// A device (browser) is "known" only after it completes a full login
+// (password, plus the emailed OTP when required). is_known_device_token()
+// checks a long-lived cookie against tblwriter_known_devices/
+// tbladmin_known_devices; remember_device() (re)issues that cookie and
+// (re)records the device with a sliding trust window, refreshed on every
+// recognized login. $table/$emailColumn must always be hardcoded literals
+// ('tblwriter_known_devices'/'writer_email' or 'tbladmin_known_devices'/
+// 'admin_email') supplied by the calling code, never derived from request
+// input.
+
+if (!function_exists('known_device_trust_days')) {
+    function known_device_trust_days() { return 30; }
+}
+
+if (!function_exists('is_known_device_token')) {
+    // Returns true only if $deviceToken matches a non-expired row for $email.
+    // Fails closed (false) on any error, including the migration not having
+    // been run yet - a missing table must never be read as "device known".
+    function is_known_device_token($con, $table, $emailColumn, $email, $deviceToken) {
+        if (empty($deviceToken)) {
+            return false;
+        }
+
+        $tokenHash = hash('sha256', $deviceToken);
+        $stmt = $con->prepare("SELECT id FROM `$table` WHERE `$emailColumn` = ? AND device_token_hash = ? AND expires_at > NOW()");
+        if (!$stmt) {
+            error_log("is_known_device_token: prepare failed on `$table` (has db-migrations/2026_07_20_add_known_devices.sql been run?) - " . $con->error);
+            return false;
+        }
+        $stmt->bind_param('ss', $email, $tokenHash);
+        $stmt->execute();
+        $found = $stmt->get_result()->num_rows > 0;
+        $stmt->close();
+
+        return $found;
+    }
+}
+
+if (!function_exists('remember_device')) {
+    // Call after a successful login. Pass $existingToken (the cookie value
+    // that was just verified by is_known_device_token()) to slide that same
+    // device's trust window forward; omit it to mint a brand-new token for a
+    // device that just passed OTP for the first time. Always (re)sets the
+    // cookie, since the browser's own copy should slide forward too.
+    function remember_device($con, $table, $emailColumn, $email, $cookieName, $existingToken = null) {
+        $token = $existingToken ?: bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
+        $days = known_device_trust_days();
+        $now = date('Y-m-d H:i:s');
+        $expiresAt = date('Y-m-d H:i:s', time() + $days * 86400);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $label = function_exists('get_device_info') ? get_device_info($_SERVER['HTTP_USER_AGENT'] ?? '') : null;
+
+        $sql = "INSERT INTO `$table` (`$emailColumn`, device_token_hash, device_label, ip_address, first_seen, last_seen, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    last_seen = VALUES(last_seen), expires_at = VALUES(expires_at),
+                    ip_address = VALUES(ip_address), device_label = VALUES(device_label)";
+        $stmt = $con->prepare($sql);
+        if (!$stmt) {
+            error_log("remember_device: prepare failed on `$table` (has db-migrations/2026_07_20_add_known_devices.sql been run?) - " . $con->error);
+            return;
+        }
+        $stmt->bind_param('sssssss', $email, $tokenHash, $label, $ip, $now, $now, $expiresAt);
+        $stmt->execute();
+        $stmt->close();
+
+        setcookie($cookieName, $token, time() + $days * 86400, '/', '', true, true);
+    }
+}

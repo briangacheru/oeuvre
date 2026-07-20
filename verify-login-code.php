@@ -30,7 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result['success']) {
             $remember = !empty($_SESSION['otp_pending_remember']);
             $taskIdParam = $_SESSION['otp_pending_task_id'] ?? null;
-            unset($_SESSION['otp_pending_email'], $_SESSION['otp_pending_remember'], $_SESSION['otp_pending_task_id']);
+            $existingDeviceToken = $_SESSION['otp_pending_device_token'] ?? null;
+            unset($_SESSION['otp_pending_email'], $_SESSION['otp_pending_remember'], $_SESSION['otp_pending_task_id'], $_SESSION['otp_pending_device_token']);
+
+            remember_device($con, 'tblwriter_known_devices', 'writer_email', $pendingEmail, 'writer_device_token', $existingDeviceToken);
 
             $redirectUrl = finalize_writer_login($con, $pendingEmail, $remember, $taskIdParam);
             header('Location: ' . $redirectUrl);

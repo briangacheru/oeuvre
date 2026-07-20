@@ -30,7 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result['success']) {
             $remember = !empty($_SESSION['otp_pending_remember']);
             $redirectParam = $_SESSION['otp_pending_redirect'] ?? '';
-            unset($_SESSION['otp_pending_email'], $_SESSION['otp_pending_remember'], $_SESSION['otp_pending_redirect']);
+            $existingDeviceToken = $_SESSION['otp_pending_device_token'] ?? null;
+            unset($_SESSION['otp_pending_email'], $_SESSION['otp_pending_remember'], $_SESSION['otp_pending_redirect'], $_SESSION['otp_pending_device_token']);
+
+            remember_device($con, 'tbladmin_known_devices', 'admin_email', $pendingEmail, 'admin_device_token', $existingDeviceToken);
 
             $redirectUrl = finalize_admin_login($con, $dbh, $pendingEmail, $remember, $redirectParam);
             header('Location: ' . $redirectUrl);
