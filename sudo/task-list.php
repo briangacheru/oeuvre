@@ -19,6 +19,7 @@ while ($row = mysqli_fetch_assoc($query)) {
 
     $tasksByDate[$formatted_due_date][] = [
         'id' => $row['id'],
+        'encodedId' => encode_task_id($row['id']),
         'title' => $title,
         'start' => $due_date->format('Y-m-d\TH:i:s'),
         'topic' => $row['topic'],
@@ -125,7 +126,7 @@ include "footer.php";
                         document.getElementById('taskDetails').innerHTML = taskDetailsHtml;
 
                         var viewTaskLink = document.getElementById('viewTaskLink');
-                        viewTaskLink.href = 'view-task?task_id=' + btoa(task.id);
+                        viewTaskLink.href = 'view-task?task_id=' + encodeURIComponent(task.encodedId);
 
                         var taskModal = new bootstrap.Modal(document.getElementById('taskModal'));
                         taskModal.show();

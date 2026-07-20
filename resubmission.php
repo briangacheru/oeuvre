@@ -5,7 +5,7 @@ $taskId = ''; // Initialize the $taskId variable
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 } else {
     $_SESSION['alert'] ='<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -22,7 +22,7 @@ $sql2 = "SELECT * FROM tbltasks WHERE id='$taskId'";
 $result = mysqli_query($con, $sql2);
 
 if ($rowTask = mysqli_fetch_array($result)) {
-    $id = base64_encode($rowTask["id"]);
+    $id = encode_task_id($rowTask["id"]);
     $taskTopic = $rowTask["topic"];
     $taskSubject = $rowTask["subject"];
     $taskAccount = $rowTask["account"];

@@ -97,7 +97,7 @@ try {
     }
 
     $task_id = mysqli_insert_id($con);
-    $encodedId = base64_encode((string)$task_id);
+    $encodedId = encode_task_id($task_id);
 
     // Handle file uploads - Insert into tbl_task_files table
     $uploadedFiles = [];

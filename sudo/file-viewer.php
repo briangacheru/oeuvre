@@ -15,7 +15,7 @@ if (!isset($_GET['file']) || !isset($_GET['task_id'])) {
 }
 
 $encodedTaskId = $_GET['task_id'];
-$taskId = (int) base64_decode($encodedTaskId);
+$taskId = decode_task_id($encodedTaskId);
 $fileIndex = (int)$_GET['file'];
 $fileType = $_GET['type'] ?? 'task'; // 'task' or 'submitted'
 

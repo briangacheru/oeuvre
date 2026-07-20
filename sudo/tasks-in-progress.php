@@ -13,7 +13,7 @@ $msg = "";
 
 if (isset($_GET['del'])) {
     $encodedId = $_GET['del'];
-    $cmpid = (int) base64_decode($encodedId);
+    $cmpid = decode_task_id($encodedId);
     $cancellationReason = trim($_GET['reason'] ?? '') ?: 'No reason provided';
 
     // Validate $cmpid to ensure it's numeric and not empty
@@ -317,7 +317,7 @@ if (isset($_SESSION['alert'])) {
                                             while($row=mysqli_fetch_array($query))
                                             {
                                                 $totalprice=$row["cpp"]*$row["pages"];
-                                                $encodedId = base64_encode($row["id"]); // Encode the id
+                                                $encodedId = encode_task_id($row["id"]); // Encode the id
 
                                                 $due_date = new DateTime($row['due_date']);
                                                 $currentDateTime = new DateTime(); // Assuming you've already got this

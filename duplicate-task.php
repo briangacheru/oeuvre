@@ -2,7 +2,7 @@
 include 'check-login.php'; // Ensure this includes your database connection settings
 
 if (isset($_GET['task_id'])) {
-    $taskId = (int) base64_decode($_GET['task_id']);
+    $taskId = decode_task_id($_GET['task_id']);
 
     // Fetch the original task
     $query = "SELECT * FROM tbltasks WHERE id='$taskId'";
@@ -27,7 +27,7 @@ if (isset($_GET['task_id'])) {
                                 VALUES ('$topic', '$subject', '$account', '$description', '$writer', '$writerEmail', '$due_date', '$cpp', '$pages', '$is_confirmed', '$filesString' )";
         if (mysqli_query($con, $duplicateQuery)) {
             $newTaskId = mysqli_insert_id($con); // Get the ID of the new task
-            $encodedId = base64_encode($newTaskId);
+            $encodedId = encode_task_id($newTaskId);
             header("Location: view-task.php?task_id=$encodedId&message=Task duplicated successfully"); // Redirect to the new task
             exit;
         } else {

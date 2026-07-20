@@ -5,7 +5,7 @@ csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $transactionID = (int) $_POST['transactionID'];
     $encodedPID    = $_POST['projectID'];
-    $projectID     = (int) base64_decode($encodedPID);
+    $projectID     = decode_project_id($encodedPID);
 
     // Verify the transaction belongs to this project before deleting
     $check = $con->prepare("SELECT transactionID FROM tbl_project_transactions WHERE transactionID = ? AND projectID = ?");

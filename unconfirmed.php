@@ -74,7 +74,7 @@
                                             while($row=mysqli_fetch_array($query))
                                             {
                                                 $totalprice=$row["cpp"]*$row["pages"];
-                                                $encodedId = base64_encode($row["id"]); // Encode the id
+                                                $encodedId = encode_task_id($row["id"]); // Encode the id
 
                                                 $due_date = new DateTime($row['due_date']);
                                                 $currentDateTime = new DateTime(); // Assuming you've already got this

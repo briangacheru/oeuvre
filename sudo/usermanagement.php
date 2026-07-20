@@ -603,7 +603,7 @@ if (isset($_SESSION['alert'])) {
 
                                         $cnt=1;
                                         while($row=mysqli_fetch_array($query)) {
-                                            $encodedId = base64_encode($row["id"]); // Encode the id
+                                            $encodedId = encode_writer_id($row["id"]); // Encode the id
                                             $isActive = isset($row['is_active']) ? $row['is_active'] : 1; // Default to active if column doesn't exist
 
                                             // Check if registered less than a month ago and not verified

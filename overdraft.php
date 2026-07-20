@@ -184,7 +184,7 @@ if (isset($_SESSION['alert'])) {
                                             $cnt = 1;
                                             if ($query && mysqli_num_rows($query) > 0) {
                                             while ($row = mysqli_fetch_array($query)) {
-                                                $encodedId = base64_encode($row["id"]);
+                                                $encodedId = encode_overdraft_id($row["id"]);
                                                 $recordType = isset($row["record_type"]) && !empty($row["record_type"]) ? $row["record_type"] : 'overdraft';
                                                 $badgeClass = ($recordType === 'bonus') ? 'badge-subtle-info' : 'badge-subtle-warning';
                                                 $typeDisplay = ($recordType === 'bonus') ? 'Bonus' : 'Overdraft';

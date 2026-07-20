@@ -51,7 +51,7 @@ if (isset($_SESSION['alert'])) {
                 $netBalance = $totalInc - $totalExp;
                 $spentPct   = $pBudget > 0 ? min(($totalExp / $pBudget) * 100, 100) : 0;
                 $isOver     = $totalExp > $pBudget;
-                $encodedID  = base64_encode($pID);
+                $encodedID  = encode_project_id($pID);
 
                 $now    = new DateTime();
                 $due    = new DateTime($pDue);
@@ -182,7 +182,7 @@ if (isset($_SESSION['alert'])) {
                                 $rDueFmt  = $r['projectPeriod'];
                                 $rStat    = $r['projectStatus'];
                                 $rAch     = $r['is_achieved'];
-                                $encID    = base64_encode($rID);
+                                $encID    = encode_project_id($rID);
 
                                 if ($rAch == 1)
                                     $statusBadge = '<span class="badge badge-subtle-success fs-11">Achieved</span>';

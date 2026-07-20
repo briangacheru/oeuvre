@@ -138,7 +138,7 @@ $sumSaved = $sumRow['totalBudget'] - $sumRow['totalSpent'];
                                 $aSaved   = $aBudget - $aSpent;
                                 $aDue     = date("M j, Y", strtotime($a['projectPeriod']));
                                 $aComp    = $a['completed_at'] ? date("M j, Y", strtotime($a['completed_at'])) : '—';
-                                $encID    = base64_encode($aID);
+                                $encID    = encode_project_id($aID);
                                 $netClass = $aNet >= 0 ? 'text-success' : 'text-danger';
                                 $savClass = $aSaved >= 0 ? 'text-success' : 'text-danger';
                                 $netBadge = $aNet >= 0

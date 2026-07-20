@@ -187,7 +187,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
 
         $emailStatus = '';
         if ($sendEmail == '1') {
-            $encodedId = base64_encode((string)$taskId);
+            $encodedId = encode_task_id($taskId);
             $total_price = $pages * $cpp;
             $mail = new PHPMailer(true);
 
@@ -371,7 +371,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
         echo json_encode([
             'status' => 'success',
             'message' => 'Task submitted successfully. ' . ($sendEmail == '1' ? $emailStatus : ''),
-            'task_id' => base64_encode($taskId)
+            'task_id' => encode_task_id($taskId)
         ]);
 
     } catch (Exception $e) {

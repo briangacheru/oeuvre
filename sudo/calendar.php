@@ -19,6 +19,7 @@ while ($row = mysqli_fetch_assoc($query)) {
 
     $tasks[] = [
         'id' => $row['id'],
+        'encodedId' => encode_task_id($row['id']),
         'title' => $title, // Display task ID, account, and conditional time due in AM/PM
         'start' => $formatted_due_date,
         'topic' => $row['topic'],
@@ -193,7 +194,7 @@ include "footer.php";
                 document.getElementById('taskDetails').innerHTML = taskDetails;
 
                 var viewTaskLink = document.getElementById('viewTaskLink');
-                viewTaskLink.href = 'view-task?task_id=' + btoa(info.event.id);
+                viewTaskLink.href = 'view-task?task_id=' + encodeURIComponent(info.event.extendedProps.encodedId);
 
                 var taskModal = new bootstrap.Modal(document.getElementById('taskModal'));
                 taskModal.show();

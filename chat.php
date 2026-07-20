@@ -448,6 +448,7 @@ usort($users, function($a, $b) {
     // initial page load).
     let lastTimestamp = '<?php echo gmdate('Y-m-d H:i:s'); ?>';
     let linkedTaskId = null;
+    let linkedTaskEncodedId = null;
 
     const CONTACT_NAMES = <?php echo json_encode(array_column($users, 'username', 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
@@ -543,7 +544,7 @@ usort($users, function($a, $b) {
                 <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                     ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                        ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                        ${taskChipHtml(message.related_task_id, message.encoded_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                         ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                         ${fileAttachmentHtml(message.file_url, message.original_file_name)}
                     </div>
@@ -610,7 +611,7 @@ usort($users, function($a, $b) {
                             <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                                 ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                                 <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                                    ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                                    ${taskChipHtml(message.related_task_id, message.encoded_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                                     ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                                     ${fileAttachmentHtml(message.file_url, message.original_file_name)}
                                 </div>
@@ -871,7 +872,7 @@ usort($users, function($a, $b) {
                     item.className = 'list-group-item list-group-item-action';
                     item.textContent = `#${task.id} - ${task.topic}`;
                     item.onclick = function() {
-                        selectLinkedTask(task.id, task.topic);
+                        selectLinkedTask(task.id, task.encoded_id, task.topic);
                         bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                     };
                     list.appendChild(item);
@@ -886,8 +887,9 @@ usort($users, function($a, $b) {
             });
     }
 
-    function selectLinkedTask(taskId, topic) {
+    function selectLinkedTask(taskId, encodedTaskId, topic) {
         linkedTaskId = taskId;
+        linkedTaskEncodedId = encodedTaskId;
         const banner = document.getElementById('linked-task-banner');
         const label = document.getElementById('linked-task-label');
         if (label) label.textContent = `Discussing: Task #${taskId} - ${topic}`;
@@ -896,15 +898,20 @@ usort($users, function($a, $b) {
 
     function clearLinkedTask() {
         linkedTaskId = null;
+        linkedTaskEncodedId = null;
         const banner = document.getElementById('linked-task-banner');
         if (banner) banner.classList.add('d-none');
     }
 
-    // Small chip linking a message back to the task it was sent about.
-    function taskChipHtml(relatedTaskId) {
+    // Small chip linking a message back to the task it was sent about. encodedTaskId
+    // must come from the server (get_linkable_tasks / fetch_messages / poll_messages);
+    // there's no client-side way to derive a valid task_id token from the raw id.
+    function taskChipHtml(relatedTaskId, encodedTaskId) {
         if (!relatedTaskId) return '';
-        const encodedId = btoa(String(relatedTaskId));
-        return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-800 text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
+        if (!encodedTaskId) {
+            return `<span class="badge bg-secondary-subtle text-800 d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</span><br>`;
+        }
+        return `<a href="view-task?task_id=${encodeURIComponent(encodedTaskId)}" class="badge bg-secondary-subtle text-800 text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
     }
 
     function updateReadStatus(userId) {
@@ -970,7 +977,7 @@ usort($users, function($a, $b) {
                         <div class="hover-actions-trigger d-flex flex-end-center">
                             ${data.message_id ? messageActionsHtml(data.message_id) : ''}
                             <div class="chat-message bg-primary text-white p-2 rounded-2">
-                                ${taskChipHtml(linkedTaskId)}<span class="message-text">${escapeHtml(decodeURIComponent(encodedMessageContent))}</span>
+                                ${taskChipHtml(linkedTaskId, linkedTaskEncodedId)}<span class="message-text">${escapeHtml(decodeURIComponent(encodedMessageContent))}</span>
             `;
 
                     if (data.file_url) {

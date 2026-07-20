@@ -3,7 +3,7 @@ include "header.php";
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 } else {
     $_SESSION['alert'] ='<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -21,7 +21,7 @@ $sql2 = "SELECT * FROM tbltasks WHERE id='$taskId'";
 $result = mysqli_query($con, $sql2);
 
 if ($row = mysqli_fetch_array($result)) {
-    $id = base64_encode($row["id"]);
+    $id = encode_task_id($row["id"]);
     $taskTopic = $row["topic"];
     $taskSubject = $row["subject"];
     $taskAccount = $row["account"];

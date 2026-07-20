@@ -1,7 +1,7 @@
 <?php include "head.php";
 
 if (isset($_GET['projectID'])) {
-    $projectID = (int) base64_decode($_GET['projectID']);
+    $projectID = decode_project_id($_GET['projectID']);
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -34,7 +34,7 @@ $pBudget     = $rowP['projectAmount'];
 $pCreated    = date("F j, Y", strtotime($rowP['created_at']));
 $pAchieved   = $rowP['is_achieved'];
 $pCompleted  = $rowP['completed_at'];
-$encodedID   = base64_encode($projectID);
+$encodedID   = encode_project_id($projectID);
 
 // ── Aggregates ──────────────────────────────────────────────────────────────
 $stmtA = $con->prepare("

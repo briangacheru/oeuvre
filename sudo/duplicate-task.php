@@ -2,7 +2,7 @@
 include 'check-login.php'; // Ensure this includes your database connection settings
 
 if (isset($_GET['task_id'])) {
-    $taskId = (int) base64_decode($_GET['task_id']);
+    $taskId = decode_task_id($_GET['task_id']);
 
     // Fetch the original task
     $query = "SELECT * FROM tbltasks WHERE id='$taskId'";
@@ -68,7 +68,7 @@ if (isset($_GET['task_id'])) {
 
             mysqli_stmt_close($stmt);
 
-            $encodedId = base64_encode($newTaskId);
+            $encodedId = encode_task_id($newTaskId);
 
             // Build success message
             $successMessage = "Task duplicated successfully!";
@@ -96,7 +96,7 @@ if (isset($_GET['task_id'])) {
                 <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>';
 
-            header("Location: view-task?task_id=" . base64_encode($taskId)); // Redirect back to original task
+            header("Location: view-task?task_id=" . encode_task_id($taskId)); // Redirect back to original task
             exit;
         }
     } else {

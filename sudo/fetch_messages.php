@@ -2,6 +2,7 @@
 require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
+require_once __DIR__ . '/../shared-functions.php';
 header('Content-Type: application/json');
 
 // Basic input validation
@@ -79,7 +80,8 @@ try {
             'original_file_name' => $message['original_file_name'],
             'is_read' => intval($message['is_read']) ? true : false,
             'is_edited' => intval($message['is_edited']) ? true : false,
-            'related_task_id' => $message['related_task_id'] ? intval($message['related_task_id']) : null
+            'related_task_id' => $message['related_task_id'] ? intval($message['related_task_id']) : null,
+            'encoded_task_id' => $message['related_task_id'] ? encode_task_id($message['related_task_id']) : null
         ];
     }
 

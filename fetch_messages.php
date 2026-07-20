@@ -35,6 +35,7 @@ if (isset($_GET['user_id']) && isset($_GET['user_type'])) {
 
         $messages = [];
         while ($message = mysqli_fetch_assoc($result)) {
+            $message['encoded_task_id'] = $message['related_task_id'] ? encode_task_id($message['related_task_id']) : null;
             $messages[] = $message;
         }
 

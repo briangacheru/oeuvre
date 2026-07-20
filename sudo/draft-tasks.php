@@ -7,7 +7,7 @@ $msg = "";
 
 if (isset($_GET['del'])) {
     $encodedId = $_GET['del'];
-    $cmpid = (int) base64_decode($encodedId);
+    $cmpid = decode_task_id($encodedId);
 
     // Validate $cmpid to ensure it's numeric and not empty
     if (is_numeric($cmpid) && !empty($cmpid)) {
@@ -105,7 +105,7 @@ if (isset($_GET['del'])) {
                                             while($row=mysqli_fetch_array($query))
                                             {
                                                 $totalprice=$row["cpp"]*$row["pages"];
-                                                $encodedId = base64_encode($row["id"]); // Encode the id
+                                                $encodedId = encode_task_id($row["id"]); // Encode the id
 
                                                 // Determine badge based on task status
                                                 $statusBadge = '';

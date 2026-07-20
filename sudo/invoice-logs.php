@@ -4,7 +4,7 @@
 
 // ── Handle delete ─────────────────────────────────────────────────────────
 if (isset($_GET['delete'])) {
-    $delId = (int) base64_decode($_GET['delete']);
+    $delId = decode_invoice_log_id($_GET['delete']);
     if ($delId > 0) {
         mysqli_query($con, "DELETE FROM tbl_invoice_logs WHERE id = $delId");
         $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -138,7 +138,7 @@ $totalLogs = mysqli_num_rows($logs);
                                 );
                                 $cnt = 1;
                                 while ($row = mysqli_fetch_assoc($logsTable)):
-                                    $encodedId = base64_encode($row['id']);
+                                    $encodedId = encode_invoice_log_id($row['id']);
                                     $taskCount     = (int) $row['task_count'];
                                     $bonusCount    = (int) $row['bonus_count'];
                                     $overdraftCount = (int) $row['overdraft_count'];

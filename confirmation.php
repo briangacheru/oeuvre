@@ -8,7 +8,7 @@ use PHPMailer\PHPMailer\Exception;
 require_once __DIR__ . '/vendor/autoload.php';
 
 function sendEmail($writer, $pages, $cpp, $due_date, $writerEmail, $taskId, $action, $topic, $account) {
-    $encodedId = base64_encode((string)$taskId);
+    $encodedId = encode_task_id($taskId);
     $total_price = $pages * $cpp;
     $mail = new PHPMailer(true);
     try {
@@ -150,7 +150,7 @@ function sendEmail($writer, $pages, $cpp, $due_date, $writerEmail, $taskId, $act
 
 if (isset($_GET['task_id']) && isset($_GET['action'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
     $action = $_GET['action'];
 
     // Fetch task details

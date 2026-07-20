@@ -3,7 +3,7 @@ require_once 'spaces-helper.php';
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 } else {
     $_SESSION['alert'] ='<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -21,7 +21,7 @@ $sql2 = "SELECT * FROM tbltasks WHERE id='$taskId'";
 $result = mysqli_query($con, $sql2);
 
 if ($row = mysqli_fetch_array($result)) {
-    $id = base64_encode($row["id"]);
+    $id = encode_task_id($row["id"]);
     $taskTopic = $row["topic"];
     $taskSubject = $row["subject"];
     $taskAccount = $row["account"];
@@ -78,7 +78,7 @@ if ($row = mysqli_fetch_array($result)) {
     $originalTaskResult = mysqli_stmt_get_result($originalStmt);
 
     if ($originalTaskData = mysqli_fetch_assoc($originalTaskResult)) {
-        $encodedOriginalId = base64_encode($taskOriginalId);
+        $encodedOriginalId = encode_task_id($taskOriginalId);
         $originalTaskTopic = htmlspecialchars($originalTaskData['topic']);
         ?>
         <div class="bg-info-subtle border-start border-info border-3 rounded-3 py-2 ps-3 pe-2 mb-3">

@@ -104,7 +104,7 @@ if (isset($_POST['save'])) {
 
 if (isset($_GET['delete'])) {
     $encodedId = $_GET['delete'];
-    $cmpid = (int) base64_decode($encodedId);
+    $cmpid = decode_overdraft_id($encodedId);
 
     // Validate $cmpid to ensure it's numeric and not empty
     if (is_numeric($cmpid) && !empty($cmpid)) {
@@ -468,7 +468,7 @@ if (isset($_SESSION['alert'])) {
                                         $query = mysqli_query($con, "SELECT * FROM tbloverdrafts WHERE is_settled = 0 AND is_deleted = 0 ORDER BY od_date DESC");
                                         $cnt = 1;
                                         while ($row = mysqli_fetch_array($query)) {
-                                            $encodedId = base64_encode($row["id"]); // Encode the id
+                                            $encodedId = encode_overdraft_id($row["id"]); // Encode the id
                                             $recordType = isset($row["record_type"]) && !empty($row["record_type"]) ? $row["record_type"] : 'overdraft'; // Default to overdraft for backward compatibility
                                             $tag = isset($row["tag"]) && !empty($row["tag"]) ? $row["tag"] : 'Mpesa'; // Default to Mpesa for backward compatibility
                                             $badgeClass = ($recordType === 'bonus') ? 'badge-subtle-info' : 'badge-subtle-warning';

@@ -5,7 +5,7 @@ csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $attachmentID = (int) $_POST['attachmentID'];
     $encodedPID   = $_POST['projectID'];
-    $projectID    = (int) base64_decode($encodedPID);
+    $projectID    = decode_project_id($encodedPID);
 
     // Fetch stored filename before deleting
     $fetch = $con->prepare("SELECT storedName FROM tbl_project_attachments WHERE attachmentID = ? AND projectID = ?");

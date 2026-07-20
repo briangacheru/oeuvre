@@ -4,7 +4,7 @@ csrf_verify_or_redirect();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $encodedPID = $_POST['projectID'];
-    $projectID  = (int) base64_decode($encodedPID);
+    $projectID  = decode_project_id($encodedPID);
     $note       = trim($_POST['note']);
 
     if (empty($note)) {

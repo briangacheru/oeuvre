@@ -30,7 +30,7 @@ if (!function_exists('getFileIconClass')) {
 }
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 
     $query = "SELECT * FROM tbltasks WHERE id = ? AND email = ?";
     $stmt = $con->prepare($query);
@@ -74,7 +74,7 @@ $sql2 = "SELECT * FROM tbltasks WHERE id='$taskId'";
 $result = mysqli_query($con, $sql2);
 
 if ($rowTask = mysqli_fetch_array($result)) {
-    $id = base64_encode($rowTask["id"]);
+    $id = encode_task_id($rowTask["id"]);
     $taskTopic = $rowTask["topic"];
     $taskSubject = $rowTask["subject"];
     $taskAccount = $rowTask["account"];

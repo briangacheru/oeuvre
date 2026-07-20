@@ -85,7 +85,7 @@ if ($_POST['action'] == 'submitForm') {
                 }
 
                 header('Content-Type: application/json');
-                echo json_encode(['status' => 'success', 'message' => 'Task updated successfully.', 'task_id' => base64_encode($taskId)]);
+                echo json_encode(['status' => 'success', 'message' => 'Task updated successfully.', 'task_id' => encode_task_id($taskId)]);
             } else {
                 header('Content-Type: application/json');
                 echo json_encode(['status' => 'error', 'message' => 'No changes were made or task not found.']);

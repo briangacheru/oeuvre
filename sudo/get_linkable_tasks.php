@@ -3,6 +3,7 @@
 require_once __DIR__ . '/session-name.php';
 session_start();
 include "dbcon.php";
+require_once __DIR__ . '/../shared-functions.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['odmsaid']) || empty($_SESSION['odmsaid'])) {
@@ -41,7 +42,7 @@ try {
 
     $tasks = [];
     while ($row = mysqli_fetch_assoc($result)) {
-        $tasks[] = ['id' => (int)$row['id'], 'topic' => $row['topic']];
+        $tasks[] = ['id' => (int)$row['id'], 'encoded_id' => encode_task_id($row['id']), 'topic' => $row['topic']];
     }
     mysqli_stmt_close($stmt);
 

@@ -993,7 +993,7 @@ if ($taskData) {
 <nav class="nav">
     <div class="nav-content">
         <a href="../index" class="nav-logo">iTasker</a>
-        <a href="<?php echo $taskData ? '../login?task_id=' . urlencode(base64_encode($taskId)) : '../login'; ?>" class="nav-login">Sign In</a>
+        <a href="<?php echo $taskData ? '../login?task_id=' . urlencode(encode_task_id($taskId)) : '../login'; ?>" class="nav-login">Sign In</a>
     </div>
 </nav>
 
@@ -1140,7 +1140,7 @@ if ($taskData) {
             <div style="font-size: 15px; line-height: 1.6; color: white;">
                 This is a read-only view of the task.
                 <br>
-                <a href="../login?task_id=<?php echo urlencode(base64_encode($taskId)); ?>">Sign in</a> to access full task management features.
+                <a href="../login?task_id=<?php echo urlencode(encode_task_id($taskId)); ?>">Sign in</a> to access full task management features.
             </div>
         </div>
     </div>

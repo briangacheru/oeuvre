@@ -587,7 +587,7 @@
                                             </div>
                                             <?php foreach ($lateTasks as $key => $task): ?>
                                                 <div class="list-group-item">
-                                                    <?php $encodedId = base64_encode($task['id']); ?>
+                                                    <?php $encodedId = encode_task_id($task['id']); ?>
                                                     <a class="notification notification-flush notification-unread"
                                                        href="view-task?task_id=<?php echo htmlspecialchars($encodedId); ?>">
                                                         <div class="notification-avatar">
@@ -618,7 +618,7 @@
                                             </div>
                                             <?php foreach ($newTasks as $key => $task): ?>
                                                 <div class="list-group-item">
-                                                    <?php $encodedId = base64_encode($task['id']); ?>
+                                                    <?php $encodedId = encode_task_id($task['id']); ?>
                                                     <a class="notification notification-flush notification-unread"
                                                        href="view-task?task_id=<?php echo htmlspecialchars($encodedId); ?>"
                                                        onclick="markTaskAsRead(<?php echo $task['id']; ?>)">
@@ -705,7 +705,7 @@
                                         <?php foreach ($unreadMessages as $key => $message): ?>
                                             <div class="list-group-item">
                                                 <?php
-                                                $encodedId = base64_encode($message['id']);
+                                                $encodedId = encode_message_id($message['id']);
                                                 $senderName = $senderResult['username'];
                                                 $senderPhoto = $senderResult['Photo'];
                                                 ?>
@@ -796,7 +796,7 @@
                                             </div>
                                             <?php foreach ($unreadComments as $key => $comment): ?>
                                                 <div class="list-group-item">
-                                                    <?php $encodedTaskId = base64_encode($comment['task_id']); ?>
+                                                    <?php $encodedTaskId = encode_task_id($comment['task_id']); ?>
                                                     <a class="notification notification-flush notification-unread"
                                                        href="view-task?task_id=<?php echo htmlspecialchars($encodedTaskId); ?>">
                                                         <div class="notification-avatar">

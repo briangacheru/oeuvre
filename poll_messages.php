@@ -38,6 +38,7 @@ $newMessagesResult = mysqli_stmt_get_result($newMessagesStmt);
 
 $newMessages = [];
 while ($message = mysqli_fetch_assoc($newMessagesResult)) {
+    $message['encoded_task_id'] = $message['related_task_id'] ? encode_task_id($message['related_task_id']) : null;
     $newMessages[] = $message;
 }
 

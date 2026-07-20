@@ -341,7 +341,7 @@ try {
                                     </a>
                                     <div class="min-w-0">
                                         <h5 class="mb-0 text-truncate fs-9">
-                                            <a class="text-900" href="writer.php?writerID=<?php echo base64_encode($user['id']); ?>">
+                                            <a class="text-900" href="writer.php?writerID=<?php echo encode_writer_id($user['id']); ?>">
                                                 <?php echo htmlspecialchars($user['username']); ?>
                                             </a>
                                             <small class="text-muted">(<?php echo ucfirst($user['type']); ?>)</small>
@@ -534,6 +534,7 @@ try {
         let currentIndex = null;
         let pollInterval = null;
         let linkedTaskId = null;
+        let linkedTaskEncodedId = null;
 
         const CONTACT_NAMES = <?php echo json_encode(array_column($users, 'username', 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
@@ -709,7 +710,7 @@ try {
                         <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                             ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                             <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                                ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                                ${taskChipHtml(message.related_task_id, message.encoded_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                                 ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                                 ${fileHtml}
                             </div>
@@ -800,6 +801,8 @@ try {
             if (linkedTaskId) {
                 formData.append('related_task_id', linkedTaskId);
             }
+            const sentTaskId = linkedTaskId;
+            const sentTaskEncodedId = linkedTaskEncodedId;
 
             fetch('send_message', {
                 method: 'POST',
@@ -832,7 +835,8 @@ try {
                                     file_url: data.file_url || null,
                                     original_file_name: data.original_file_name || null,
                                     is_read: false,
-                                    related_task_id: linkedTaskId
+                                    related_task_id: sentTaskId,
+                                    encoded_task_id: sentTaskEncodedId
                                 });
 
                                 chatContent.appendChild(messageElement);
@@ -881,7 +885,7 @@ try {
                 <div class="hover-actions-trigger d-flex ${isCurrentUser ? 'flex-end-center' : 'align-items-center'}">
                     ${isCurrentUser && message.id ? messageActionsHtml(message.id) : ''}
                     <div class="chat-message ${isCurrentUser ? 'bg-primary text-white' : 'bg-info text-white'} p-2 rounded-2">
-                        ${taskChipHtml(message.related_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
+                        ${taskChipHtml(message.related_task_id, message.encoded_task_id)}<span class="message-text">${escapeHtml(message.message)}</span>
                         ${message.is_edited ? '<span class="edited-tag fs-11 fst-italic ms-1 opacity-75">(edited)</span>' : ''}
                         ${fileHtml}
                     </div>
@@ -1164,7 +1168,7 @@ try {
                         item.className = 'list-group-item list-group-item-action';
                         item.textContent = `#${task.id} - ${task.topic}`;
                         item.onclick = function() {
-                            selectLinkedTask(task.id, task.topic);
+                            selectLinkedTask(task.id, task.encoded_id, task.topic);
                             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                         };
                         list.appendChild(item);
@@ -1179,8 +1183,9 @@ try {
                 });
         }
 
-        function selectLinkedTask(taskId, topic) {
+        function selectLinkedTask(taskId, encodedTaskId, topic) {
             linkedTaskId = taskId;
+            linkedTaskEncodedId = encodedTaskId;
             const banner = document.getElementById('linked-task-banner');
             const label = document.getElementById('linked-task-label');
             if (label) label.textContent = `Discussing: Task #${taskId} - ${topic}`;
@@ -1189,15 +1194,20 @@ try {
 
         function clearLinkedTask() {
             linkedTaskId = null;
+            linkedTaskEncodedId = null;
             const banner = document.getElementById('linked-task-banner');
             if (banner) banner.classList.add('d-none');
         }
 
-        // Small chip linking a message back to the task it was sent about.
-        function taskChipHtml(relatedTaskId) {
+        // Small chip linking a message back to the task it was sent about. encodedTaskId
+        // must come from the server (get_linkable_tasks / fetch_messages / poll_messages);
+        // there's no client-side way to derive a valid task_id token from the raw id.
+        function taskChipHtml(relatedTaskId, encodedTaskId) {
             if (!relatedTaskId) return '';
-            const encodedId = btoa(String(relatedTaskId));
-            return `<a href="view-task?task_id=${encodedId}" class="badge bg-secondary-subtle text-800 text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
+            if (!encodedTaskId) {
+                return `<span class="badge bg-secondary-subtle text-800 d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</span><br>`;
+            }
+            return `<a href="view-task?task_id=${encodeURIComponent(encodedTaskId)}" class="badge bg-secondary-subtle text-800 text-decoration-none d-inline-block mb-1"><i class="fas fa-tasks me-1"></i>Task #${relatedTaskId}</a><br>`;
         }
 
         function updateReadStatus(userId) {

@@ -44,7 +44,7 @@ if ($_POST['action'] == 'submitForm') {
             if (mysqli_stmt_affected_rows($stmt) > 0) {
                 header('Content-Type: application/json');
                 $task_id = mysqli_insert_id($con); // This gets the last inserted ID
-                $encodedId = base64_encode((string)$task_id);
+                $encodedId = encode_task_id($task_id);
                 echo json_encode(['status' => 'success', 'message' => 'Task created successfully.', 'task_id' => $encodedId]);
             } else {
                 header('Content-Type: application/json');

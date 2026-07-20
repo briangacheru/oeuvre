@@ -492,7 +492,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                                         <?php foreach ($unreadMessages as $key => $message): ?>
                                             <div class="list-group-item">
                                                 <?php
-                                                $encodedId = base64_encode($message['id']);
+                                                $encodedId = encode_message_id($message['id']);
                                                 $senderName = $senderResult['username'];
                                                 $senderPhoto = $senderResult['Photo'];
                                                 ?>
@@ -575,7 +575,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                                         ?>
                                         <?php foreach ($lateTasks as $key => $task): ?>
                                             <div class="list-group-item"><?php
-                                                $encodedId = base64_encode($task['id']);
+                                                $encodedId = encode_task_id($task['id']);
                                                 ?>
                                                 <a class="notification notification-flush notification-unread" href="view-task?task_id=<?php echo htmlspecialchars($encodedId); ?>">
                                                     <div class="notification-avatar">

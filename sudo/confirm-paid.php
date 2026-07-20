@@ -7,7 +7,7 @@ session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $encodedId = $_POST['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 
     // Update the task status to 'Completed'
     // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi

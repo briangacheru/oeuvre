@@ -83,7 +83,7 @@ if (isset($_SESSION['alert'])) {
                                         while($row=mysqli_fetch_array($query))
                                         {
                                             $totalprice=$row["cpp"]*$row["pages"];
-                                            $encodedId = base64_encode($row["id"]); // Encode the id
+                                            $encodedId = encode_task_id($row["id"]); // Encode the id
 
                                             // Determine badge based on task status
                                             $statusBadge = '';

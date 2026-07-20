@@ -23,7 +23,7 @@ $result = mysqli_stmt_get_result($stmt);
 
 $tasks = [];
 while ($row = mysqli_fetch_assoc($result)) {
-    $tasks[] = ['id' => (int)$row['id'], 'topic' => $row['topic']];
+    $tasks[] = ['id' => (int)$row['id'], 'encoded_id' => encode_task_id($row['id']), 'topic' => $row['topic']];
 }
 
 echo json_encode(['status' => 'success', 'tasks' => $tasks]);

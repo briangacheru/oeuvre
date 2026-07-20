@@ -171,7 +171,7 @@ if ($_POST['action'] == 'submitForm') {
                 $emailStatus = '';
 
                 if ($sendEmail == '1') {
-                    $encodedId = base64_encode((string)$taskId);
+                    $encodedId = encode_task_id($taskId);
                     $mail = new PHPMailer(true);
 
                     try {
@@ -381,7 +381,7 @@ if ($_POST['action'] == 'submitForm') {
                 $response = [
                     'status' => 'success',
                     'message' => 'Task updated successfully.',
-                    'task_id' => base64_encode($taskId)
+                    'task_id' => encode_task_id($taskId)
                 ];
 
                 if (!empty($emailStatus)) {

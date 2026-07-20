@@ -296,7 +296,7 @@ function generateEmailBody($lateTasksData, $config, $totalTasks, $totalValue, $p
     foreach ($lateTasksData as $task) {
         $priorityColor = getPriorityColor($task['alert_level'], $config);
         $priorityText = getPriorityText($task['alert_level'], $config);
-        $taskUrl = $config['base_url'] . "view-task?task_id=" . base64_encode($task['id']);
+        $taskUrl = $config['base_url'] . "view-task?task_id=" . encode_task_id($task['id']);
 
         $statusColor = match($task['status']) {
             'In Progress' => '#17a2b8',

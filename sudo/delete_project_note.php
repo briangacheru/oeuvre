@@ -5,7 +5,7 @@ csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $noteID     = (int) $_POST['noteID'];
     $encodedPID = $_POST['projectID'];
-    $projectID  = (int) base64_decode($encodedPID);
+    $projectID  = decode_project_id($encodedPID);
 
     $stmt = $con->prepare("DELETE FROM tbl_project_notes WHERE noteID = ? AND projectID = ?");
     $stmt->bind_param("ii", $noteID, $projectID);

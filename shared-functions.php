@@ -417,8 +417,144 @@ if (!function_exists('csrf_verify_or_json_die')) {
     }
 }
 
+// ---- Entity id encoding ----
+// Database ids are never put in URLs as plain integers or as plain base64 (which
+// is trivially reversible client-side via atob()). Instead they're encrypted with
+// a per-install secret (TASK_ID_KEY in .env) using AES-256-GCM, so the token can't
+// be decoded or forged without that key. Each entity type (task, writer, project,
+// ...) is bound into the ciphertext as AEAD "additional data", so a token minted
+// for one entity type fails authentication (and is rejected) if presented as a
+// token for a different entity type — even though every entity shares one key and
+// one raw integer id space. decode_*_id() also accepts the old plain-base64
+// format so links already emailed/shared before this change keep working (that
+// legacy format predates this per-entity binding, so it can't be retroactively
+// checked — a stale legacy token for the "wrong" entity was already ambiguous
+// before this change and remains so only until it's replaced by a fresh token).
+//
+// encode_*_id()/decode_*_id() are the ONLY functions that should ever touch an id
+// destined for a URL — never call base64_encode()/base64_decode() on an id
+// directly. Add a new pair (thin wrappers around encode_entity_id/decode_entity_id
+// below, following encode_task_id/decode_task_id as the template) for any new
+// entity type before putting its id in a URL.
+
+if (!function_exists('id_codec_secret_key')) {
+    function id_codec_secret_key() {
+        static $key = false; // false = not resolved yet, null = resolved but missing/invalid
+        if ($key === false) {
+            $hex = function_exists('env') ? env('TASK_ID_KEY', '') : '';
+            $key = (is_string($hex) && strlen($hex) === 64 && ctype_xdigit($hex)) ? hex2bin($hex) : null;
+            if ($key === null) {
+                error_log('TASK_ID_KEY is missing or invalid in .env — id links are falling back to insecure legacy encoding.');
+            }
+        }
+        return $key;
+    }
+}
+
+if (!function_exists('encode_entity_id')) {
+    function encode_entity_id($id, $context) {
+        $plain = (string) (int) $id;
+        $key = id_codec_secret_key();
+        if ($key === null) {
+            return base64_encode($plain); // legacy fallback if not configured
+        }
+
+        $iv = random_bytes(12);
+        $tag = '';
+        $ciphertext = openssl_encrypt($plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, $context);
+        if ($ciphertext === false) {
+            return base64_encode($plain);
+        }
+
+        $payload = $iv . $tag . $ciphertext;
+        return rtrim(strtr(base64_encode($payload), '+/', '-_'), '=');
+    }
+}
+
+if (!function_exists('decode_entity_id')) {
+    // Returns the decoded id as an int, or 0 if $encoded is missing/invalid/
+    // tampered with/for a different entity type — matching the historical
+    // behavior of (int) base64_decode(...), so callers that check
+    // `is_numeric($id) && !empty($id)` or rely on a WHERE id = 0 query returning
+    // no rows keep working unchanged.
+    function decode_entity_id($encoded, $context) {
+        if (!is_string($encoded) || $encoded === '') {
+            return 0;
+        }
+
+        $key = id_codec_secret_key();
+        if ($key !== null) {
+            $b64 = strtr($encoded, '-_', '+/');
+            $pad = strlen($b64) % 4;
+            if ($pad) {
+                $b64 .= str_repeat('=', 4 - $pad);
+            }
+            $payload = base64_decode($b64, true);
+            if ($payload !== false && strlen($payload) > 28) {
+                $iv         = substr($payload, 0, 12);
+                $tag        = substr($payload, 12, 16);
+                $ciphertext = substr($payload, 28);
+                $plain = openssl_decrypt($ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, $context);
+                if ($plain !== false && ctype_digit($plain)) {
+                    return (int) $plain;
+                }
+            }
+        }
+
+        // Legacy fallback — plain base64(id) links issued before this change.
+        $legacy = base64_decode($encoded, true);
+        if ($legacy !== false && ctype_digit($legacy)) {
+            return (int) $legacy;
+        }
+
+        return 0;
+    }
+}
+
+if (!function_exists('encode_task_id')) {
+    function encode_task_id($id) { return encode_entity_id($id, 'task'); }
+}
+if (!function_exists('decode_task_id')) {
+    function decode_task_id($encoded) { return decode_entity_id($encoded, 'task'); }
+}
+
+if (!function_exists('encode_writer_id')) {
+    function encode_writer_id($id) { return encode_entity_id($id, 'writer'); }
+}
+if (!function_exists('decode_writer_id')) {
+    function decode_writer_id($encoded) { return decode_entity_id($encoded, 'writer'); }
+}
+
+if (!function_exists('encode_project_id')) {
+    function encode_project_id($id) { return encode_entity_id($id, 'project'); }
+}
+if (!function_exists('decode_project_id')) {
+    function decode_project_id($encoded) { return decode_entity_id($encoded, 'project'); }
+}
+
+if (!function_exists('encode_overdraft_id')) {
+    function encode_overdraft_id($id) { return encode_entity_id($id, 'overdraft'); }
+}
+if (!function_exists('decode_overdraft_id')) {
+    function decode_overdraft_id($encoded) { return decode_entity_id($encoded, 'overdraft'); }
+}
+
+if (!function_exists('encode_invoice_log_id')) {
+    function encode_invoice_log_id($id) { return encode_entity_id($id, 'invoice_log'); }
+}
+if (!function_exists('decode_invoice_log_id')) {
+    function decode_invoice_log_id($encoded) { return decode_entity_id($encoded, 'invoice_log'); }
+}
+
+if (!function_exists('encode_message_id')) {
+    function encode_message_id($id) { return encode_entity_id($id, 'message'); }
+}
+if (!function_exists('decode_message_id')) {
+    function decode_message_id($encoded) { return decode_entity_id($encoded, 'message'); }
+}
+
 if (!function_exists('resolve_shared_task_redirect')) {
-    // Given a base64-encoded task id (as passed via a shared task link's ?task_id=
+    // Given an encoded task id (as passed via a shared task link's ?task_id=
     // param) and a writer's email, returns the URL to send them to: the task itself
     // if they have access, or 'all-tasks' (with an access-denied alert queued in
     // $_SESSION['alert']) if they don't. Returns null if $encodedTaskId is empty.
@@ -427,7 +563,7 @@ if (!function_exists('resolve_shared_task_redirect')) {
             return null;
         }
 
-        $taskId = (int) base64_decode($encodedTaskId);
+        $taskId = decode_task_id($encodedTaskId);
         $stmt = $con->prepare("SELECT id FROM tbltasks WHERE id = ? AND email = ?");
         $stmt->bind_param("is", $taskId, $email);
         $stmt->execute();

@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               VALUES
                 ($projectID, '$type', '$category', '$description', $amount, '$tag', '$transactionDate')";
 
-    $encodedID = base64_encode($projectID);
+    $encodedID = encode_project_id($projectID);
 
     if (mysqli_query($con, $query)) {
         $_SESSION['alert'] = '<div class="alert alert-success border-0 d-flex align-items-center"><p class="mb-0 flex-1">' . $type . ' of Ksh ' . number_format($amount, 2) . ' recorded successfully!</p>

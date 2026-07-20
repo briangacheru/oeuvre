@@ -184,7 +184,7 @@ while ($task = mysqli_fetch_assoc($tasksQuery)) {
                                             <div class='row'>
                                                 <div class='col-lg-8'>
                                                     <h5 class='mt-3 mt-sm-0'>
-                                                        <?php $encodedTaskId = base64_encode($comment['task_id']); ?>
+                                                        <?php $encodedTaskId = encode_task_id($comment['task_id']); ?>
                                                         <a class='text-1100 fs-10 fs-lg-10' href="view-task?task_id=<?php echo htmlspecialchars($encodedTaskId); ?>">
                                                             <i class='fas fa-tasks me-1'></i> Task <?php echo $comment['task_id']; ?>
                                                             <span><?php echo htmlspecialchars(substr($comment['topic'], 0, 50)) . (strlen($comment['topic']) > 50 ? '...' : ''); ?></span>

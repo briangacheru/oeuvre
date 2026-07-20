@@ -30,7 +30,7 @@ if (!function_exists('getFileIconClass')) {
 
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -73,7 +73,7 @@ if (!$rowTask) {
 }
 
 // NOW it's safe to access the task data
-$id = base64_encode($rowTask["id"]);
+$id = encode_task_id($rowTask["id"]);
 $taskTopic = $rowTask["topic"];
 $taskSubject = $rowTask["subject"];
 $taskAccount = $rowTask["account"];
@@ -555,7 +555,7 @@ if ($complexityScore > 70 && $timeRemaining < 3) {
 include_once('task-share-helper.php');
 if (isset($_GET['task_id'])) {
     $encodedId = $_GET['task_id'];
-    $taskId = (int) base64_decode($encodedId);
+    $taskId = decode_task_id($encodedId);
 } else {
     $_SESSION['alert'] ='<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -600,7 +600,7 @@ if (isset($rowTask['is_duplicate']) && $rowTask['is_duplicate'] == 1 && isset($r
     $originalTaskResult = mysqli_stmt_get_result($originalStmt);
 
     if ($originalTaskData = mysqli_fetch_assoc($originalTaskResult)) {
-        $encodedOriginalId = base64_encode($originalTaskId);
+        $encodedOriginalId = encode_task_id($originalTaskId);
         $originalTaskTopic = htmlspecialchars($originalTaskData['topic']);
         ?>
         <div class="bg-info-subtle border-start border-info border-3 rounded-3 py-2 ps-3 pe-2 mb-3">
@@ -788,6 +788,7 @@ if (isset($_SESSION['alert'])) {
                     </a>
                     <a class="btn btn-outline-info btn-sm mx-2" type="button" href="#" data-bs-toggle="modal" data-bs-target="#duplicateModal"
                        data-task-id="<?php echo $encodedId; ?>"
+                       data-task-numeric-id="<?php echo $taskId; ?>"
                        data-task-topic="<?php echo htmlspecialchars($taskTopic, ENT_QUOTES); ?>"
                        data-task-subject="<?php echo htmlspecialchars($taskSubject, ENT_QUOTES); ?>"
                        data-task-account="<?php echo htmlspecialchars($taskAccount, ENT_QUOTES); ?>"
@@ -1018,7 +1019,7 @@ if (isset($_SESSION['alert'])) {
                         include_once('writer-performance-functions.php');
                         $writerPerf = calculateWriterPerformance($con, $writerEmail);
                         $writerLevel = getWriterLevel($con, $writerPerf['completed_tasks']);
-                        $encodedWriterId = base64_encode($writerId);
+                        $encodedWriterId = encode_writer_id($writerId);
 
                         // Online status logic
                         $statusClass = 'text-secondary'; $statusText = 'Offline'; $isOnline = false;
@@ -3065,7 +3066,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 const button = event.relatedTarget;
                 taskId = button.getAttribute('data-task-id'); // Encoded ID
 
-                document.getElementById('modalTaskId').textContent = atob(taskId); // Show decoded ID
+                document.getElementById('modalTaskId').textContent = button.getAttribute('data-task-numeric-id');
                 document.getElementById('modalTaskTopic').textContent = button.getAttribute('data-task-topic');
                 document.getElementById('modalTaskSubject').textContent = button.getAttribute('data-task-subject');
                 document.getElementById('modalTaskAccount').textContent = button.getAttribute('data-task-account');

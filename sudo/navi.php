@@ -1347,7 +1347,7 @@
                                                 </div>
                                                 <?php foreach ($newTasks as $key => $task): ?>
                                                     <div class="list-group-item">
-                                                        <?php $encodedId = base64_encode($task['id']); ?>
+                                                        <?php $encodedId = encode_task_id($task['id']); ?>
                                                         <a class="notification notification-flush notification-unread"
                                                            href="view-task?task_id=<?php echo htmlspecialchars($encodedId); ?>"
                                                            onclick="handleTaskClick(event, <?php echo $task['id']; ?>, '<?php echo htmlspecialchars($encodedId); ?>')">
@@ -1380,7 +1380,7 @@
                                                 </div>
                                                 <?php foreach ($lateTasks as $key => $task): ?>
                                                     <div class="list-group-item">
-                                                        <?php $encodedId = base64_encode($task['id']); ?>
+                                                        <?php $encodedId = encode_task_id($task['id']); ?>
                                                         <a class="notification notification-flush notification-unread"
                                                            href="view-task?task_id=<?php echo htmlspecialchars($encodedId); ?>">
                                                             <div class="notification-avatar">
@@ -1502,7 +1502,7 @@
 
                                                     // Display processed messages
                                                     foreach ($processedMessages as $message):
-                                                        $encodedId = base64_encode($message['id']);
+                                                        $encodedId = encode_message_id($message['id']);
                                                         ?>
                                                         <div class="list-group-item">
                                                             <a class="notification notification-flush notification-unread"
@@ -1636,7 +1636,7 @@
                                                 </div>
                                                 <?php foreach ($unreadComments as $key => $comment): ?>
                                                     <div class="list-group-item">
-                                                        <?php $encodedTaskId = base64_encode($comment['task_id']); ?>
+                                                        <?php $encodedTaskId = encode_task_id($comment['task_id']); ?>
                                                         <a class="notification notification-flush notification-unread"
                                                            href="view-task?task_id=<?php echo htmlspecialchars($encodedTaskId); ?>">
                                                             <div class="notification-avatar">

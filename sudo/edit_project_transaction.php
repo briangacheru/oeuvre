@@ -5,7 +5,7 @@ csrf_verify_or_redirect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $transactionID  = (int) $_POST['transactionID'];
     $encodedPID     = $_POST['projectID'];
-    $projectID      = (int) base64_decode($encodedPID);
+    $projectID      = decode_project_id($encodedPID);
     $type           = $_POST['type'] === 'Income' ? 'Income' : 'Expense';
     $category       = mysqli_real_escape_string($con, trim($_POST['category']));
     $description    = mysqli_real_escape_string($con, trim($_POST['description']));
