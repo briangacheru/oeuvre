@@ -91,7 +91,6 @@ $msg = "";
                                             $cnt=1;
                                             while($row=mysqli_fetch_array($query))
                                             {
-                                                $encodedId = base64_encode($row["id"]); // Encode the id
                                     ?>
                                         <tr class="hover-actions-trigger btn-reveal-trigger hover-bg-100">
                                             <td class="align-middle" style="width: 28px;">
@@ -104,48 +103,7 @@ $msg = "";
                                             <td class="align-middle white-space-nowrap email text-900"><?php echo $row["amount"];?></td>
                                             <td class="align-middle white-space-nowrap text-900"><?php echo date("jS M, Y h:i A", strtotime($row['od_date'])); ?></td>
                                             <td class="align-middle white-space-nowrap text-900"><?php echo date("jS M, Y", strtotime($row['date_settled'])); ?></td>
-<!--                                            <td class="align-middle white-space-nowrap text-end position-relative">-->
-<!--                                                <div class="hover-actions bg-100">-->
-<!--                                                    <a class="btn bg-primary-subtle icon-item rounded-3 me-2 fs-11 icon-item-sm" href="view-task?task_id=--><?php //echo $encodedId; ?><!--" data-bs-toggle="tooltip" data-bs-placement="top" title="View task" ><span class="far fa-eye"></span></a>-->
-<!--                                                </div>-->
-<!--                                                <div class="dropdown font-sans-serif btn-reveal-trigger">-->
-<!--                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle dropdown-caret-none btn-reveal-sm transition-none" type="button" id="crm-recent-leads-4" data-bs-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false"><span class="fas fa-chevron-left fs-11"></span></button>-->
-<!--                                                </div>-->
-<!--                                            </td>-->
                                         </tr>
-                                        <!--<tr class="btn-reveal-trigger">
-                                            <td class="align-middle" style="width: 28px;">
-                                                <div class="form-check mb-0">
-                                                    <input class="form-check-input" type="checkbox" id="simple-pagination-item-1" data-bulk-select-row="data-bulk-select-row" />
-                                                </div>
-                                            </td>
-                                            <td class="align-middle white-space-nowrap fw-semi-bold name"><a href="../../app/e-commerce/customer-details.html">Homer</a></td>
-                                            <td class="align-middle white-space-nowrap email">sylvia@mail.ru</td>
-                                            <td class="align-middle white-space-nowrap product">Bose SoundSport Wireless Headphones</td>
-                                            <td class="align-middle text-center fs-9 white-space-nowrap payment"><span class="badge badge rounded-pill badge-subtle-success">Success<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                            </td>
-                                            <td class="align-middle amount">$634</td>
-                                            <td class="align-middle white-space-nowrap text-end">
-                                                <div class="dropstart font-sans-serif position-static d-inline-block">
-                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal float-end" type="button" id="dropdown-simple-pagination-table-item-1" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false" data-bs-reference="parent"><span class="fas fa-ellipsis-h fs-10"></span></button>
-                                                    <div class="dropdown-menu dropdown-menu-end border py-2" aria-labelledby="dropdown-simple-pagination-table-item-1"><a class="dropdown-item" href="#!">View</a><a class="dropdown-item" href="#!">Edit</a><a class="dropdown-item" href="#!">Refund</a>
-                                                        <div class="dropdown-divider"></div><a class="dropdown-item text-warning" href="#!">Archive</a><a class="dropdown-item text-danger" href="#!">Delete</a>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle white-space-nowrap text-end">
-                                                <div class="dropstart font-sans-serif position-static d-inline-block">
-                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal float-end" type="button" id="dropdown-simple-pagination-table-item-0" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false" data-bs-reference="parent"><span class="fas fa-ellipsis-h fs-10"></span></button>
-                                                    <div class="dropdown-menu dropdown-menu-end border py-2" aria-labelledby="dropdown-simple-pagination-table-item-0">
-                                                        <a class="dropdown-item text-info"  href="view-task?task_id=<?php echo $encodedId; ?>"><span class="fas fa-eye" data-fa-transform="shrink-2"></span> View</a>
-                                                        <a class="dropdown-item text-success"  href="edit-task?task_id=<?php echo $encodedId; ?>"><span class="bi bi-pen" data-fa-transform="shrink-2"></span> Edit</a>
-                                                        <a class="dropdown-item text-warning"  href="duplicate-task?task_id=<?php echo $encodedId; ?>" ><span class="fas fa-copy" data-fa-transform="shrink-2"></span> Duplicate</a>
-                                                        <div class="dropdown-divider"></div>
-                                                        <a class="dropdown-item text-danger" href="all-tasks?del=<?php echo $encodedId; ?>" onclick="return confirm('Do you really want to cancel task?');"><span class="fas fa-trash" data-fa-transform="shrink-2"></span> Cancel</>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>-->
                                         <?php
                                                 $cnt=$cnt+1;
                                             }
