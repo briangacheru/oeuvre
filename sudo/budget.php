@@ -474,77 +474,9 @@ if (isset($_SESSION['alert'])) {
         // 1. CURRENT MONTH (INTERVAL 0 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for current month including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 0 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        MAX(tag) AS tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 0 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory,
-    se.tag, 
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthZeroExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthZeroExpense == 0) {
-                    $previousMonthZeroExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        $detailedTransactionsQuery0Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 0 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult0Months = $con->query($detailedTransactionsQuery0Months);
-        $detailedTransactions0Months = [];
-
-        if ($detailedResult0Months && $detailedResult0Months->num_rows > 0) {
-            while ($row = $detailedResult0Months->fetch_assoc()) {
-                $detailedTransactions0Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for current month, bundled into recurring buckets
+        // (see bucketBudgetSubcategory()) instead of one row per raw subcategory.
+        [$previousMonthZeroExpense, $rows, $detailedTransactions0Months] = getExpenseBreakdownByMonth($con, 0);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -580,9 +512,7 @@ ORDER BY subcategory, transaction_date;
                             $iconFile = $iconMap[$raw_tag] ?? 'default.png';
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -604,13 +534,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -631,27 +554,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions0Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions0Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions0Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
@@ -677,77 +596,8 @@ ORDER BY subcategory, transaction_date;
         // 2. PREVIOUS MONTH (INTERVAL 1 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for one months ago including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        MAX(tag) AS tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory, 
-    se.tag,
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthOneExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthOneExpense == 0) {
-                    $previousMonthOneExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        $detailedTransactionsQuery1Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult1Months = $con->query($detailedTransactionsQuery1Months);
-        $detailedTransactions1Months = [];
-
-        if ($detailedResult1Months && $detailedResult1Months->num_rows > 0) {
-            while ($row = $detailedResult1Months->fetch_assoc()) {
-                $detailedTransactions1Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for one month ago, bundled into recurring buckets.
+        [$previousMonthOneExpense, $rows, $detailedTransactions1Months] = getExpenseBreakdownByMonth($con, 1);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -783,9 +633,7 @@ ORDER BY subcategory, transaction_date;
                             $iconFile = $iconMap[$raw_tag] ?? 'default.png';
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -807,13 +655,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -834,27 +675,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions1Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions1Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions1Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
@@ -882,77 +719,8 @@ ORDER BY subcategory, transaction_date;
         // 1. TWO MONTHS AGO (INTERVAL 2 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for two months ago including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory, 
-    se.tag,
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthTwoExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthTwoExpense == 0) {
-                    $previousMonthTwoExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        $detailedTransactionsQuery2Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult2Months = $con->query($detailedTransactionsQuery2Months);
-        $detailedTransactions2Months = [];
-
-        if ($detailedResult2Months && $detailedResult2Months->num_rows > 0) {
-            while ($row = $detailedResult2Months->fetch_assoc()) {
-                $detailedTransactions2Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for two months ago, bundled into recurring buckets.
+        [$previousMonthTwoExpense, $rows, $detailedTransactions2Months] = getExpenseBreakdownByMonth($con, 2);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -988,9 +756,7 @@ ORDER BY subcategory, transaction_date;
                             $iconFile = $iconMap[$raw_tag] ?? 'default.png';
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -1012,13 +778,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1039,27 +798,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions2Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions2Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions2Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
@@ -1085,78 +840,8 @@ ORDER BY subcategory, transaction_date;
         // 2. THREE MONTHS AGO (INTERVAL 3 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for three months ago including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 3 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        MAX(tag) AS tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 3 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory, 
-    se.tag,
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthButTwoExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthButTwoExpense == 0) {
-                    $previousMonthButTwoExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        // FIXED: Added missing comma after 'tag'
-        $detailedTransactionsQuery3Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 3 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult3Months = $con->query($detailedTransactionsQuery3Months);
-        $detailedTransactions3Months = [];
-
-        if ($detailedResult3Months && $detailedResult3Months->num_rows > 0) {
-            while ($row = $detailedResult3Months->fetch_assoc()) {
-                $detailedTransactions3Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for three months ago, bundled into recurring buckets.
+        [$previousMonthButTwoExpense, $rows, $detailedTransactions3Months] = getExpenseBreakdownByMonth($con, 3);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -1193,9 +878,7 @@ ORDER BY subcategory, transaction_date;
                             // Removed duplicate $subcategory assignment
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -1217,13 +900,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1244,27 +920,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions3Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions3Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions3Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
@@ -1293,77 +965,8 @@ ORDER BY subcategory, transaction_date;
         // 1. FOUR MONTHS AGO (INTERVAL 4 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for four months ago including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 4 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        MAX(tag) AS tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 4 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory,
-    se.tag,
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthFourExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthFourExpense == 0) {
-                    $previousMonthFourExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        $detailedTransactionsQuery4Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 4 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult4Months = $con->query($detailedTransactionsQuery4Months);
-        $detailedTransactions4Months = [];
-
-        if ($detailedResult4Months && $detailedResult4Months->num_rows > 0) {
-            while ($row = $detailedResult4Months->fetch_assoc()) {
-                $detailedTransactions4Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for four months ago, bundled into recurring buckets.
+        [$previousMonthFourExpense, $rows, $detailedTransactions4Months] = getExpenseBreakdownByMonth($con, 4);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -1399,9 +1002,7 @@ ORDER BY subcategory, transaction_date;
                             $iconFile = $iconMap[$raw_tag] ?? 'default.png';
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -1423,13 +1024,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1450,27 +1044,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions4Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions4Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions4Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
@@ -1496,77 +1086,8 @@ ORDER BY subcategory, transaction_date;
         // 2. FIVE MONTHS AGO (INTERVAL 5 MONTH)
         // ==========================================
 
-        // Query to get expenses breakdown for five months ago including total expense
-        $query = "
-WITH total_expense AS (
-    SELECT 
-        SUM(amount + IFNULL(transactionCost, 0)) AS grand_total
-    FROM (
-        SELECT amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 5 MONTH, '%Y-%m')
-    ) AS all_expenses
-),
-subcategory_expense AS (
-    SELECT 
-        subcategory,
-        MAX(tag) AS tag, 
-        SUM(amount + IFNULL(transactionCost, 0)) AS total_amount
-    FROM (
-        SELECT subcategory, tag, amount, transactionCost FROM tblbudget 
-        WHERE category = 'Expense' AND is_deleted = 0 
-          AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 5 MONTH, '%Y-%m')
-    ) AS combined 
-    GROUP BY subcategory
-)
-SELECT 
-    se.subcategory,
-    se.tag,
-    se.total_amount,
-    ROUND((se.total_amount / te.grand_total) * 100, 2) AS percentage
-FROM subcategory_expense se
-CROSS JOIN total_expense te
-ORDER BY se.total_amount DESC;
-";
-
-        $result = $con->query($query);
-
-        $previousMonthFiveExpense = 0;
-        $rows = [];
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-                if ($previousMonthFiveExpense == 0) {
-                    $previousMonthFiveExpense = $row['total_amount'] / ($row['percentage'] / 100);
-                }
-            }
-        }
-
-        // Query to get detailed transactions for each subcategory
-        $detailedTransactionsQuery5Months = "
-SELECT 
-    'budget' as source,
-    subcategory, tag,
-    amount,
-    transactionCost,
-    description,
-    expenseDate as transaction_date
-FROM tblbudget 
-WHERE category = 'Expense' 
-    AND is_deleted = 0 
-    AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 5 MONTH, '%Y-%m')
-ORDER BY subcategory, transaction_date;
-";
-
-        $detailedResult5Months = $con->query($detailedTransactionsQuery5Months);
-        $detailedTransactions5Months = [];
-
-        if ($detailedResult5Months && $detailedResult5Months->num_rows > 0) {
-            while ($row = $detailedResult5Months->fetch_assoc()) {
-                $detailedTransactions5Months[$row['subcategory']][] = $row;
-            }
-        }
+        // Expenses breakdown for five months ago, bundled into recurring buckets.
+        [$previousMonthFiveExpense, $rows, $detailedTransactions5Months] = getExpenseBreakdownByMonth($con, 5);
         ?>
         <div class="col-lg-6 pe-lg-2 mb-3">
             <div class="card h-lg-100 overflow-hidden">
@@ -1602,9 +1123,7 @@ ORDER BY subcategory, transaction_date;
                             $iconFile = $iconMap[$raw_tag] ?? 'default.png';
                             $amount = number_format($row['total_amount'], 2);
                             $percentage = round($row['percentage']);
-                            $progressBarColor = $percentage >= 2 ? 'bg-danger-subtle' : 'bg-warning-subtle';
                             $badgeColor = $percentage >= 2 ? 'badge-subtle-danger' : 'badge-subtle-warning';
-                            $textColor = $percentage >= 2 ? 'text-danger' : 'text-warning';
                             ?>
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
@@ -1627,13 +1146,6 @@ ORDER BY subcategory, transaction_date;
                                         <div class="col-auto pe-2">
                                             <div class="fs-10 fw-semi-bold">Ksh. <?= $amount ?></div>
                                         </div>
-                                        <div class="col-5 pe-x1 ps-2">
-                                            <div class="progress bg-500 me-2" style="height: 5px;" role="progressbar"
-                                                 aria-valuenow="<?= $percentage ?>" aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar rounded-pill <?= $progressBarColor ?>"
-                                                     style="width: <?= $percentage ?>%"></div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1654,27 +1166,23 @@ ORDER BY subcategory, transaction_date;
                                                 <table class="table table-hover">
                                                     <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Description</th>
+                                                        <th>Name</th>
                                                         <th>Amount</th>
-                                                        <th>Transaction Cost</th>
-                                                        <th>Total</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <?php if (isset($detailedTransactions5Months[$subcategory])) : ?>
-                                                        <?php foreach ($detailedTransactions5Months[$subcategory] as $transaction) : ?>
+                                                    <?php $nameGroups = groupBudgetTransactionsByName($detailedTransactions5Months[$subcategory] ?? []); ?>
+                                                    <?php if (!empty($nameGroups)) : ?>
+                                                        <?php foreach ($nameGroups as $group) : ?>
+                                                            <?php $tagColor = budgetTagColorClass($group['tag']); ?>
                                                             <tr>
-                                                                <td><?= date('Y-m-d', strtotime($transaction['transaction_date'])) ?></td>
-                                                                <td><?= htmlspecialchars($transaction['description']) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'], 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['transactionCost'] ?? 0, 2) ?></td>
-                                                                <td>Ksh <?= number_format($transaction['amount'] + ($transaction['transactionCost'] ?? 0), 2) ?></td>
+                                                                <td class="<?= $tagColor ?>"><?= htmlspecialchars($group['name']) ?></td>
+                                                                <td class="<?= $tagColor ?>">Ksh <?= number_format($group['total'], 2) ?></td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     <?php else : ?>
                                                         <tr>
-                                                            <td colspan="5" class="text-center">No detailed transactions found</td>
+                                                            <td colspan="2" class="text-center">No detailed transactions found</td>
                                                         </tr>
                                                     <?php endif; ?>
                                                     </tbody>
