@@ -54,6 +54,7 @@ if (!function_exists('finalize_admin_login')) {
         $_SESSION['odmsaid'] = $email;
         require_once __DIR__ . '/session_tracker.php';
         record_login_session($dbh, $email);
+        enforce_device_limit($dbh, $email, session_id());
 
         if ($remember) {
             // Stored raw (not password_hash()'d) - check-login.php looks this

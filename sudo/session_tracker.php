@@ -71,6 +71,62 @@ function touch_session($dbh, $email) {
     return true;
 }
 
+// Immediately destroy ANOTHER device's server-side session.
+// Works with PHP's default "files" session handler. The deleted session file
+// means that device's next request has no session -> it gets sent to login.
+function destroy_session_file($targetSid) {
+    // session IDs are alphanumeric (plus , and -); reject anything else to block path traversal
+    if (!preg_match('/^[A-Za-z0-9,\-]+$/', (string)$targetSid)) return;
+    $path = session_save_path();
+    if ($path === '') $path = sys_get_temp_dir();
+    if (strpos($path, ';') !== false) {           // handles "N;/path" and "N;MODE;/path"
+        $parts = explode(';', $path);
+        $path = end($parts);
+    }
+    $file = rtrim($path, "/\\") . DIRECTORY_SEPARATOR . 'sess_' . $targetSid;
+    if (is_file($file)) @unlink($file);
+}
+
+// Call right after record_login_session() on every real auth event (fresh
+// login, post-OTP login, remember-me auto-login). If $email now has more
+// than MAX_LOGGED_IN_DEVICES (.env, default 5) tracked devices, logs out the
+// oldest (by last_activity) ones — immediately killing their server-side
+// session files — until at most that many remain, always keeping
+// $currentSid regardless of its own last_activity.
+function enforce_device_limit($dbh, $email, $currentSid) {
+    $max = (int) (function_exists('env') ? env('MAX_LOGGED_IN_DEVICES', 5) : 5);
+    if ($max < 1) {
+        $max = 1; // never lock out the device that's currently logging in
+    }
+
+    $q = $dbh->prepare("SELECT session_id FROM tblsessions WHERE admin_email = :email ORDER BY last_activity DESC");
+    $q->execute([':email' => $email]);
+    $sids = $q->fetchAll(PDO::FETCH_COLUMN);
+
+    if (count($sids) <= $max) {
+        return;
+    }
+
+    $keep = array_slice($sids, 0, $max);
+    if (!in_array($currentSid, $keep, true)) {
+        array_pop($keep);
+        $keep[] = $currentSid;
+    }
+
+    $toEvict = array_values(array_diff($sids, $keep));
+    if (!$toEvict) {
+        return;
+    }
+
+    foreach ($toEvict as $sid) {
+        destroy_session_file($sid);
+    }
+
+    $placeholders = implode(',', array_fill(0, count($toEvict), '?'));
+    $del = $dbh->prepare("DELETE FROM tblsessions WHERE admin_email = ? AND session_id IN ($placeholders)");
+    $del->execute(array_merge([$email], $toEvict));
+}
+
 // ---------------------------------------------------------------------------
 // Writer sessions — parallel to the admin functions above, keyed by writer_id.
 // Call record_writer_session() in your WRITER login right after you set the

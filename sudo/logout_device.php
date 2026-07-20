@@ -20,22 +20,6 @@ function clear_remember_token($con, $email) {
     $stmt->close();
 }
 
-// Immediately destroy ANOTHER device's server-side session.
-// Works with PHP's default "files" session handler. The deleted session file
-// means that device's next request has no session -> it gets sent to login.
-function destroy_session_file($targetSid) {
-    // session IDs are alphanumeric (plus , and -); reject anything else to block path traversal
-    if (!preg_match('/^[A-Za-z0-9,\-]+$/', (string)$targetSid)) return;
-    $path = session_save_path();
-    if ($path === '') $path = sys_get_temp_dir();
-    if (strpos($path, ';') !== false) {           // handles "N;/path" and "N;MODE;/path"
-        $parts = explode(';', $path);
-        $path = end($parts);
-    }
-    $file = rtrim($path, "/\\") . DIRECTORY_SEPARATOR . 'sess_' . $targetSid;
-    if (is_file($file)) @unlink($file);
-}
-
 // Log out ALL other devices
 if (isset($_POST['logout_all_others'])) {
     $sel = $dbh->prepare("SELECT session_id FROM tblsessions WHERE admin_email = :email AND session_id <> :sid");

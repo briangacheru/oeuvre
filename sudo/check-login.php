@@ -169,6 +169,7 @@ if (!isset($_SESSION['odmsaid']) && isset($_COOKIE['rememberme'])) {
             $_SESSION['odmsaid'] = $row['email']; // Log the user in by setting the session variable
             require_once 'session_tracker.php';
             record_login_session($dbh, $_SESSION['odmsaid']);
+            enforce_device_limit($dbh, $_SESSION['odmsaid'], session_id());
             remember_device($con, 'tbladmin_known_devices', 'admin_email', $row['email'], 'admin_device_token', $deviceToken);
 
             // Update user status to online

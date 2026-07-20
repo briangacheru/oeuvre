@@ -233,7 +233,7 @@ if($query->rowCount() > 0)
                                 <span class="badge bg-info-subtle text-info ms-2"><?php echo count($sessions); ?></span>
                             </div>
                             <?php if (count($sessions) > 1) { ?>
-                                <form method="post" action="logout_device.php" class="mb-0">
+                                <form method="post" action="logout_device" class="mb-0">
 <?= csrf_field() ?>
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                     <button type="submit" name="logout_all_others" value="1" class="btn btn-outline-danger btn-sm">
@@ -289,7 +289,7 @@ if($query->rowCount() > 0)
                                                 <td class="text-700"><?php echo date("jS M Y, g:i A", strtotime($s->login_time)); ?></td>
                                                 <td class="text-700"><?php echo date("jS M Y, g:i A", strtotime($s->last_activity)); ?></td>
                                                 <td class="text-end pe-3">
-                                                    <form method="post" action="logout_device.php" class="mb-0 d-inline">
+                                                    <form method="post" action="logout_device" class="mb-0 d-inline">
 <?= csrf_field() ?>
                                                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                         <input type="hidden" name="session_db_id" value="<?php echo (int)$s->id; ?>">
