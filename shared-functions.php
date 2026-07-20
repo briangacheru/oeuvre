@@ -757,12 +757,17 @@ if (!function_exists('is_known_device_token')) {
         }
 
         $tokenHash = hash('sha256', $deviceToken);
-        $stmt = $con->prepare("SELECT id FROM `$table` WHERE `$emailColumn` = ? AND device_token_hash = ? AND expires_at > NOW()");
+        // expires_at is written with PHP's date() under Africa/Nairobi (see
+        // remember_device() below) - MySQL's NOW() is this server's UTC clock,
+        // so comparing against it directly would run ~3 hours off. Compare
+        // against a PHP-computed timestamp on the same clock instead.
+        $now = date('Y-m-d H:i:s');
+        $stmt = $con->prepare("SELECT id FROM `$table` WHERE `$emailColumn` = ? AND device_token_hash = ? AND expires_at > ?");
         if (!$stmt) {
             error_log("is_known_device_token: prepare failed on `$table` (has db-migrations/2026_07_20_add_known_devices.sql been run?) - " . $con->error);
             return false;
         }
-        $stmt->bind_param('ss', $email, $tokenHash);
+        $stmt->bind_param('sss', $email, $tokenHash, $now);
         $stmt->execute();
         $found = $stmt->get_result()->num_rows > 0;
         $stmt->close();
