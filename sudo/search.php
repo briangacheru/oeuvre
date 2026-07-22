@@ -33,18 +33,23 @@ $like = '%' . $q . '%';
 $groups = [];
 
 // ---- Tasks ----
+// id LIKE lets a partial id (e.g. "834") find task 10834 too, not just an
+// exact match; when the query is purely numeric an exact id match is still
+// sorted to the top so searching "10834" surfaces that task first.
 $taskItems = [];
+$isNumericQuery = ctype_digit($q);
+$taskOrder = $isNumericQuery ? "ORDER BY (id = " . (int) $q . ") DESC, create_date DESC" : "ORDER BY create_date DESC";
 $stmt = $con->prepare("SELECT id, topic, subject, account, status, writer FROM tbltasks
-    WHERE is_deleted = 0 AND (topic LIKE ? OR subject LIKE ? OR account LIKE ? OR writer LIKE ?)
-    ORDER BY create_date DESC LIMIT 8");
-$stmt->bind_param('ssss', $like, $like, $like, $like);
+    WHERE is_deleted = 0 AND (topic LIKE ? OR subject LIKE ? OR account LIKE ? OR writer LIKE ? OR id LIKE ?)
+    $taskOrder LIMIT 8");
+$stmt->bind_param('sssss', $like, $like, $like, $like, $like);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
     $encodedId = encode_task_id($row['id']);
     $taskItems[] = [
         'title' => $row['topic'],
-        'subtitle' => htmlspecialchars($row['account'], ENT_QUOTES) . ' &bull; ' . htmlspecialchars($row['writer'], ENT_QUOTES) . ' &bull; ' . htmlspecialchars($row['status'], ENT_QUOTES),
+        'subtitle' => 'Task #' . $row['id'] . ' &bull; ' . htmlspecialchars($row['account'], ENT_QUOTES) . ' &bull; ' . htmlspecialchars($row['writer'], ENT_QUOTES) . ' &bull; ' . htmlspecialchars($row['status'], ENT_QUOTES),
         'actions' => [
             ['label' => 'View Task', 'url' => 'view-task?task_id=' . urlencode($encodedId)],
             ['label' => 'Edit Task', 'url' => 'edit-task?task_id=' . urlencode($encodedId)],
