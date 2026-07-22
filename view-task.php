@@ -917,6 +917,11 @@ if ($rowTask['status'] == 'Completed') {
                                 $uploadTime = $fileRow['upload_time'];
                                 $formattedDate = date('d M Y, g:i A', strtotime($uploadTime . ' UTC'));
 
+                                // upload_time is UTC, due_date is Nairobi-local (naive) - compare
+                                // as DateTime objects so PHP normalizes both to the same instant
+                                // rather than comparing mismatched raw strings.
+                                $isLateSubmission = !empty($taskDueDate) && new DateTime($uploadTime, new DateTimeZone('UTC')) > new DateTime($taskDueDate);
+
                                 $formattedSize = 'Unknown size';
                                 if ($fileSize > 0) {
                                     $units = ['B', 'KB', 'MB', 'GB'];
@@ -984,6 +989,9 @@ if ($rowTask['status'] == 'Completed') {
                                                             target="_blank"><?php echo $fileName; ?></a>
                                             <?php if (!empty($fileRow['revision_number']) && (int) $fileRow['revision_number'] > 0): ?>
                                                 <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision <?php echo (int) $fileRow['revision_number']; ?></span>
+                                            <?php endif; ?>
+                                            <?php if ($isLateSubmission): ?>
+                                                <span class="badge badge-subtle-danger rounded-pill ms-1"><i class="fas fa-clock me-1"></i>Late</span>
                                             <?php endif; ?>
                                         </h6>
                                         <div class="fs-10">

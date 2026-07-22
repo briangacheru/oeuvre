@@ -1456,6 +1456,11 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         $formattedSize = formatFileSize($fileSize);
                                         $formattedDate = date('d M Y, g:i A', strtotime($uploadTime . ' UTC'));
 
+                                        // upload_time is UTC, due_date is Nairobi-local (naive) -
+                                        // compare as DateTime objects so PHP normalizes both to
+                                        // the same instant rather than comparing raw strings.
+                                        $isLateSubmission = !empty($taskDueDate) && new DateTime($uploadTime, new DateTimeZone('UTC')) > new DateTime($taskDueDate);
+
                                         // Determine thumbnail based on file extension
                                         $thumbnailPath = '../assets/img/icons/docs.png';
                                         $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
@@ -1519,6 +1524,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                        href="<?php echo $fileUrl; ?>"><?php echo htmlspecialchars($fileName); ?></a>
                                                     <?php if (!empty($fileRow['revision_number']) && (int) $fileRow['revision_number'] > 0): ?>
                                                         <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision <?php echo (int) $fileRow['revision_number']; ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($isLateSubmission): ?>
+                                                        <span class="badge badge-subtle-danger rounded-pill ms-1"><i class="fas fa-clock me-1"></i>Late</span>
                                                     <?php endif; ?>
                                                 </h6>
                                                 <div class="fs-10">
@@ -2764,6 +2772,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             <?php
             // Shared file listing helper
             function wv_list_files($con, $taskId, $fileType, $pathPrefix) {
+                global $taskDueDate;
                 $q = "SELECT * FROM tbl_task_files WHERE task_id = ? AND file_type = ? AND is_deleted = 0 ORDER BY upload_time ASC";
                 $s = mysqli_prepare($con, $q);
                 mysqli_stmt_bind_param($s, 'is', $taskId, $fileType);
@@ -2786,10 +2795,18 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     echo '<div class="file-thumbnail"><img class="border h-100 w-100 object-fit-cover rounded-2" src="' . $th . '" alt=""/></div>';
                     echo '<div class="ms-3 flex-shrink-1 flex-grow-1">';
                     $revisionBadge = '';
-                    if ($fileType === 'submitted' && !empty($row['revision_number']) && (int) $row['revision_number'] > 0) {
-                        $revisionBadge = ' <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision ' . (int) $row['revision_number'] . '</span>';
+                    $lateBadge = '';
+                    if ($fileType === 'submitted') {
+                        if (!empty($row['revision_number']) && (int) $row['revision_number'] > 0) {
+                            $revisionBadge = ' <span class="badge badge-subtle-warning rounded-pill ms-1"><i class="fas fa-history me-1"></i>Revision ' . (int) $row['revision_number'] . '</span>';
+                        }
+                        // upload_time is UTC, due_date is Nairobi-local (naive) - compare as
+                        // DateTime objects so PHP normalizes both to the same instant.
+                        if (!empty($taskDueDate) && new DateTime($row['upload_time'], new DateTimeZone('UTC')) > new DateTime($taskDueDate)) {
+                            $lateBadge = ' <span class="badge badge-subtle-danger rounded-pill ms-1"><i class="fas fa-clock me-1"></i>Late</span>';
+                        }
                     }
-                    echo '<h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold" href="' . $fu . '" target="_blank">' . htmlspecialchars($fn) . '</a>' . $revisionBadge . '</h6>';
+                    echo '<h6 class="mb-1"><a class="stretched-link text-900 fw-semi-bold" href="' . $fu . '" target="_blank">' . htmlspecialchars($fn) . '</a>' . $revisionBadge . $lateBadge . '</h6>';
                     echo '<div class="fs-10"><span class="fw-medium text-600">' . $sz . '</span><span class="fw-medium text-600 mx-1">•</span><span class="fw-medium text-600">' . $fd . '</span></div>';
                     echo '<div class="hover-actions end-0 top-50 translate-middle-y">';
                     if ($isImage) {
