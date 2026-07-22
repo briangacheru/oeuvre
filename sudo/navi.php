@@ -17,6 +17,7 @@
 <script src="../vendors/simplebar/simplebar.min.js"></script>
 <script src="../assets/js/adminsessiontimeout.js"></script>
 <script src="../assets/js/admin-task-notification.js"></script>
+<script src="../assets/js/topbar-search.js"></script>
 
 
 
