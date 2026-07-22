@@ -31,17 +31,17 @@ $groups = [];
 $taskItems = [];
 $isNumericQuery = ctype_digit($q);
 $taskOrder = $isNumericQuery ? "ORDER BY (id = " . (int) $q . ") DESC, create_date DESC" : "ORDER BY create_date DESC";
-$stmt = $con->prepare("SELECT id, topic, subject, account, status FROM tbltasks
-    WHERE is_deleted = 0 AND email = ? AND (topic LIKE ? OR subject LIKE ? OR account LIKE ? OR id LIKE ?)
+$stmt = $con->prepare("SELECT id, topic, subject, status FROM tbltasks
+    WHERE is_deleted = 0 AND email = ? AND (topic LIKE ? OR subject LIKE ? OR id LIKE ?)
     $taskOrder LIMIT 8");
-$stmt->bind_param('sssss', $aid, $like, $like, $like, $like);
+$stmt->bind_param('ssss', $aid, $like, $like, $like);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
     $encodedId = encode_task_id($row['id']);
     $taskItems[] = [
         'title' => $row['topic'],
-        'subtitle' => 'Task #' . $row['id'] . ' &bull; ' . htmlspecialchars($row['account'], ENT_QUOTES) . ' &bull; ' . htmlspecialchars($row['status'], ENT_QUOTES),
+        'subtitle' => 'Task #' . $row['id'] . ' &bull; ' . htmlspecialchars($row['status'], ENT_QUOTES),
         'actions' => [
             ['label' => 'View Task', 'url' => 'view-task?task_id=' . urlencode($encodedId)],
         ],
