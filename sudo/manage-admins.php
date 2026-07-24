@@ -17,11 +17,31 @@ if ($result) {
 }
 ?>
 
+<div class="card shadow-none border mb-3">
+    <div class="bg-holder bg-card d-none d-md-block" style="background-image:url(../assets/img/illustrations/corner-6.png);">
+    </div>
+    <!--/.bg-holder-->
+
+    <div class="card-header z-1">
+        <div class="row flex-between-center gx-0">
+            <div class="col-lg-auto d-flex align-items-center">
+                <h4 class="mb-0 text-primary fw-bold">Manage <span class="text-info fw-medium">Admins</span></h4>
+            </div>
+            <div class="col-lg-auto pt-3 pt-lg-0">
+                <form class="row flex-lg-column flex-xxl-row gx-3 gy-2 align-items-center align-items-lg-start align-items-xxl-center">
+                    <div class="col-md-auto position-relative">
+                        <h6 class="mb-1 badge rounded-pill badge-subtle-info"><?php echo date("jS F Y"); ?> | <span id="timeDisplay"></span></h6>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3 mb-3">
-    <div class="col-12">
-        <div class="card">
+    <div class="col">
+        <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0">Manage Admins</h5>
                 <p class="text-600 fs-10 mb-0">Assign a role to each admin account. New self-registrations start as
                     <strong>pending</strong> (zero access) until approved here. Superadmin accounts are locked here -
                     change or remove one directly in the database if that's ever genuinely needed.</p>
@@ -45,11 +65,11 @@ if ($result) {
                                 $isSuperadmin = ($admin['role'] === 'superadmin');
                                 $isLocked = $isSelf || $isSuperadmin; // neither editable nor deletable here
                                 ?>
-                                <tr class="btn-reveal-trigger<?php echo $isSuperadmin ? ' opacity-50' : ''; ?>" data-admin-id="<?php echo (int) $admin['id']; ?>">
-                                    <td><?php echo htmlspecialchars($admin['username'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?php echo htmlspecialchars($admin['email'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?php echo $admin['AdminRegdate'] ? date('jS M Y', strtotime($admin['AdminRegdate'])) : '—'; ?></td>
-                                    <td>
+                                <tr class="hover-actions-trigger hover-bg-100<?php echo $isSuperadmin ? ' opacity-50' : ''; ?>" data-admin-id="<?php echo (int) $admin['id']; ?>">
+                                    <td class="align-middle white-space-nowrap"><?php echo htmlspecialchars($admin['username'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td class="align-middle white-space-nowrap"><?php echo htmlspecialchars($admin['email'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td class="align-middle white-space-nowrap"><?php echo $admin['AdminRegdate'] ? date('jS M Y', strtotime($admin['AdminRegdate'])) : '—'; ?></td>
+                                    <td class="align-middle white-space-nowrap">
                                         <?php if ($isLocked): ?>
                                             <span class="badge rounded-pill badge-subtle-primary"><?php echo htmlspecialchars(ucfirst($admin['role'] ?: 'pending'), ENT_QUOTES, 'UTF-8'); ?></span>
                                             <?php if ($isSelf): ?>
@@ -65,16 +85,18 @@ if ($result) {
                                                     <option value="<?php echo $roleOption; ?>" <?php echo ($admin['role'] === $roleOption) ? 'selected' : ''; ?>><?php echo ucfirst($roleOption); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+                                            <button type="button" class="btn btn-sm btn-outline-primary save-role-btn ms-1">Save</button>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="white-space-nowrap">
+                                    <td class="align-middle white-space-nowrap text-end position-relative">
                                         <?php if (!$isLocked): ?>
-                                            <button type="button" class="btn btn-sm btn-outline-primary save-role-btn me-1">Save</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger btn-reveal delete-admin-btn"
-                                                    data-admin-username="<?php echo htmlspecialchars($admin['username'], ENT_QUOTES, 'UTF-8'); ?>"
-                                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Admin">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <div class="hover-actions bg-100 top-50 end-0 translate-middle-y">
+                                                <button type="button" class="btn btn-outline-danger bg-danger icon-item rounded-3 fs-11 icon-item-sm delete-admin-btn"
+                                                        data-admin-username="<?php echo htmlspecialchars($admin['username'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Admin">
+                                                    <span class="fas fa-trash"></span>
+                                                </button>
+                                            </div>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
