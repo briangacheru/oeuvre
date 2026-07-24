@@ -1,6 +1,7 @@
 <?php
 include "check-login.php";
 csrf_verify_or_redirect();
+requireCapability($currentAdminRole, 'operate_finance');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $goalID = (int) $_POST['goalID'];
     $query = "UPDATE tblsavingsgoals SET is_deleted = 1 WHERE goalID = $goalID";

@@ -8,14 +8,7 @@ if (!isset($_SESSION['odmsaid'])) {
     exit();
 }
 
-$aid = $_SESSION['odmsaid'];
-$sql = 'SELECT * FROM tbladmin WHERE email=:aid';
-$query = $dbh->prepare($sql);
-$query->bindParam(':aid', $aid, PDO::PARAM_STR);
-$query->execute();
-$results = $query->fetchAll(PDO::FETCH_OBJ);
-
-if ($query->rowCount() == 0 || $results[0]->AdminName != 'Admin') {
+if (!adminCan($currentAdminRole, 'operate_tasks')) {
     echo json_encode(['success' => false, 'message' => 'Insufficient permissions']);
     exit();
 }

@@ -16,6 +16,7 @@ ini_set('error_log', __DIR__ . '/php-errors.log');
 date_default_timezone_set('Africa/Nairobi');
 require_once('dbcon.php');
 require_once('functions.php');
+require_once('permissions.php');
 function check_login() {
     if (!isset($_SESSION['odmsaid']) || strlen($_SESSION['odmsaid']) == 0) {
         // Store current page for redirect
@@ -187,5 +188,31 @@ if (!isset($_SESSION['odmsaid']) && isset($_COOKIE['rememberme'])) {
         }
     }
     $stmt->close();
+}
+
+// ── Role-based access control ───────────────────────────────────────────
+// Computed here, AFTER the remember-me auto-login above, so a freshly
+// remember-me-authenticated request sees its real role rather than being
+// treated as logged-out. check-login.php is included by every sudo/*.php
+// page, directly or via head.php, so every page - including the AJAX/CSV
+// endpoints that never include head.php - gets $currentAdminRole for free
+// instead of re-querying tbladmin itself. A 'pending' role (the default for
+// a fresh self-registration, see register.php) is blocked from everything
+// except the pages it needs to sit and wait: Profile/Settings (to fill in
+// their own details) and logging out. This closes the gap where, before
+// this change, only the dashboard and sidebar nav checked AdminName - every
+// other admin page was reachable by direct URL with zero role check at all.
+$currentAdminRole = isset($_SESSION['odmsaid']) ? getAdminRole($con, $_SESSION['odmsaid']) : 'pending';
+
+$pendingAllowedPages = ['profile.php', 'settings.php', 'logout.php', 'index.php'];
+if (isset($_SESSION['odmsaid']) && $currentAdminRole === 'pending' && !in_array($currentScript, $pendingAllowedPages, true)) {
+    if (in_array($currentScript, $ajaxEndpoints, true)) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Your account is pending approval.']);
+        exit();
+    }
+    header('Location: index');
+    exit();
 }
 ?>

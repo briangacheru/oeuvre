@@ -7,6 +7,7 @@ header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
 require_once 'dbcon.php';
+require_once 'permissions.php';
 
 try {
     if (!isset($_SESSION['odmsaid'])) {
@@ -14,13 +15,7 @@ try {
     }
 
     $aid = $_SESSION['odmsaid'];
-
-    $sql = 'SELECT * FROM tbladmin WHERE email=:aid';
-    $query = $dbh->prepare($sql);
-    $query->bindParam(':aid', $aid, PDO::PARAM_STR);
-    $query->execute();
-    $results = $query->fetchAll(PDO::FETCH_OBJ);
-    $isAdmin = ($query->rowCount() > 0 && $results[0]->AdminName == 'Admin');
+    $isAdmin = adminCan(getAdminRole($con, $aid), 'operate_tasks');
 
     if (!$isAdmin) {
         throw new Exception('Not authorized');

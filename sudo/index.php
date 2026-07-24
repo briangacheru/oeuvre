@@ -51,7 +51,7 @@ $cnt = 1;
 
 if ($query->rowCount() > 0) {
     foreach ($results as $rowAdmin) {
-        if ($rowAdmin->AdminName == "Admin") {
+        if (isApprovedAdminRole($currentAdminRole)) {
 
 ?>
 <title>iTasker | Dashboard - <?php echo htmlspecialchars($rowAdmin->username, ENT_QUOTES, 'UTF-8'); ?></title>
@@ -123,6 +123,7 @@ if ($query->rowCount() > 0) {
                                     ?>
                                     <h4 class="text-800 mb-0"><span class="badge rounded-pill badge-subtle-success"><?php echo $todayTasks; ?></span></h4>
                                 </div>
+                                <?php if (adminCan($currentAdminRole, 'operate_finance')): ?>
                                 <div class="ps-3">
                                     <p class="text-600 fs-10">Completed | Unpaid</p>
                                     <?php
@@ -192,6 +193,7 @@ if ($query->rowCount() > 0) {
                                     ?>
                                     <h4 class="text-800 mb-0"><span class="badge rounded-pill badge-subtle-info">Ksh. <?php echo number_format($amount_due1, 2, '.', ','); ?></span></h4>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -687,6 +689,7 @@ if ($query->rowCount() > 0) {
         </div>
     </div>
 </div>
+<?php if (adminCan($currentAdminRole, 'operate_finance')): ?>
 <div class="row g-3 mb-3">
     <div class=" col-md-4">
         <div class="card overflow-hidden" style="min-width: 12rem">
@@ -773,7 +776,9 @@ if ($query->rowCount() > 0) {
         </div>
     </div>
 </div>
+<?php endif; ?>
 <div class="row g-3 mb-3">
+    <?php if (adminCan($currentAdminRole, 'operate_tasks')): ?>
     <div class=" col-md-4">
         <div class="card overflow-hidden" style="min-width: 12rem">
             <div class="bg-holder bg-card" style="background-image:url(../assets/img/icons/spot-illustrations/corner-1.png);">
@@ -825,6 +830,8 @@ if ($query->rowCount() > 0) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
+    <?php if (adminCan($currentAdminRole, 'operate_finance')): ?>
     <div class=" col-md-4">
         <div class="card overflow-hidden" style="min-width: 12rem">
             <div class="bg-holder bg-card" style="background-image:url(../assets/img/icons/spot-illustrations/corner-2.png);">
@@ -851,9 +858,9 @@ if ($query->rowCount() > 0) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
     <?php
-    // AdminName is "Admin", do something for admin
 } else {
     echo '
 <div class="row-cols-lg-12">

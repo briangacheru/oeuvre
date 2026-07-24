@@ -1,6 +1,7 @@
 <?php
 ob_start();
 include "check-login.php"; // Include your database connection and session start
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 // Clear any stray output from includes before sending JSON
 if (ob_get_length()) ob_clean();

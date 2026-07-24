@@ -1,5 +1,6 @@
 <?php
 include "check-login.php";
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 if (isset($_GET['id'])) {
     $budgetID = intval($_GET['id']);

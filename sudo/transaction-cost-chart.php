@@ -1,5 +1,6 @@
 <?php
 require 'check-login.php';
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 $filter = $_GET['filter'] ?? 'monthly';
 if ($filter === 'yearly') {

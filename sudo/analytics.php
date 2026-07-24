@@ -1,4 +1,5 @@
 <?php include "head.php";?>
+<?php requireCapability($currentAdminRole, 'operate_finance'); ?>
     <title>Budget Analytics</title>
 <?php include "navi.php";
 $status = "OK";

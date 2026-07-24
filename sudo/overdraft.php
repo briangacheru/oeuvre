@@ -1,5 +1,6 @@
 <?php include "head.php";?>
 <?php csrf_verify_or_redirect(); ?>
+<?php requireCapability($currentAdminRole, 'operate_finance'); ?>
     <title>iTasker | Overdraft</title>
 <?php include "navi.php";
 

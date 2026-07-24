@@ -1,6 +1,7 @@
 <?php
 include_once('head.php');
 csrf_verify_or_redirect();
+requireCapability($currentAdminRole, 'operate_finance');
 include_once('writer-performance-functions.php');
 
 // Handle settings updates

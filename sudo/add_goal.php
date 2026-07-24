@@ -1,6 +1,7 @@
 <?php
 include "check-login.php";
 csrf_verify_or_redirect();
+requireCapability($currentAdminRole, 'operate_finance');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $goalName = mysqli_real_escape_string($con, $_POST['goalName']);

@@ -861,10 +861,12 @@
                         {
                         foreach($results as $row)
                         {
-                        if($row->AdminName=="Admin"  )
+                        $navRole = $row->role ?? 'pending';
+                        if(isApprovedAdminRole($navRole))
                         {
                         ?>
                         <li class="nav-item">
+                        <?php if (adminCan($navRole, 'operate_tasks')): ?>
                             <!-- label-->
                             <div class="row navbar-vertical-label-wrapper mt-3 mb-2">
                                 <div class="col-auto navbar-vertical-label">TASKS
@@ -1096,6 +1098,8 @@
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-clipboard-list"></span></span><span class="nav-link-text ps-1">To-Do List</span>
                                 </div>
                             </a>
+                        <?php endif; ?>
+                        <?php if (adminCan($navRole, 'operate_finance')): ?>
                             <!-- label-->
                             <a class="nav-link dropdown-indicator collapsed" href="#budget" role="button" data-bs-toggle="collapse" aria-expanded="false" aria-controls="budget">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-wallet"></span></span><span class="nav-link-text ps-1">iFinance</span>
@@ -1128,11 +1132,15 @@
                                     </a>
                                 </li>
                             </ul>
+                        <?php endif; ?>
+                        <?php if (adminCan($navRole, 'operate_tasks')): ?>
                             <!-- parent pages--><a class="nav-link" href="projects" role="button">
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-folder"></span></span><span class="nav-link-text ps-1">Projects</span>
                                     <span class="badge rounded-pill ms-2 badge-subtle-primary">new</span>
                                 </div>
                             </a>
+                        <?php endif; ?>
+                        <?php if (adminCan($navRole, 'operate_finance')): ?>
                             <!-- label-->
                             <div class="row navbar-vertical-label-wrapper mt-3 mb-2">
                                 <div class="col-auto navbar-vertical-label">PAYMENT
@@ -1201,6 +1209,8 @@
                                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-receipt"></span></span><span class="nav-link-text ps-1">Invoices</span>
                                 </div>
                             </a>
+                        <?php endif; ?>
+                        <?php if (adminCan($navRole, 'operate_tasks')): ?>
                             <!-- label-->
                             <div class="row navbar-vertical-label-wrapper mt-3 mb-2">
                                 <div class="col-auto navbar-vertical-label">MANAGEMENT
@@ -1214,6 +1224,13 @@
                                     <span class="badge rounded-pill ms-2 badge-subtle-secondary">New</span>
                                 </div>
                             </a>
+                        <?php endif; ?>
+                        <?php if (adminCan($navRole, 'manage_admins')): ?>
+                            <!-- parent pages--><a class="nav-link" href="manage-admins" role="button">
+                                <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-user-shield"></span></span><span class="nav-link-text ps-1">Manage Admins</span>
+                                </div>
+                            </a>
+                        <?php endif; ?>
 
                             <?php
                             }
@@ -1308,7 +1325,7 @@
                         $query->bindParam(':aid', $aid, PDO::PARAM_STR);
                         $query->execute();
                         $results = $query->fetchAll(PDO::FETCH_OBJ);
-                        $isAdmin = ($query->rowCount() > 0 && $results[0]->AdminName == 'Admin');
+                        $isAdmin = ($query->rowCount() > 0 && adminCan($results[0]->role ?? 'pending', 'operate_tasks'));
                         ?>
 
                         <?php if ($isAdmin): ?>
@@ -1454,7 +1471,7 @@
 
                                 if ($query->rowCount() > 0) {
                                     foreach ($results as $row) {
-                                        if ($row->AdminName == "Admin") {
+                                        if (adminCan($row->role ?? 'pending', 'operate_tasks')) {
                                             ?>
                                             <div class="scrollbar-overlay" style="max-height:19rem">
                                                 <div class="list-group list-group-flush fw-normal fs-10">
@@ -1603,7 +1620,7 @@
                         $query->bindParam(':aid', $aid, PDO::PARAM_STR);
                         $query->execute();
                         $results = $query->fetchAll(PDO::FETCH_OBJ);
-                        $isAdmin = ($query->rowCount() > 0 && $results[0]->AdminName == 'Admin');
+                        $isAdmin = ($query->rowCount() > 0 && adminCan($results[0]->role ?? 'pending', 'operate_tasks'));
                         ?>
 
                         <?php if ($isAdmin): ?>

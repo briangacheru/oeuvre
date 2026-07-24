@@ -1,5 +1,6 @@
 <?php
 include "check-login.php"; // Make sure you include your database connection file here
+requireCapability($currentAdminRole, 'operate_finance', 'text');
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename=unpaid_tasks.csv');

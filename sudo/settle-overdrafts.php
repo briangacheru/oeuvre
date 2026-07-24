@@ -1,6 +1,7 @@
 <?php
 include "head.php"; // Include your database connection and session start
 csrf_verify_or_redirect();
+requireCapability($currentAdminRole, 'operate_finance');
 
 // Check if the form was submitted
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {

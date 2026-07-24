@@ -1,6 +1,7 @@
 <?php
 include "check-login.php";
 csrf_verify_or_json_die();
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 $response = array('success' => false, 'message' => '');
 

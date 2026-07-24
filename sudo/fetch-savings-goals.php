@@ -1,5 +1,6 @@
 <?php
 include "check-login.php";
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 // Fetch savings goals with goalStatus = 0
 $query = "SELECT goalName FROM tblsavingsgoals WHERE goalStatus = 0 AND is_deleted = 0";

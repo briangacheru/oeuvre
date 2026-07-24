@@ -1,7 +1,12 @@
 <?php
-require_once __DIR__ . '/session-name.php';
-session_start();
-include_once 'db.php';
+// Previously bootstrapped with session-name.php + session_start() + db.php
+// directly, with NO login check at all - this page (and its CSV
+// import/export/CRUD actions below) was reachable by anyone, logged in or
+// not. Switched to check-login.php, which is a strict superset (same
+// session, same $con, plus the actual auth/session-timeout/role checks -
+// see requireCapability() below) and is what every other admin page uses.
+include "check-login.php";
+requireCapability($currentAdminRole, 'operate_finance');
 
 error_reporting(E_ALL);
 ini_set('log_errors', 1);

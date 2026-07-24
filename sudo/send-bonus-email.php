@@ -1,7 +1,13 @@
 <?php
 require_once __DIR__ . '/../env.php';
 header('Content-Type: application/json');
-include_once('dbcon.php');
+// Previously bootstrapped with dbcon.php alone - no session, no login
+// check. Any unauthenticated POST could trigger a real bonus-notification
+// email to an arbitrary address (writer_email/writer_name come straight
+// from the request body), abusing the site's SMTP credentials. Switched
+// to check-login.php (includes dbcon.php) + a capability check.
+include_once('check-login.php');
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;

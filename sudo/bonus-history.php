@@ -1,6 +1,7 @@
 <?php
 include_once('head.php');
 csrf_verify_or_redirect();
+requireCapability($currentAdminRole, 'operate_finance');
 
 // Handle bonus payment updates
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {

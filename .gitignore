@@ -28,3 +28,8 @@
 !/uploads/project_attachments/
 /uploads/project_attachments/*
 !/uploads/project_attachments/.gitkeep
+
+# Database backups — full DB dumps (PII + financial data), never commit
+/backups/*
+!/backups/.gitkeep
+!/backups/.htaccess

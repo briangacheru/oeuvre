@@ -1,4 +1,5 @@
 <?php include "head.php";?>
+<?php requireCapability($currentAdminRole, 'operate_finance'); ?>
     <title>iTasker | Settled Overdrafts</title>
 <?php include "navi.php";
 

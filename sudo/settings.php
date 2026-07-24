@@ -186,6 +186,9 @@ $currencyOptions = supportedCurrencies();
 
 // Check if the form is submitted
 if (isset($_POST['submitStatus'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to change registration settings.";
+    } else {
     $newStatus = isset($_POST['newStatus']) ? (int) $_POST['newStatus'] : null;
 
     // Validate new status
@@ -202,6 +205,7 @@ if (isset($_POST['submitStatus'])) {
     } else {
         $error_message = "Invalid status value.";
     }
+    }
 }
 
 // Fetch the current registration status
@@ -213,6 +217,9 @@ $badgeClass = $currentStatus == 1 ? 'badge-subtle-success' : 'badge-subtle-dange
 
 // Check if the form is submitted
 if (isset($_POST['adminStatus'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to change registration settings.";
+    } else {
     $newStatus = isset($_POST['newStatus']) ? (int) $_POST['newStatus'] : null;
 
     // Validate new status
@@ -229,6 +236,7 @@ if (isset($_POST['adminStatus'])) {
     } else {
         $error_message = "Invalid status value.";
     }
+    }
 }
 
 // Fetch the current registration status
@@ -240,6 +248,9 @@ $badgeClass1 = $currentStatus1 == 1 ? 'badge-subtle-success' : 'badge-subtle-dan
 
 // Handle form submission for updating notification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationSubmit'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to change site notifications.";
+    } else {
     $notificationText = $_POST['notificationText'];
 
     $sql = "UPDATE tblsettings SET description = ?, regStatus = 1 WHERE id = 3";
@@ -253,10 +264,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationSubmit'])
     }
 
     $stmt->close();
+    }
 }
 
 // Handle form submission for deleting notification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationDelete'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to change site notifications.";
+    } else {
     $sql = "UPDATE tblsettings SET description = '', regStatus = 0 WHERE id = 3";
     $stmt = $con->prepare($sql);
 
@@ -267,6 +282,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationDelete'])
     }
 
     $stmt->close();
+    }
 }
 
 // Fetch current notification
@@ -421,7 +437,7 @@ $currentNotification = $row['description'];
             </div>
 
             <?php
-            if($row->superadmin == 1)
+            if(adminCan($currentAdminRole, 'manage_settings'))
             {
                 ?>
                 <div class="card mb-3">

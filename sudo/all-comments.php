@@ -5,17 +5,7 @@
 <?php
 $aid = $_SESSION['odmsaid'];
 
-// Get admin details and verify permissions
-$sql = 'SELECT * FROM tbladmin WHERE email=:aid';
-$query = $dbh->prepare($sql);
-$query->bindParam(':aid', $aid, PDO::PARAM_STR);
-$query->execute();
-$results = $query->fetchAll(PDO::FETCH_OBJ);
-
-if ($query->rowCount() == 0 || $results[0]->AdminName != 'Admin') {
-    header('location:logout.php');
-    exit();
-}
+requireCapability($currentAdminRole, 'operate_tasks');
 
 // Pagination settings
 $limit = 10; // Comments per page

@@ -1,10 +1,14 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET');
-header('Access-Control-Allow-Headers: Content-Type');
+// Previously bootstrapped with dbcon.php alone - no session, no login
+// check, plus a wildcard CORS header - reachable by any unauthenticated
+// caller from any origin. Only ever called same-origin from
+// bonus-history.php (see that file's fetch('get-bonus-settings')), so the
+// CORS header served no purpose; switched to check-login.php + a
+// capability check instead.
+include_once('check-login.php');
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
-include_once('dbcon.php');
+header('Content-Type: application/json');
 
 try {
     // Get all active bonus settings

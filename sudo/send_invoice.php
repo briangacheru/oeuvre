@@ -10,6 +10,7 @@ ob_start();
 
 include "head.php";
 csrf_verify_or_json_die();
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;

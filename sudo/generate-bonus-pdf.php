@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
-include_once('dbcon.php');
+// Previously bootstrapped with dbcon.php alone - no session, no login
+// check at all. Any unauthenticated caller who guessed a bonus_id could
+// pull a writer's financial PDF. Switched to check-login.php (which
+// includes dbcon.php itself) plus a capability check.
+include_once('check-login.php');
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);

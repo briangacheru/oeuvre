@@ -140,13 +140,14 @@ if($query->rowCount() > 0)
                         <div class="col-12">
                             <div class="d-flex align-items-center mb-1">
                                 <h4 class="pf-name mb-0 text-info me-2"><?php echo $row->FirstName; ?> <?php echo $row->LastName; ?></h4>
-                                <?php if ($row->superadmin == 1) { ?>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified account">
-                        <span class="fas fa-check-circle me-1"></span>Verified
+                                <?php $profileRole = $row->role ?? 'pending'; ?>
+                                <?php if ($profileRole === 'pending') { ?>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" data-bs-toggle="tooltip" data-bs-placement="top" title="Awaiting approval from a superadmin">
+                        <span class="fas fa-hourglass-half me-1"></span>Pending Approval
                       </span>
                                 <?php } else { ?>
-                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" data-bs-toggle="tooltip" data-bs-placement="top" title="Account not verified">
-                        <span class="fas fa-times-circle me-1"></span>Unverified
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle" data-bs-toggle="tooltip" data-bs-placement="top" title="Role: <?php echo htmlspecialchars(ucfirst($profileRole), ENT_QUOTES, 'UTF-8'); ?>">
+                        <span class="fas fa-check-circle me-1"></span><?php echo htmlspecialchars(ucfirst($profileRole), ENT_QUOTES, 'UTF-8'); ?>
                       </span>
                                 <?php } ?>
                             </div>

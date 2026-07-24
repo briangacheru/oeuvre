@@ -1,5 +1,6 @@
 <?php
 include_once('head.php');
+requireCapability($currentAdminRole, 'operate_tasks');
 include_once('writer-performance-functions.php');
 
 $writerID = isset($_GET['writerID']) ? decode_writer_id($_GET['writerID']) : null;

@@ -1,11 +1,14 @@
 <?php
 /**
- * Top-nav search (admin/sudo). Admins can see everything, so this searches
- * across all tasks, writers, files, messages, invoices, payments,
- * transactions, goals, todos, projects, reminders, chats, writer levels,
- * bonus records, the app version, and financial accounts - not scoped to
- * one writer's data the way root's search.php is. GET-only, no state
- * change, so no CSRF check needed.
+ * Top-nav search (admin/sudo). Searches across all tasks, writers, files,
+ * messages, invoices, payments, transactions, goals, todos, projects,
+ * reminders, chats, writer levels, bonus records, the app version, and
+ * financial accounts - not scoped to one writer's data the way root's
+ * search.php is. The financial groups (invoices/payments/transactions/
+ * goals) are only included for roles with 'operate_finance' - see
+ * permissions.php - so a support-only admin can't use search to see
+ * financial data the finance pages themselves already hide from them.
+ * GET-only, no state change, so no CSRF check needed.
  *
  * Several of these entity types have no dedicated per-record view page in
  * the app (invoices, payments, transactions, goals, reminders, chats,
@@ -139,6 +142,9 @@ if ($messageItems) {
     $groups[] = ['label' => 'Messages', 'icon' => 'fa-comment-dots', 'items' => $messageItems];
 }
 
+// ---- Invoices/Payments/Transactions/Goals ---- financial data, only searchable
+// by roles that can also reach the pages these results link to.
+if (adminCan($currentAdminRole, 'operate_finance')) {
 // ---- Invoices ---- (no per-record view page; link to the invoice log list)
 $invoiceItems = [];
 $stmt = $con->prepare("SELECT id, writer_name, writer_email, amount_payable, sent_at, notes FROM tbl_invoice_logs
@@ -227,6 +233,7 @@ $stmt->close();
 if ($goalItems) {
     $groups[] = ['label' => 'Goals', 'icon' => 'fa-bullseye', 'items' => $goalItems];
 }
+} // adminCan('operate_finance')
 
 // ---- Todos ----
 $todoItems = [];

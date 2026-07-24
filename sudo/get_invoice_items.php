@@ -1,6 +1,7 @@
 <?php
 ob_start();
 include "head.php";
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 if (ob_get_length()) ob_clean();
 header('Content-Type: application/json');
