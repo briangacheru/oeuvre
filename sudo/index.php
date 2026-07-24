@@ -1,5 +1,46 @@
 <?php include "head.php";?>
 <?php
+if (!function_exists('computeWriterNetPayable')) {
+    // Nets completed/unpaid task cost + pending bonus - unsettled overdraft, per writer,
+    // then sums only the positive nets. A writer's own overdraft can only offset their
+    // own payout — it must never reduce what's owed to a different writer (e.g. one who
+    // is invoiced directly and never carries an overdraft balance at all).
+    function computeWriterNetPayable($con, $taskStatusCondition) {
+        $tasksByWriter = [];
+        $tasksResult = mysqli_query($con, "SELECT writer, SUM(CPP*pages) AS total FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND $taskStatusCondition GROUP BY writer");
+        if ($tasksResult) {
+            while ($row = mysqli_fetch_assoc($tasksResult)) {
+                $tasksByWriter[$row['writer']] = (float) $row['total'];
+            }
+        }
+
+        $bonusByWriter = [];
+        $bonusResult = mysqli_query($con, "SELECT writer, SUM(amount) AS total FROM tbloverdrafts WHERE is_settled = 0 AND record_type = 'bonus' AND description = 'Performance Bonus' AND is_deleted = 0 GROUP BY writer");
+        if ($bonusResult) {
+            while ($row = mysqli_fetch_assoc($bonusResult)) {
+                $bonusByWriter[$row['writer']] = (float) $row['total'];
+            }
+        }
+
+        $overdraftByWriter = [];
+        $overdraftResult = mysqli_query($con, "SELECT writer, SUM(amount) AS total FROM tbloverdrafts WHERE is_settled = 0 AND record_type = 'overdraft' AND description = 'iTasker' AND is_deleted = 0 GROUP BY writer");
+        if ($overdraftResult) {
+            while ($row = mysqli_fetch_assoc($overdraftResult)) {
+                $overdraftByWriter[$row['writer']] = (float) $row['total'];
+            }
+        }
+
+        $writers = array_unique(array_merge(array_keys($tasksByWriter), array_keys($bonusByWriter)));
+        $total = 0.0;
+        foreach ($writers as $writer) {
+            $net = ($tasksByWriter[$writer] ?? 0) + ($bonusByWriter[$writer] ?? 0) - ($overdraftByWriter[$writer] ?? 0);
+            if ($net > 0) {
+                $total += $net;
+            }
+        }
+        return $total;
+    }
+}
 $aid = $_SESSION['odmsaid'];
 $sql = "SELECT * FROM tbladmin WHERE email=:aid";
 $query = $dbh->prepare($sql);
@@ -85,22 +126,19 @@ if ($query->rowCount() > 0) {
                                 <div class="ps-3">
                                     <p class="text-600 fs-10">Completed | Unpaid</p>
                                     <?php
-                                    // Query to sum CPP*pages for completed, unpaid tasks
-                                    $query1 = mysqli_query($con, "SELECT SUM(CPP*pages) AS total FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND status = 'Completed'");
-                                    $result1 = mysqli_fetch_assoc($query1);
-                                    $totalCompletedTasks = (float) $result1['total']; // Cast to float to ensure arithmetic operation
+                                    // Net per writer (own bonus + own unpaid work - own overdraft, floored at 0),
+                                    // then summed — so a writer with no overdraft (invoice-only) isn't shorted
+                                    // by another writer's unrelated overdraft balance.
+                                    $amount_due = computeWriterNetPayable($con, "status = 'Completed'");
 
-                                    // Query to sum amount from tbloverdrafts
+                                    // Company-wide totals (used by the "Total Overdraft Amount" / "Total Bonus" cards below).
                                     $query2 = mysqli_query($con, "SELECT SUM(amount) AS total2 FROM tbloverdrafts WHERE is_settled = 0 AND description = 'iTasker' AND record_type = 'overdraft' AND is_deleted = 0");
                                     $result2 = mysqli_fetch_assoc($query2);
-                                    $totalOverdrafts = (float) $result2['total2']; // Cast to float to ensure arithmetic operation
+                                    $totalOverdrafts = (float) $result2['total2'];
 
                                     $query5 = mysqli_query($con, "SELECT SUM(amount) AS total5 FROM tbloverdrafts WHERE is_settled = 0 AND record_type = 'bonus' AND description = 'Performance Bonus' AND is_deleted = 0");
                                     $result5 = mysqli_fetch_assoc($query5);
                                     $totalBonus = (float) $result5['total5'];
-
-                                    // Calculate amount due by subtracting total completed task costs from total overdrafts
-                                    $amount_due = $totalCompletedTasks + $totalBonus - $totalOverdrafts;
                                     ?>
                                     <h4 class="text-800 mb-0"><span class="badge rounded-pill badge-subtle-info">Ksh. <?php echo number_format($amount_due, 2, '.', ','); ?></span></h4>
                                     <div class="form-text">Invoice updated
@@ -149,22 +187,8 @@ if ($query->rowCount() > 0) {
                                 <div class="ps-3">
                                     <p class="text-600 fs-10">Submitted|Completed|Unpaid </p>
                                     <?php
-                                    // Query to sum CPP*pages for completed, unpaid tasks
-                                    $query3 = mysqli_query($con, "SELECT SUM(CPP*pages) AS total3 FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND status IN ('Submitted', 'Completed')");
-                                    $result3 = mysqli_fetch_assoc($query3);
-                                    $totalSubComTasks = (float) $result3['total3']; // Cast to float to ensure arithmetic operation
-
-                                    // Query to sum amount from tbloverdrafts
-                                    $query4 = mysqli_query($con, "SELECT SUM(amount) AS total4 FROM tbloverdrafts WHERE is_settled = 0 AND record_type = 'overdraft' AND description = 'iTasker' AND is_deleted = 0");
-                                    $result4 = mysqli_fetch_assoc($query4);
-                                    $totalOver = (float) $result4['total4']; // Cast to float to ensure arithmetic operation
-
-                                    $query5 = mysqli_query($con, "SELECT SUM(amount) AS total5 FROM tbloverdrafts WHERE is_settled = 0 AND record_type = 'bonus' AND description = 'Performance Bonus' AND is_deleted = 0");
-                                    $result5 = mysqli_fetch_assoc($query5);
-                                    $totalBonus = (float) $result5['total5'];
-
-                                    // Calculate amount due by subtracting total completed task costs from total overdrafts
-                                    $amount_due1 = $totalSubComTasks + $totalBonus - $totalOver;
+                                    // Same per-writer netting as the widget above, including submitted tasks.
+                                    $amount_due1 = computeWriterNetPayable($con, "status IN ('Submitted', 'Completed')");
                                     ?>
                                     <h4 class="text-800 mb-0"><span class="badge rounded-pill badge-subtle-info">Ksh. <?php echo number_format($amount_due1, 2, '.', ','); ?></span></h4>
                                 </div>
