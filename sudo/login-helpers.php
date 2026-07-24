@@ -10,6 +10,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 if (!function_exists('send_login_otp_code_email')) {
     function send_login_otp_code_email($toEmail, $code) {
@@ -29,11 +30,15 @@ if (!function_exists('send_login_otp_code_email')) {
 
             $mail->isHTML(true);
             $mail->Subject = "Your iTasker admin verification code";
-            $mail->Body = '<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">'
-                . '<p style="font-size: 15px; color: #333;">Someone signed in to your iTasker admin account after it had been inactive for a while. Enter this code to continue:</p>'
-                . '<p style="font-size: 32px; font-weight: 700; letter-spacing: 6px; text-align: center; background: #f5f7fa; padding: 16px; border-radius: 6px; color: #18163a;">' . htmlspecialchars($code) . '</p>'
-                . '<p style="font-size: 13px; color: #888;">This code expires in 10 minutes. If this wasn\'t you, change your password immediately.</p>'
-                . '</div>';
+            // Worded to cover both cases this fires for - a first-ever login
+            // from a new device and a returning login after a long break -
+            // rather than assuming it's always the latter.
+            $mail->Body = render_email_html(
+                'Verify it\'s you',
+                '<p>For your security, please confirm it\'s really you signing in to your iTasker admin account. Enter this code to continue:</p>'
+                . '<p style="font-size:32px;font-weight:700;letter-spacing:6px;text-align:center;background:#f5f7fa;padding:16px;border-radius:6px;color:#18163a;">' . htmlspecialchars($code) . '</p>'
+                . '<p style="font-size:13px;color:#888;">This code expires in 10 minutes. If this wasn\'t you, change your password immediately.</p>'
+            );
             $mail->AltBody = "Your iTasker admin verification code is: $code (expires in 10 minutes)";
 
             $mail->send();

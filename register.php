@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/shared-functions.php';
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/email-template.php';
+require_once __DIR__ . '/login-helpers.php';
 include "check-login.php";
 csrf_verify_or_redirect();
 
@@ -37,6 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $errors[] = "Password and confirm password do not match.";
     }
 
+    if (!isset($_POST['terms'])) {
+        $errors[] = "You must accept the terms and conditions to register.";
+    }
+
     if (!empty($errors)) {
         foreach ($errors as $error) {
             set_message($error);
@@ -51,6 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->bind_param("sss", $username, $email, $hashed_password);
 
         if ($stmt->execute()) {
+            $loginUrl = rtrim(env('APP_URL'), '/') . '/login';
+            $writersUrl = rtrim(env('APP_URL'), '/') . '/sudo/usermanagement';
+
             // Send a thank you email to the user
             $user_mail = new PHPMailer(true);
             $user_mail->isSMTP();
@@ -65,8 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $user_mail->addAddress($email, $username);
 
             $user_mail->isHTML(true);
-            $user_mail->Subject = 'Thank you for Signing Up';
-            $user_mail->Body = 'Thank you for signing up at our website. Your account will be activated shortly.';
+            $user_mail->Subject = 'Thank you for Signing Up - iTasker';
+            $user_mail->Body = render_email_html(
+                'Welcome to iTasker',
+                '<p>Hi ' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . ',</p>'
+                . '<p>Thank you for signing up as a writer on iTasker. Your account is being reviewed and will be activated shortly - we\'ll let you know as soon as you\'re ready to log in.</p>',
+                'Go to Login',
+                $loginUrl
+            );
+            $user_mail->AltBody = "Thank you for signing up at iTasker. Your account will be activated shortly. Login: $loginUrl";
 
             // Send an email to the system admin
             $admin_mail = new PHPMailer(true);
@@ -82,14 +98,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $admin_mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin'); // Replace with admin's email
 
             $admin_mail->isHTML(true);
-            $admin_mail->Subject = 'New User Registration [iTasker]';
-            $admin_mail->Body = "A new user with email $email has registered. Consider activating their account.";
+            $admin_mail->Subject = 'New Writer Registration [iTasker]';
+            $admin_mail->Body = render_email_html(
+                'New Writer Registration',
+                '<p>A new writer has registered and is awaiting activation:</p>'
+                . '<table role="presentation" style="width:100%;font-size:14px;border-collapse:collapse;margin-top:8px;">'
+                . '<tr><td style="padding:4px 0;color:#888;width:90px;">Username</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</td></tr>'
+                . '<tr><td style="padding:4px 0;color:#888;">Email</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</td></tr>'
+                . '<tr><td style="padding:4px 0;color:#888;">Role</td><td style="padding:4px 0;font-weight:600;">Writer</td></tr>'
+                . '</table>',
+                'Review Writers',
+                $writersUrl
+            );
+            $admin_mail->AltBody = "A new writer with email $email has registered (role: Writer). Consider activating their account. Review at: $writersUrl";
 
             if ($user_mail->send() && $admin_mail->send()) {
-                $_SESSION['odmsaid'] = $email;
+                // Log the writer in exactly as a real login would (correct
+                // session key, session-tracker row, online status) - this
+                // previously set $_SESSION['odmsaid'], which check-login.php
+                // never reads for writers (it checks 'sessionWriter'), so the
+                // "Redirecting..." message below was misleading: the writer
+                // was never actually logged in, just bounced to a dashboard
+                // that would immediately redirect back to login.
+                finalize_writer_login($con, $email, false);
 
                 // Set a session variable for the success message
-                $_SESSION['success_message'] = "Registration successful. Redirecting to login...";
+                $_SESSION['success_message'] = "Registration successful. Redirecting to dashboard...";
 
                 // Redirect to the same page to display the success message
                 header("Location: register.php");
@@ -281,8 +315,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <div class="invalid-feedback">Passwords do not match!</div>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="card-register-checkbox" />
+                                            <input class="form-check-input" type="checkbox" name="terms" id="card-register-checkbox" required="required" />
                                             <label class="form-label" for="card-register-checkbox">I accept the <a href="#!">terms </a>and <a class="white-space-nowrap" href="#!">privacy policy</a></label>
+                                            <div class="invalid-feedback">You must accept the terms and conditions to register.</div>
                                         </div>
                                         <div class="mb-3">
                                             <button class="btn btn-primary d-block w-100 mt-3" type="submit" name="submit">Register</button>

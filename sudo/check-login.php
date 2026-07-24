@@ -93,6 +93,7 @@ $ajaxEndpoints = [
     'update-writer.php',
     'update-task-writer.php',
     'get_invoice_items.php',
+    'accounts_api.php',
 ];
 
 // Store current page for redirect (but not for login pages or AJAX endpoints)

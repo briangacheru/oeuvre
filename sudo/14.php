@@ -176,6 +176,11 @@ if ($_pinLocked):
 </div>
 
 <script>
+    // This locked-screen markup is a standalone <html><head> rendered before
+    // $_headHtml (which normally carries GLOBAL_CSRF_TOKEN) is ever echoed -
+    // head.php's PHP already ran by this point (see the ob_start()/
+    // ob_get_clean() above), so csrf_token() itself is safe to call here.
+    var PIN_CSRF_TOKEN = <?php echo json_encode(csrf_token()); ?>;
     var buf = '', attempts = 0, MAX = 5, submitting = false;
 
     function dots() {
@@ -220,7 +225,7 @@ if ($_pinLocked):
         try {
             var r = await fetch('pin_api', {
                 method:'POST',
-                headers:{'Content-Type':'application/json'},
+                headers:{'Content-Type':'application/json', 'X-CSRF-Token': PIN_CSRF_TOKEN},
                 body: JSON.stringify({action:'verify_pin', pin: entered})
             });
             var data = await r.json();
@@ -2765,6 +2770,7 @@ echo $_headHtml;
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRF-Token': GLOBAL_CSRF_TOKEN,
                 },
                 body: JSON.stringify(accountData)
             });
@@ -3684,7 +3690,7 @@ echo $_headHtml;
             try {
                 const response = await fetch(`${API_BASE_URL}?action=update_balance`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN },
                     body: JSON.stringify(update)
                 });
 
@@ -3785,7 +3791,7 @@ echo $_headHtml;
         try {
             const response = await fetch(`${API_BASE_URL}?action=manage_type`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN },
                 body: JSON.stringify({ action: 'reactivate', id: typeId })
             });
 
@@ -3825,7 +3831,7 @@ echo $_headHtml;
         try {
             const response = await fetch(`${API_BASE_URL}?action=manage_type`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN },
                 body: JSON.stringify(formData)
             });
 
@@ -3852,7 +3858,7 @@ echo $_headHtml;
         try {
             const response = await fetch(`${API_BASE_URL}?action=manage_type`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN },
                 body: JSON.stringify({ action: 'delete', id: typeId })
             });
 
@@ -4063,7 +4069,7 @@ echo $_headHtml;
         try {
             const response = await fetch(`${API_BASE_URL}?action=manage_type`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN },
                 body: JSON.stringify(formData)
             });
 
@@ -4990,6 +4996,7 @@ echo $_headHtml;
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRF-Token': GLOBAL_CSRF_TOKEN,
                 },
                 body: JSON.stringify(formData)
             });
@@ -5291,7 +5298,8 @@ echo $_headHtml;
             const response = await fetch(`${API_BASE_URL}?id=${deleteAccountData.id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': GLOBAL_CSRF_TOKEN
                 },
                 body: JSON.stringify({
                     reason: reason,

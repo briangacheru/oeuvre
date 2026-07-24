@@ -5,23 +5,44 @@ error_reporting(E_ALL);
 ini_set('log_errors', 1); // Log errors to file
 ini_set('error_log', __DIR__ . '/php-errors.log');
 date_default_timezone_set('Africa/Nairobi');
-header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
-header('Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
 
-include_once 'dbcon.php';
+// Previously bootstrapped with dbcon.php alone - no session, no login
+// check at all, plus a wildcard Access-Control-Allow-Origin - any
+// unauthenticated caller from any origin could read/create/edit/delete
+// every admin's financial accounts. Switched to check-login.php (which
+// includes dbcon.php) + a capability check; the CORS headers are gone
+// since this is now a same-origin, cookie-authenticated endpoint only.
+include_once 'check-login.php';
 include_once 'currency_helper.php';
-
-if (session_status() === PHP_SESSION_NONE) {
-    require_once __DIR__ . '/session-name.php';
-    session_start();
-}
+requireCapability($currentAdminRole, 'operate_finance', 'json');
 
 $db = $dbh;
+// Every account/balance-history row is scoped to the admin who created
+// it (see db-migrations/2026_07_25_add_accounts_admin_id.sql) - one
+// admin's accounts are invisible to and untouchable by any other admin.
+$adminId = $_SESSION['odmsaid'];
 
 $method = $_SERVER['REQUEST_METHOD'];
 $request = isset($_GET['action']) ? $_GET['action'] : '';
+
+// CSRF check for every state-changing request. This can't reuse
+// csrf_verify_or_json_die() from shared-functions.php as-is: that helper
+// only checks $_SERVER['REQUEST_METHOD'] === 'POST' (missing PUT/DELETE,
+// both used here for update/delete), and it reads $_POST['csrf_token'] -
+// which PHP never populates for a JSON request body (only for
+// application/x-www-form-urlencoded or multipart/form-data). Every
+// mutating fetch() call in sudo/14.php sends the token as an
+// X-CSRF-Token header instead (see GLOBAL_CSRF_TOKEN, set from the
+// csrf-token meta tag head.php renders).
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
+    $providedToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!hash_equals(csrf_token(), $providedToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired security token. Please refresh and try again.']);
+        exit;
+    }
+}
 
 switch($method) {
     case 'GET':
@@ -92,7 +113,8 @@ switch($method) {
 
 function getAllAccounts($db)
 {
-    $query = 'SELECT a.id, a.account_name, a.account_type_id, a.bank_name, a.account_number, 
+    global $adminId;
+    $query = 'SELECT a.id, a.account_name, a.account_type_id, a.bank_name, a.account_number,
                      a.currency,
                      a.status, a.interest_rate, a.minimum_balance, a.notes, a.created_at, a.last_updated,
                      at.type_name as account_type, at.color_code, at.icon_class,
@@ -100,18 +122,19 @@ function getAllAccounts($db)
                      bh.month_year as last_balance_update,
                      COALESCE(bh.growth_amount, 0) as growth_amount,
                      COALESCE(bh.growth_percentage, 0) as growth_percentage
-              FROM accounts a 
-              LEFT JOIN account_types at ON a.account_type_id = at.id 
-              LEFT JOIN balance_history bh ON a.id = bh.account_id 
+              FROM accounts a
+              LEFT JOIN account_types at ON a.account_type_id = at.id
+              LEFT JOIN balance_history bh ON a.id = bh.account_id
                   AND bh.month_year = (
-                      SELECT MAX(month_year) 
-                      FROM balance_history bh2 
+                      SELECT MAX(month_year)
+                      FROM balance_history bh2
                       WHERE bh2.account_id = a.id
                   )
+              WHERE a.admin_id = ?
               ORDER BY a.account_name';
 
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([$adminId]);
 
     // Every account keeps its own native currency for display (that's
     // what renders in the table / detail views). We also attach a
@@ -215,18 +238,20 @@ function getAccountAlerts($recentHistoryStmt, $accountId, $currentBalance, $mini
 
 function getSummary($db)
 {
+    global $adminId;
     try {
         $targetCurrency = resolveTargetCurrency($db);
         $rates = getExchangeRatesMap($db);
 
         // Basic account counts (currency-independent).
-        $countQuery = "SELECT 
+        $countQuery = "SELECT
             COUNT(*) as total_accounts,
             COUNT(CASE WHEN status = 'Active' THEN 1 END) as active_accounts,
             COUNT(CASE WHEN status != 'Active' THEN 1 END) as inactive_accounts
-            FROM accounts";
+            FROM accounts
+            WHERE admin_id = ?";
         $countStmt = $db->prepare($countQuery);
-        $countStmt->execute();
+        $countStmt->execute([$adminId]);
         $summary = $countStmt->fetch(PDO::FETCH_ASSOC);
 
         // Total / average balance — pull each active account's latest
@@ -238,9 +263,9 @@ function getSummary($db)
                 AND bh.month_year = (
                     SELECT MAX(month_year) FROM balance_history bh2 WHERE bh2.account_id = a.id
                 )
-            WHERE a.status = 'Active'";
+            WHERE a.status = 'Active' AND a.admin_id = ?";
         $balanceStmt = $db->prepare($balanceQuery);
-        $balanceStmt->execute();
+        $balanceStmt->execute([$adminId]);
 
         $totalBalance = 0.0;
         $activeCount = 0;
@@ -260,10 +285,10 @@ function getSummary($db)
         $monthTotalQuery = "SELECT a.currency, bh.balance
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
-            WHERE bh.month_year = ? AND a.status = 'Active'";
+            WHERE bh.month_year = ? AND a.status = 'Active' AND a.admin_id = ?";
 
         $currentStmt = $db->prepare($monthTotalQuery);
-        $currentStmt->execute([$currentMonth]);
+        $currentStmt->execute([$currentMonth, $adminId]);
         $currentTotal = 0.0;
         while ($row = $currentStmt->fetch(PDO::FETCH_ASSOC)) {
             $currency = $row['currency'] ?: 'USD';
@@ -271,7 +296,7 @@ function getSummary($db)
         }
 
         $previousStmt = $db->prepare($monthTotalQuery);
-        $previousStmt->execute([$previousMonth]);
+        $previousStmt->execute([$previousMonth, $adminId]);
         $previousTotal = 0.0;
         while ($row = $previousStmt->fetch(PDO::FETCH_ASSOC)) {
             $currency = $row['currency'] ?: 'USD';
@@ -293,10 +318,10 @@ function getSummary($db)
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
             INNER JOIN account_types at ON a.account_type_id = at.id
-            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco')";
+            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco') AND a.admin_id = ?";
 
         $latestSavingsStmt = $db->prepare($latestSavingsQuery);
-        $latestSavingsStmt->execute();
+        $latestSavingsStmt->execute([$adminId]);
         $latestSavingsResult = $latestSavingsStmt->fetch(PDO::FETCH_ASSOC);
         $latestSavingsMonth = $latestSavingsResult['latest_month'];
 
@@ -306,11 +331,11 @@ function getSummary($db)
                 FROM balance_history bh
                 INNER JOIN accounts a ON bh.account_id = a.id
                 INNER JOIN account_types at ON a.account_type_id = at.id
-                WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco') 
-                AND bh.month_year < ?";
+                WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco')
+                AND bh.month_year < ? AND a.admin_id = ?";
 
             $previousSavingsMonthStmt = $db->prepare($previousSavingsMonthQuery);
-            $previousSavingsMonthStmt->execute([$latestSavingsMonth]);
+            $previousSavingsMonthStmt->execute([$latestSavingsMonth, $adminId]);
             $previousSavingsMonthResult = $previousSavingsMonthStmt->fetch(PDO::FETCH_ASSOC);
             $previousSavingsMonth = $previousSavingsMonthResult['previous_month'];
 
@@ -319,10 +344,10 @@ function getSummary($db)
                 FROM balance_history bh
                 INNER JOIN accounts a ON bh.account_id = a.id
                 INNER JOIN account_types at ON a.account_type_id = at.id
-                WHERE bh.month_year = ? AND a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco')";
+                WHERE bh.month_year = ? AND a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco') AND a.admin_id = ?";
 
             $currentSavingsStmt = $db->prepare($savingsQuery);
-            $currentSavingsStmt->execute([$latestSavingsMonth]);
+            $currentSavingsStmt->execute([$latestSavingsMonth, $adminId]);
             $currentSavingsTotal = 0.0;
             while ($row = $currentSavingsStmt->fetch(PDO::FETCH_ASSOC)) {
                 $currency = $row['currency'] ?: 'USD';
@@ -332,7 +357,7 @@ function getSummary($db)
             $previousSavingsTotal = 0.0;
             if ($previousSavingsMonth) {
                 $previousSavingsStmt = $db->prepare($savingsQuery);
-                $previousSavingsStmt->execute([$previousSavingsMonth]);
+                $previousSavingsStmt->execute([$previousSavingsMonth, $adminId]);
                 while ($row = $previousSavingsStmt->fetch(PDO::FETCH_ASSOC)) {
                     $currency = $row['currency'] ?: 'USD';
                     $previousSavingsTotal += convertCurrency($row['balance'], $currency, $targetCurrency, $rates);
@@ -381,6 +406,7 @@ function getSummary($db)
 
 function getDistribution($db)
 {
+    global $adminId;
     // Group by type AND currency at the SQL level (a plain SUM() across
     // mixed currencies would be meaningless), then convert each
     // currency's subtotal into the target currency and merge by type in PHP.
@@ -388,18 +414,19 @@ function getDistribution($db)
                      COALESCE(a.currency, 'USD') as currency,
                      SUM(COALESCE(bh.balance, 0)) as subtotal,
                      COUNT(a.id) as account_count
-              FROM accounts a 
-              LEFT JOIN account_types at ON a.account_type_id = at.id 
-              LEFT JOIN balance_history bh ON a.id = bh.account_id 
+              FROM accounts a
+              LEFT JOIN account_types at ON a.account_type_id = at.id
+              LEFT JOIN balance_history bh ON a.id = bh.account_id
                   AND bh.month_year = (
-                      SELECT MAX(month_year) 
-                      FROM balance_history bh2 
+                      SELECT MAX(month_year)
+                      FROM balance_history bh2
                       WHERE bh2.account_id = a.id
                   )
+              WHERE a.admin_id = ?
               GROUP BY at.id, at.type_name, at.color_code, a.currency";
 
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([$adminId]);
 
     $targetCurrency = resolveTargetCurrency($db);
     $rates = getExchangeRatesMap($db);
@@ -430,31 +457,34 @@ function getDistribution($db)
 
 function searchAccounts($db)
 {
+    global $adminId;
     $searchTerm = isset($_GET['q']) ? $_GET['q'] : '';
 
-    $query = 'SELECT a.id, a.account_name, a.account_type_id, a.bank_name, a.account_number, 
+    $query = 'SELECT a.id, a.account_name, a.account_type_id, a.bank_name, a.account_number,
                      a.currency,
                      a.status, a.interest_rate, a.minimum_balance, a.notes, a.created_at, a.last_updated,
                      at.type_name as account_type, at.color_code, at.icon_class,
                      COALESCE(bh.balance, 0) as balance,
                      bh.month_year as last_balance_update
-              FROM accounts a 
-              LEFT JOIN account_types at ON a.account_type_id = at.id 
-              LEFT JOIN balance_history bh ON a.id = bh.account_id 
+              FROM accounts a
+              LEFT JOIN account_types at ON a.account_type_id = at.id
+              LEFT JOIN balance_history bh ON a.id = bh.account_id
                   AND bh.month_year = (
-                      SELECT MAX(month_year) 
-                      FROM balance_history bh2 
+                      SELECT MAX(month_year)
+                      FROM balance_history bh2
                       WHERE bh2.account_id = a.id
                   )
-              WHERE a.account_name LIKE :search 
-                 OR at.type_name LIKE :search 
-                 OR a.bank_name LIKE :search 
-                 OR a.status LIKE :search
+              WHERE (a.account_name LIKE :search
+                 OR at.type_name LIKE :search
+                 OR a.bank_name LIKE :search
+                 OR a.status LIKE :search)
+                 AND a.admin_id = :admin_id
               ORDER BY a.account_name';
 
     $stmt = $db->prepare($query);
     $searchParam = "%{$searchTerm}%";
     $stmt->bindParam(':search', $searchParam);
+    $stmt->bindParam(':admin_id', $adminId);
     $stmt->execute();
 
     $accounts = array();
@@ -520,12 +550,14 @@ function createAccount($db)
         $db->beginTransaction();
 
         // Insert account
+        global $adminId;
         $stmt = $db->prepare('
-            INSERT INTO accounts (account_name, account_type_id, bank_name, account_number, currency, status, interest_rate, minimum_balance, notes) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO accounts (admin_id, account_name, account_type_id, bank_name, account_number, currency, status, interest_rate, minimum_balance, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
 
         $stmt->execute([
+            $adminId,
             $data['account_name'],
             $accountType['id'],
             $data['bank_name'] ?? '',
@@ -573,16 +605,18 @@ function createAccount($db)
 
 function deleteAccount($db)
 {
+    global $adminId;
     $id = isset($_GET['id']) ? $_GET['id'] : '';
 
-    $query = 'DELETE FROM accounts WHERE id = :id';
+    $query = 'DELETE FROM accounts WHERE id = :id AND admin_id = :admin_id';
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $id);
+    $stmt->bindParam(':admin_id', $adminId);
 
-    if ($stmt->execute()) {
+    if ($stmt->execute() && $stmt->rowCount() > 0) {
         echo json_encode(array('message' => 'Account deleted successfully.'));
     } else {
-        echo json_encode(array('message' => 'Unable to delete account.'));
+        echo json_encode(array('message' => 'Unable to delete account: not found, or it does not belong to you.'));
     }
 }
 
@@ -590,12 +624,13 @@ function deleteAccount($db)
 
 function getGrowthData($db)
 {
+    global $adminId;
     try {
         // Pull raw rows (month, currency, balance, growth_amount) — no
         // SQL-level SUM(), since balances/growth in different currencies
         // can't be added together before conversion. We convert each row
         // into the target currency first, then aggregate by month in PHP.
-        $query = "SELECT 
+        $query = "SELECT
                     bh.month_year AS month,
                     COALESCE(a.currency, 'USD') AS currency,
                     COALESCE(bh.balance, 0) AS balance,
@@ -603,11 +638,11 @@ function getGrowthData($db)
                     bh.account_id
                 FROM balance_history bh
                 INNER JOIN accounts a ON bh.account_id = a.id
-                WHERE a.status = 'Active'
+                WHERE a.status = 'Active' AND a.admin_id = ?
                 ORDER BY bh.month_year DESC";
 
         $stmt = $db->prepare($query);
-        $stmt->execute();
+        $stmt->execute([$adminId]);
 
         $targetCurrency = resolveTargetCurrency($db);
         $rates = getExchangeRatesMap($db);
@@ -669,12 +704,13 @@ function getGrowthData($db)
  */
 function getGrowthForecast($db)
 {
+    global $adminId;
     try {
         $monthsAhead = isset($_GET['months']) ? max(1, min(12, intval($_GET['months']))) : 5;
 
         // Same aggregation as getGrowthData: convert every account's
         // balance into the target currency before summing by month.
-        $query = "SELECT 
+        $query = "SELECT
                     bh.month_year AS month,
                     COALESCE(a.currency, 'USD') AS currency,
                     COALESCE(bh.balance, 0) AS balance,
@@ -682,11 +718,11 @@ function getGrowthForecast($db)
                     bh.account_id
                 FROM balance_history bh
                 INNER JOIN accounts a ON bh.account_id = a.id
-                WHERE a.status = 'Active'
+                WHERE a.status = 'Active' AND a.admin_id = ?
                 ORDER BY bh.month_year ASC";
 
         $stmt = $db->prepare($query);
-        $stmt->execute();
+        $stmt->execute([$adminId]);
 
         $targetCurrency = resolveTargetCurrency($db);
         $rates = getExchangeRatesMap($db);
@@ -814,6 +850,7 @@ function getGrowthForecast($db)
 
 function getAccountBalanceHistory($db)
 {
+    global $adminId;
     $accountId = isset($_GET['account_id']) ? $_GET['account_id'] : '';
 
     if (!$accountId) {
@@ -823,11 +860,12 @@ function getAccountBalanceHistory($db)
 
     $query = 'SELECT bh.*, a.currency FROM balance_history bh
               LEFT JOIN accounts a ON a.id = bh.account_id
-              WHERE bh.account_id = :account_id 
+              WHERE bh.account_id = :account_id AND a.admin_id = :admin_id
               ORDER BY bh.month_year DESC';
 
     $stmt = $db->prepare($query);
     $stmt->bindParam(':account_id', $accountId);
+    $stmt->bindParam(':admin_id', $adminId);
     $stmt->execute();
 
     $history = array();
@@ -841,11 +879,15 @@ function getAccountBalanceHistory($db)
 
 function getAccountsForBalanceUpdate($db)
 {
-    $query = 'SELECT 
-                acb.id, 
-                acb.account_name, 
-                acb.bank_name, 
-                acb.current_balance, 
+    global $adminId;
+    // Filters via the joined `accounts a` row rather than needing an
+    // admin_id column on the account_current_balances VIEW itself
+    // (acb.id = a.id, so a.admin_id already identifies the owner).
+    $query = 'SELECT
+                acb.id,
+                acb.account_name,
+                acb.bank_name,
+                acb.current_balance,
                 acb.last_balance_update,
                 acb.account_type_id,
                 a.currency,
@@ -855,11 +897,11 @@ function getAccountsForBalanceUpdate($db)
               FROM account_current_balances acb
               LEFT JOIN accounts a ON a.id = acb.id
               LEFT JOIN account_types at ON acb.account_type_id = at.id
-              WHERE acb.status = "Active"
+              WHERE acb.status = "Active" AND a.admin_id = ?
               ORDER BY acb.account_name';
 
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([$adminId]);
 
     $accounts = array();
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -894,14 +936,26 @@ function getAccountTypes($db)
 
 function updateMonthlyBalance($db)
 {
+    global $adminId;
     $data = json_decode(file_get_contents('php://input'));
 
     try {
+        // balance_history has no admin_id of its own - ownership is only
+        // known via the account it belongs to, so verify that BEFORE
+        // writing anything, or any admin could record a balance against
+        // any other admin's account by guessing its id.
+        $ownerCheck = $db->prepare('SELECT id FROM accounts WHERE id = ? AND admin_id = ?');
+        $ownerCheck->execute([$data->account_id, $adminId]);
+        if (!$ownerCheck->fetch()) {
+            echo json_encode(array('message' => 'Account not found or does not belong to you.', 'success' => false));
+            return;
+        }
+
         // Get previous month's balance for growth calculation
-        $prevQuery = 'SELECT balance FROM balance_history 
-                      WHERE account_id = ? 
-                      AND month_year < ? 
-                      ORDER BY month_year DESC 
+        $prevQuery = 'SELECT balance FROM balance_history
+                      WHERE account_id = ?
+                      AND month_year < ?
+                      ORDER BY month_year DESC
                       LIMIT 1';
 
         $prevStmt = $db->prepare($prevQuery);
@@ -954,23 +1008,27 @@ function updateMonthlyBalance($db)
 
 function getLatestMonthData($db)
 {
-    $query = 'SELECT 
+    global $adminId;
+    $query = 'SELECT
                 DATE_FORMAT(bh.month_year, "%Y-%m") as month_year,
                 DATE_FORMAT(bh.month_year, "%M %Y") as formatted_month,
                 COUNT(DISTINCT bh.account_id) as accounts_with_data,
                 SUM(bh.balance) as total_balance,
                 SUM(bh.growth_amount) as total_growth
               FROM balance_history bh
-              WHERE bh.month_year = (
-                  SELECT MAX(month_year) 
-                  FROM balance_history
+              INNER JOIN accounts a ON a.id = bh.account_id
+              WHERE a.admin_id = ? AND bh.month_year = (
+                  SELECT MAX(bh2.month_year)
+                  FROM balance_history bh2
+                  INNER JOIN accounts a2 ON a2.id = bh2.account_id
+                  WHERE a2.admin_id = ?
               )
               GROUP BY bh.month_year
               ORDER BY bh.month_year DESC
               LIMIT 1';
 
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([$adminId, $adminId]);
 
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1083,25 +1141,27 @@ function manageAccountType($db)
 
 function getBalancesByMonth($db)
 {
+    global $adminId;
     $month = isset($_GET['month']) ? $_GET['month'] : date('Y-m-01');
     $accountId = isset($_GET['account_id']) ? $_GET['account_id'] : null;
 
     if ($accountId) {
         // Get balance for specific account and month
         $query = 'SELECT a.id, a.account_name, a.currency, at.type_name as account_type, at.color_code,
-                         bh.balance, 
-                         bh.month_year, 
-                         bh.growth_amount, 
-                         bh.growth_percentage, 
+                         bh.balance,
+                         bh.month_year,
+                         bh.growth_amount,
+                         bh.growth_percentage,
                          COALESCE(bh.notes, "") as notes
                   FROM accounts a
                   LEFT JOIN account_types at ON a.account_type_id = at.id
                   LEFT JOIN balance_history bh ON a.id = bh.account_id AND bh.month_year = :month
-                  WHERE a.id = :account_id AND a.status = "Active"';
+                  WHERE a.id = :account_id AND a.status = "Active" AND a.admin_id = :admin_id';
 
         $stmt = $db->prepare($query);
         $stmt->bindParam(':month', $month);
         $stmt->bindParam(':account_id', $accountId);
+        $stmt->bindParam(':admin_id', $adminId);
         $stmt->execute();
 
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1119,20 +1179,21 @@ function getBalancesByMonth($db)
     } else {
         // Get balances for all active accounts for specific month - only actual recorded data
         $query = 'SELECT a.id, a.account_name, a.currency, at.type_name as account_type, at.color_code, at.icon_class,
-                         bh.balance, 
-                         bh.month_year, 
-                         bh.growth_amount, 
+                         bh.balance,
+                         bh.month_year,
+                         bh.growth_amount,
                          bh.growth_percentage,
                          COALESCE(bh.notes, "") as notes,
                          CASE WHEN bh.balance IS NOT NULL THEN "Has data" ELSE "No data" END as data_status
                   FROM accounts a
                   LEFT JOIN account_types at ON a.account_type_id = at.id
                   LEFT JOIN balance_history bh ON a.id = bh.account_id AND bh.month_year = :month
-                  WHERE a.status = "Active"
+                  WHERE a.status = "Active" AND a.admin_id = :admin_id
                   ORDER BY a.account_name';
 
         $stmt = $db->prepare($query);
         $stmt->bindParam(':month', $month);
+        $stmt->bindParam(':admin_id', $adminId);
         $stmt->execute();
 
         $targetCurrency = resolveTargetCurrency($db);
@@ -1187,12 +1248,15 @@ function getBalancesByMonth($db)
 
 function getAvailableMonths($db)
 {
-    $query = 'SELECT DISTINCT month_year 
-              FROM balance_history 
-              ORDER BY month_year DESC';
+    global $adminId;
+    $query = 'SELECT DISTINCT bh.month_year
+              FROM balance_history bh
+              INNER JOIN accounts a ON a.id = bh.account_id
+              WHERE a.admin_id = ?
+              ORDER BY bh.month_year DESC';
 
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([$adminId]);
 
     $months = array();
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -1204,6 +1268,7 @@ function getAvailableMonths($db)
 
 function getMonthlyComparison($db)
 {
+    global $adminId;
     $startMonth = isset($_GET['start_month']) ? $_GET['start_month'] : '';
     $endMonth = isset($_GET['end_month']) ? $_GET['end_month'] : '';
 
@@ -1213,26 +1278,27 @@ function getMonthlyComparison($db)
     }
 
     $query = 'SELECT a.id, a.account_name, a.currency, at.type_name as account_type,
-                     COALESCE(bh1.balance, 0) as start_balance, 
+                     COALESCE(bh1.balance, 0) as start_balance,
                      bh1.month_year as start_month,
-                     COALESCE(bh2.balance, 0) as end_balance, 
+                     COALESCE(bh2.balance, 0) as end_balance,
                      bh2.month_year as end_month,
                      (COALESCE(bh2.balance, 0) - COALESCE(bh1.balance, 0)) as balance_change,
-                     CASE 
-                         WHEN COALESCE(bh1.balance, 0) > 0 THEN 
+                     CASE
+                         WHEN COALESCE(bh1.balance, 0) > 0 THEN
                              ((COALESCE(bh2.balance, 0) - COALESCE(bh1.balance, 0)) / bh1.balance * 100)
-                         ELSE 0 
+                         ELSE 0
                      END as percentage_change
               FROM accounts a
               LEFT JOIN account_types at ON a.account_type_id = at.id
               LEFT JOIN balance_history bh1 ON a.id = bh1.account_id AND bh1.month_year = :start_month
               LEFT JOIN balance_history bh2 ON a.id = bh2.account_id AND bh2.month_year = :end_month
-              WHERE a.status = "Active" AND (bh1.balance IS NOT NULL OR bh2.balance IS NOT NULL)
+              WHERE a.status = "Active" AND (bh1.balance IS NOT NULL OR bh2.balance IS NOT NULL) AND a.admin_id = :admin_id
               ORDER BY balance_change DESC';
 
     $stmt = $db->prepare($query);
     $stmt->bindParam(':start_month', $startMonth);
     $stmt->bindParam(':end_month', $endMonth);
+    $stmt->bindParam(':admin_id', $adminId);
     $stmt->execute();
 
     $targetCurrency = resolveTargetCurrency($db);
@@ -1275,6 +1341,7 @@ function getMonthlyComparison($db)
 
 function getBalanceHistory($db)
 {
+    global $adminId;
     try {
         $accountId = isset($_GET['account_id']) ? $_GET['account_id'] : '';
         $limit = isset($_GET['limit']) ? intval($_GET['limit']) : null;
@@ -1286,13 +1353,13 @@ function getBalanceHistory($db)
 
         $query = 'SELECT bh.*, a.currency FROM balance_history bh
                   LEFT JOIN accounts a ON a.id = bh.account_id
-                  WHERE bh.account_id = ? ORDER BY bh.month_year DESC';
+                  WHERE bh.account_id = ? AND a.admin_id = ? ORDER BY bh.month_year DESC';
         if ($limit) {
             $query .= ' LIMIT ' . $limit;
         }
 
         $stmt = $db->prepare($query);
-        $stmt->execute([$accountId]);
+        $stmt->execute([$accountId, $adminId]);
 
         $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1313,6 +1380,7 @@ function getBalanceHistory($db)
 
 function updateAccount($db)
 {
+    global $adminId;
     try {
         $input = file_get_contents('php://input');
         $data = json_decode($input, true);
@@ -1325,6 +1393,15 @@ function updateAccount($db)
         // Validate required fields
         if (empty($data['id']) || empty($data['account_name']) || empty($data['account_type'])) {
             echo json_encode(['message' => 'Missing required fields', 'success' => false]);
+            return;
+        }
+
+        // Verify ownership before touching anything else - without this,
+        // any admin could edit any other admin's account by id.
+        $ownerCheck = $db->prepare('SELECT id FROM accounts WHERE id = ? AND admin_id = ?');
+        $ownerCheck->execute([$data['id'], $adminId]);
+        if (!$ownerCheck->fetch()) {
+            echo json_encode(['message' => 'Account not found or does not belong to you', 'success' => false]);
             return;
         }
 
@@ -1361,11 +1438,11 @@ function updateAccount($db)
 
         // Update account
         $stmt = $db->prepare('
-            UPDATE accounts 
-            SET account_name = ?, account_type_id = ?, bank_name = ?, account_number = ?, 
-                currency = ?, status = ?, interest_rate = ?, minimum_balance = ?, notes = ?, 
+            UPDATE accounts
+            SET account_name = ?, account_type_id = ?, bank_name = ?, account_number = ?,
+                currency = ?, status = ?, interest_rate = ?, minimum_balance = ?, notes = ?,
                 last_updated = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = ? AND admin_id = ?
         ');
 
         $success = $stmt->execute([
@@ -1378,7 +1455,8 @@ function updateAccount($db)
             $data['interest_rate'] ?? 0,
             $data['minimum_balance'] ?? 0,
             $data['notes'] ?? '',
-            $data['id']
+            $data['id'],
+            $adminId
         ]);
 
         if ($success) {
@@ -1397,15 +1475,19 @@ function updateAccount($db)
 
 function getDistributionByMonth($db)
 {
+    global $adminId;
     $month = isset($_GET['month']) ? $_GET['month'] : 'latest';
 
     try {
         // Determine which month to use
         if ($month === 'latest') {
             // Get the latest month with data
-            $latestQuery = 'SELECT MAX(month_year) as latest_month FROM balance_history';
+            $latestQuery = 'SELECT MAX(bh.month_year) as latest_month
+                FROM balance_history bh
+                INNER JOIN accounts a ON a.id = bh.account_id
+                WHERE a.admin_id = ?';
             $latestStmt = $db->prepare($latestQuery);
-            $latestStmt->execute();
+            $latestStmt->execute([$adminId]);
             $latestResult = $latestStmt->fetch(PDO::FETCH_ASSOC);
             $month = $latestResult['latest_month'] ?: date('Y-m-01');
         } elseif ($month === 'current') {
@@ -1413,18 +1495,19 @@ function getDistributionByMonth($db)
         }
 
         $query = 'SELECT at.type_name as account_type, at.color_code, at.icon_class,
-            COALESCE(SUM(bh.balance), 0) as total_balance, 
+            COALESCE(SUM(bh.balance), 0) as total_balance,
             COUNT(a.id) as account_count
-            FROM accounts a 
-            LEFT JOIN account_types at ON a.account_type_id = at.id 
+            FROM accounts a
+            LEFT JOIN account_types at ON a.account_type_id = at.id
             LEFT JOIN balance_history bh ON a.id = bh.account_id AND bh.month_year = :month
-            WHERE a.status = "Active"
+            WHERE a.status = "Active" AND a.admin_id = :admin_id
             GROUP BY at.id, at.type_name, at.color_code, at.icon_class
             HAVING total_balance > 0
             ORDER BY total_balance DESC';
 
         $stmt = $db->prepare($query);
         $stmt->bindParam(':month', $month);
+        $stmt->bindParam(':admin_id', $adminId);
         $stmt->execute();
 
         $distribution = array();
@@ -1459,6 +1542,7 @@ function getDistributionByMonth($db)
 
 function getSavingsBreakdown($db)
 {
+    global $adminId;
     try {
         $savingsTypes = ['Savings', 'MMF', 'Sacco'];
 
@@ -1467,10 +1551,10 @@ function getSavingsBreakdown($db)
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
             INNER JOIN account_types at ON a.account_type_id = at.id
-            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco')";
+            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco') AND a.admin_id = ?";
 
         $latestSavingsStmt = $db->prepare($latestSavingsQuery);
-        $latestSavingsStmt->execute();
+        $latestSavingsStmt->execute([$adminId]);
         $latestSavingsResult = $latestSavingsStmt->fetch(PDO::FETCH_ASSOC);
         $latestSavingsMonth = $latestSavingsResult['latest_month'];
 
@@ -1489,16 +1573,16 @@ function getSavingsBreakdown($db)
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
             INNER JOIN account_types at ON a.account_type_id = at.id
-            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco') 
-            AND bh.month_year < ?";
+            WHERE a.status = 'Active' AND at.type_name IN ('Savings', 'MMF', 'Sacco')
+            AND bh.month_year < ? AND a.admin_id = ?";
 
         $previousSavingsMonthStmt = $db->prepare($previousSavingsMonthQuery);
-        $previousSavingsMonthStmt->execute([$latestSavingsMonth]);
+        $previousSavingsMonthStmt->execute([$latestSavingsMonth, $adminId]);
         $previousSavingsMonthResult = $previousSavingsMonthStmt->fetch(PDO::FETCH_ASSOC);
         $previousSavingsMonth = $previousSavingsMonthResult['previous_month'];
 
         // Get detailed breakdown for each savings account
-        $breakdownQuery = "SELECT 
+        $breakdownQuery = "SELECT
                 a.id,
                 a.account_name,
                 at.type_name as account_type,
@@ -1507,24 +1591,26 @@ function getSavingsBreakdown($db)
                 COALESCE(bh_current.balance, 0) as current_balance,
                 COALESCE(bh_previous.balance, 0) as previous_balance,
                 (COALESCE(bh_current.balance, 0) - COALESCE(bh_previous.balance, 0)) as growth_amount,
-                CASE 
-                    WHEN COALESCE(bh_previous.balance, 0) > 0 THEN 
+                CASE
+                    WHEN COALESCE(bh_previous.balance, 0) > 0 THEN
                         ((COALESCE(bh_current.balance, 0) - COALESCE(bh_previous.balance, 0)) / bh_previous.balance * 100)
                     WHEN COALESCE(bh_current.balance, 0) > 0 THEN 100
-                    ELSE 0 
+                    ELSE 0
                 END as growth_percentage
             FROM accounts a
             INNER JOIN account_types at ON a.account_type_id = at.id
             LEFT JOIN balance_history bh_current ON a.id = bh_current.account_id AND bh_current.month_year = :current_month
             LEFT JOIN balance_history bh_previous ON a.id = bh_previous.account_id AND bh_previous.month_year = :previous_month
-            WHERE a.status = 'Active' 
+            WHERE a.status = 'Active'
             AND at.type_name IN ('Savings', 'MMF', 'Sacco')
             AND (bh_current.balance IS NOT NULL OR bh_previous.balance IS NOT NULL)
+            AND a.admin_id = :admin_id
             ORDER BY growth_amount DESC";
 
         $breakdownStmt = $db->prepare($breakdownQuery);
         $breakdownStmt->bindParam(':current_month', $latestSavingsMonth);
         $breakdownStmt->bindParam(':previous_month', $previousSavingsMonth);
+        $breakdownStmt->bindParam(':admin_id', $adminId);
         $breakdownStmt->execute();
 
         $accounts = [];
@@ -1546,7 +1632,7 @@ function getSavingsBreakdown($db)
         }
 
         // Calculate summary by account type
-        $typeSummaryQuery = "SELECT 
+        $typeSummaryQuery = "SELECT
                 at.type_name as account_type,
                 at.color_code,
                 at.icon_class,
@@ -1558,14 +1644,16 @@ function getSavingsBreakdown($db)
             INNER JOIN account_types at ON a.account_type_id = at.id
             LEFT JOIN balance_history bh_current ON a.id = bh_current.account_id AND bh_current.month_year = :current_month
             LEFT JOIN balance_history bh_previous ON a.id = bh_previous.account_id AND bh_previous.month_year = :previous_month
-            WHERE a.status = 'Active' 
+            WHERE a.status = 'Active'
             AND at.type_name IN ('Savings', 'MMF', 'Sacco')
+            AND a.admin_id = :admin_id
             GROUP BY at.id, at.type_name, at.color_code, at.icon_class
             ORDER BY total_growth DESC";
 
         $typeSummaryStmt = $db->prepare($typeSummaryQuery);
         $typeSummaryStmt->bindParam(':current_month', $latestSavingsMonth);
         $typeSummaryStmt->bindParam(':previous_month', $previousSavingsMonth);
+        $typeSummaryStmt->bindParam(':admin_id', $adminId);
         $typeSummaryStmt->execute();
 
         $typeSummary = [];
@@ -1605,14 +1693,19 @@ function getSavingsBreakdown($db)
 
 function getTotalBalanceBreakdown($db)
 {
+    global $adminId;
     try {
         $targetCurrency = resolveTargetCurrency($db);
         $rates = getExchangeRatesMap($db);
 
         // Get the two most recent months with data
-        $monthsQuery = "SELECT DISTINCT month_year FROM balance_history ORDER BY month_year DESC LIMIT 2";
+        $monthsQuery = "SELECT DISTINCT bh.month_year
+            FROM balance_history bh
+            INNER JOIN accounts a ON a.id = bh.account_id
+            WHERE a.admin_id = ?
+            ORDER BY bh.month_year DESC LIMIT 2";
         $monthsStmt = $db->prepare($monthsQuery);
-        $monthsStmt->execute();
+        $monthsStmt->execute([$adminId]);
         $months = $monthsStmt->fetchAll(PDO::FETCH_COLUMN);
 
         if (empty($months)) {
@@ -1629,7 +1722,7 @@ function getTotalBalanceBreakdown($db)
         $previousMonth = isset($months[1]) ? $months[1] : null;
 
         // Get ALL accounts (including inactive) with their balances for current month
-        $currentMonthQuery = "SELECT 
+        $currentMonthQuery = "SELECT
                 a.id,
                 a.account_name,
                 a.bank_name,
@@ -1644,10 +1737,12 @@ function getTotalBalanceBreakdown($db)
             FROM accounts a
             LEFT JOIN account_types at ON a.account_type_id = at.id
             LEFT JOIN balance_history bh ON a.id = bh.account_id AND bh.month_year = :month
+            WHERE a.admin_id = :admin_id
             ORDER BY bh.balance DESC, a.account_name ASC";
 
         $currentStmt = $db->prepare($currentMonthQuery);
         $currentStmt->bindParam(':month', $currentMonth);
+        $currentStmt->bindParam(':admin_id', $adminId);
         $currentStmt->execute();
 
         $currentMonthAccounts = [];
@@ -1690,6 +1785,7 @@ function getTotalBalanceBreakdown($db)
         if ($previousMonth) {
             $previousStmt = $db->prepare($currentMonthQuery);
             $previousStmt->bindParam(':month', $previousMonth);
+            $previousStmt->bindParam(':admin_id', $adminId);
             $previousStmt->execute();
 
             while ($row = $previousStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -1803,11 +1899,15 @@ function getTotalBalanceBreakdown($db)
 
 function getLatestMonthDetails($db)
 {
+    global $adminId;
     try {
         // Get the latest month with data
-        $latestMonthQuery = "SELECT MAX(month_year) as latest_month FROM balance_history";
+        $latestMonthQuery = "SELECT MAX(bh.month_year) as latest_month
+            FROM balance_history bh
+            INNER JOIN accounts a ON a.id = bh.account_id
+            WHERE a.admin_id = ?";
         $latestStmt = $db->prepare($latestMonthQuery);
-        $latestStmt->execute();
+        $latestStmt->execute([$adminId]);
         $latestResult = $latestStmt->fetch(PDO::FETCH_ASSOC);
         $latestMonth = $latestResult['latest_month'];
 
@@ -1823,16 +1923,19 @@ function getLatestMonthDetails($db)
         $rates = getExchangeRatesMap($db);
 
         // Get total active accounts count
-        $totalAccountsQuery = "SELECT COUNT(*) as total FROM accounts WHERE status = 'Active'";
+        $totalAccountsQuery = "SELECT COUNT(*) as total FROM accounts WHERE status = 'Active' AND admin_id = ?";
         $totalAccountsStmt = $db->prepare($totalAccountsQuery);
-        $totalAccountsStmt->execute();
+        $totalAccountsStmt->execute([$adminId]);
         $totalAccountsResult = $totalAccountsStmt->fetch(PDO::FETCH_ASSOC);
         $totalActiveAccounts = intval($totalAccountsResult['total']);
 
         // Get accounts with data for this month
-        $accountsWithDataQuery = "SELECT COUNT(DISTINCT account_id) as count FROM balance_history WHERE month_year = ?";
+        $accountsWithDataQuery = "SELECT COUNT(DISTINCT bh.account_id) as count
+            FROM balance_history bh
+            INNER JOIN accounts a ON a.id = bh.account_id
+            WHERE bh.month_year = ? AND a.admin_id = ?";
         $accountsWithDataStmt = $db->prepare($accountsWithDataQuery);
-        $accountsWithDataStmt->execute([$latestMonth]);
+        $accountsWithDataStmt->execute([$latestMonth, $adminId]);
         $accountsWithDataResult = $accountsWithDataStmt->fetch(PDO::FETCH_ASSOC);
         $accountsWithData = intval($accountsWithDataResult['count']);
 
@@ -1842,9 +1945,9 @@ function getLatestMonthDetails($db)
         $totalsRowsQuery = "SELECT a.currency, bh.balance, bh.growth_amount
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
-            WHERE bh.month_year = ? AND a.status = 'Active'";
+            WHERE bh.month_year = ? AND a.status = 'Active' AND a.admin_id = ?";
         $totalsStmt = $db->prepare($totalsRowsQuery);
-        $totalsStmt->execute([$latestMonth]);
+        $totalsStmt->execute([$latestMonth, $adminId]);
 
         $totalBalance = 0.0;
         $totalGrowth = 0.0;
@@ -1856,7 +1959,7 @@ function getLatestMonthDetails($db)
 
         // Get breakdown by account type — group by type AND currency in
         // SQL (can't SUM across currencies), then convert + merge by type.
-        $typeBreakdownQuery = "SELECT 
+        $typeBreakdownQuery = "SELECT
                 at.id as type_id,
                 at.type_name as account_type,
                 at.color_code,
@@ -1868,10 +1971,11 @@ function getLatestMonthDetails($db)
             FROM accounts a
             INNER JOIN account_types at ON a.account_type_id = at.id
             LEFT JOIN balance_history bh ON a.id = bh.account_id AND bh.month_year = :month
-            WHERE a.status = 'Active' AND bh.balance IS NOT NULL
+            WHERE a.status = 'Active' AND bh.balance IS NOT NULL AND a.admin_id = :admin_id
             GROUP BY at.id, at.type_name, at.color_code, at.icon_class, a.currency";
         $typeStmt = $db->prepare($typeBreakdownQuery);
         $typeStmt->bindParam(':month', $latestMonth);
+        $typeStmt->bindParam(':admin_id', $adminId);
         $typeStmt->execute();
 
         $typeByTypeId = [];
@@ -1905,7 +2009,7 @@ function getLatestMonthDetails($db)
         // Get top performers (highest growth) — kept in native currency
         // (growth % is currency-agnostic per account), currency exposed
         // so the frontend can label each figure correctly.
-        $topPerformersQuery = "SELECT 
+        $topPerformersQuery = "SELECT
                 a.account_name,
                 a.currency,
                 at.type_name as account_type,
@@ -1916,11 +2020,11 @@ function getLatestMonthDetails($db)
             FROM balance_history bh
             INNER JOIN accounts a ON bh.account_id = a.id
             INNER JOIN account_types at ON a.account_type_id = at.id
-            WHERE bh.month_year = ? AND a.status = 'Active' AND bh.growth_amount > 0
+            WHERE bh.month_year = ? AND a.status = 'Active' AND bh.growth_amount > 0 AND a.admin_id = ?
             ORDER BY bh.growth_amount DESC
             LIMIT 5";
         $topStmt = $db->prepare($topPerformersQuery);
-        $topStmt->execute([$latestMonth]);
+        $topStmt->execute([$latestMonth, $adminId]);
 
         $topPerformers = [];
         while ($row = $topStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -1977,21 +2081,22 @@ function getLatestMonthDetails($db)
                 FROM balance_history
                 GROUP BY account_id
             ) latest ON latest.account_id = a.id
-            WHERE a.status = 'Active' 
+            WHERE a.status = 'Active'
+            AND a.admin_id = :admin_id
             AND (
-                bh.balance IS NULL 
-                OR bh.growth_amount < 0 
+                bh.balance IS NULL
+                OR bh.growth_amount < 0
                 OR (a.minimum_balance > 0 AND bh.balance < a.minimum_balance)
                 OR (
-                    bh_prev.balance IS NOT NULL AND bh_prev2.balance IS NOT NULL 
+                    bh_prev.balance IS NOT NULL AND bh_prev2.balance IS NOT NULL
                     AND bh.balance = bh_prev.balance AND bh_prev.balance = bh_prev2.balance
                 )
                 OR (
-                    latest.last_updated_month IS NOT NULL 
+                    latest.last_updated_month IS NOT NULL
                     AND TIMESTAMPDIFF(MONTH, latest.last_updated_month, :month3) >= 2
                 )
             )
-            ORDER BY 
+            ORDER BY
                 CASE WHEN bh.balance IS NULL THEN 0 ELSE 1 END,
                 bh.growth_amount ASC";
         $attentionStmt = $db->prepare($needsAttentionQuery);
@@ -2000,6 +2105,7 @@ function getLatestMonthDetails($db)
         $attentionStmt->bindParam(':month3', $latestMonth);
         $attentionStmt->bindParam(':prev_month', $prevMonth);
         $attentionStmt->bindParam(':prev_month2', $prevMonth2);
+        $attentionStmt->bindParam(':admin_id', $adminId);
         $attentionStmt->execute();
 
         $needsAttention = [];

@@ -25,6 +25,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// CSRF check - mirrors sudo/accounts_api.php. Can't use
+// csrf_verify_or_json_die() from shared-functions.php as-is: it reads
+// $_POST['csrf_token'], which PHP never populates for a JSON request
+// body (only form-encoded/multipart). Every fetch() call to this
+// endpoint in sudo/14.php sends the token as an X-CSRF-Token header
+// instead (see GLOBAL_CSRF_TOKEN, set from the csrf-token meta tag
+// head.php renders).
+$providedToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (!hash_equals(csrf_token(), $providedToken)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Invalid or expired security token. Please refresh and try again.']);
+    exit;
+}
+
 $input  = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = trim($input['action'] ?? '');
 

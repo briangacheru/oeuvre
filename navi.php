@@ -870,7 +870,7 @@
                         </a>
                         <div class="dropdown-menu dropdown-caret dropdown-caret dropdown-menu-end py-0" aria-labelledby="navbarDropdownUser">
                             <div class="bg-white dark__bg-1000 rounded-2 py-2">
-                                <a class="dropdown-item fw-bold text-warning" href="#"><span><?php  echo $row->FirstName;?> <?php  echo $row->LastName;?></span></a>
+                                <a class="dropdown-item fw-bold text-warning" href="#"><span><?php echo htmlspecialchars($row->username, ENT_QUOTES, 'UTF-8'); ?></span></a>
 
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="profile">Profile &amp; account</a>

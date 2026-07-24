@@ -712,7 +712,7 @@ $currentNotification = $row['description'];
                 try {
                     const res  = await fetch(API, {
                         method:'POST',
-                        headers:{'Content-Type':'application/json'},
+                        headers:{'Content-Type':'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN},
                         body: JSON.stringify({action:'check_pin_status'})
                     });
                     const data = await res.json();
@@ -777,7 +777,7 @@ $currentNotification = $row['description'];
 
                     const res  = await fetch(API, {
                         method:'POST',
-                        headers:{'Content-Type':'application/json'},
+                        headers:{'Content-Type':'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN},
                         body: JSON.stringify(payload)
                     });
                     const data = await res.json();
@@ -809,7 +809,7 @@ $currentNotification = $row['description'];
                 try {
                     const res  = await fetch(API, {
                         method:'POST',
-                        headers:{'Content-Type':'application/json'},
+                        headers:{'Content-Type':'application/json', 'X-CSRF-Token': GLOBAL_CSRF_TOKEN},
                         body: JSON.stringify({action:'remove_pin', pin})
                     });
                     const data = await res.json();

@@ -42,6 +42,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } elseif (password_verify($password, $hashedPasswordFromDatabase)) {
                 reset_failed_login($con, 'tbladmin', $email);
 
+                $role = getAdminRole($con, $email);
+
+                if (!isApprovedAdminRole($role)) {
+                    // Correct credentials, but not yet approved by a superadmin -
+                    // reject here, before any session/OTP work, rather than
+                    // letting the session establish and relying on
+                    // check-login.php's pending-block to bounce them around
+                    // after the fact.
+                    $loginError = "
+                        <div class='alert alert-warning alert-dismissible fade show' role='alert'>
+                            <i class='bi bi-exclamation-circle me-1'></i> Your account is pending approval. You'll receive an email as soon as an administrator approves your access.
+                            <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+                        </div>";
+                } else {
+
                 $redirectParam = $_POST['redirect'] ?? $_GET['redirect'] ?? '';
 
                 $deviceToken = $_COOKIE['admin_device_token'] ?? null;
@@ -88,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             window.location.href = '" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "';
                         }, 1000); // Redirect after 1 second
                       </script>";
+                }
             } else {
                 $justLocked = register_failed_login($con, 'tbladmin', $email);
                 $loginError = $justLocked
