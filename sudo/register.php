@@ -111,18 +111,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             );
             $admin_mail->AltBody = "A new admin with email $email has registered (role: Pending Approval). Review at: $manageAdminsUrl";
 
-            if ($user_mail->send() && $admin_mail->send()) {
-                $_SESSION['odmsaid'] = $email;
-
-                // Set a session variable for the success message
-                $_SESSION['success_message'] = "Registration successful. Redirecting to dashboard...";
-
-                // Redirect to the same page to display the success message
-                header("Location: register.php");
-                exit;
-            } else {
-                set_message("<p>Error sending email: " . $user_mail->ErrorInfo . "</p>");
+            // The account already exists (the INSERT above succeeded) -
+            // email delivery is a side effect, not a precondition for that.
+            // new PHPMailer(true) throws on failure rather than returning
+            // false, and this used to have no try/catch around send() at
+            // all, so a real SMTP error (as opposed to a clean "false")
+            // was an UNCAUGHT FATAL ERROR: the user got a blank/broken page
+            // with no indication their account was actually created.
+            $mailErrors = [];
+            try {
+                $user_mail->send();
+            } catch (Exception $e) {
+                $mailErrors[] = 'user: ' . $e->getMessage();
             }
+            try {
+                $admin_mail->send();
+            } catch (Exception $e) {
+                $mailErrors[] = 'admin: ' . $e->getMessage();
+            }
+            if ($mailErrors) {
+                error_log('sudo/register.php: registration email send failed for ' . $email . ': ' . implode('; ', $mailErrors));
+            }
+
+            $_SESSION['odmsaid'] = $email;
+
+            // Set a session variable for the success message
+            $_SESSION['success_message'] = "Registration successful. Redirecting to dashboard...";
+
+            // Redirect to the same page to display the success message
+            header("Location: register.php");
+            exit;
         } else {
             set_message("<p>Error: " . $stmt . "<br>" . safe_db_error($con->error) . "</p>");
         }

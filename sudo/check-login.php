@@ -205,7 +205,13 @@ if (!isset($_SESSION['odmsaid']) && isset($_COOKIE['rememberme'])) {
 // other admin page was reachable by direct URL with zero role check at all.
 $currentAdminRole = isset($_SESSION['odmsaid']) ? getAdminRole($con, $_SESSION['odmsaid']) : 'pending';
 
-$pendingAllowedPages = ['profile.php', 'settings.php', 'logout.php', 'index.php'];
+// register.php is included here too: a fresh self-registration is
+// 'pending' by definition (see db-migrations/2026_07_24_add_admin_roles.sql's
+// DEFAULT), and it sets $_SESSION['odmsaid'] then redirects back to
+// register.php itself to show the "Registration successful" message -
+// without this, that redirect got caught here and bounced to index.php
+// before the success message ever had a chance to render.
+$pendingAllowedPages = ['profile.php', 'settings.php', 'logout.php', 'index.php', 'register.php'];
 if (isset($_SESSION['odmsaid']) && $currentAdminRole === 'pending' && !in_array($currentScript, $pendingAllowedPages, true)) {
     if (in_array($currentScript, $ajaxEndpoints, true)) {
         http_response_code(403);
