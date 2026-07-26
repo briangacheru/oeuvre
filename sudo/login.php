@@ -11,6 +11,17 @@ $script_dir = dirname($_SERVER['SCRIPT_NAME']);
 $base_path = ($script_dir === '/') ? '' : $script_dir;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // IP-keyed, on top of (not instead of) the per-account lockout below -
+    // that one only fires on a wrong password, so it doesn't stop someone
+    // hammering this endpoint with junk/valid-looking requests generally.
+    $clientIp = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!check_rate_limit($con, 'login_admin', $clientIp, 10, 600)) {
+        $loginError = "
+            <div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                <i class='bi bi-exclamation-circle me-1'></i> " . rate_limit_message($con, 'login_admin', $clientIp, 600, 'login attempts') . "
+                <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+            </div>";
+    } else {
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
     $password = $_POST['password']; // Passwords should not be modified before hashing
 
@@ -125,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
                 </div>";
         }
+    }
     }
 }
 ?>

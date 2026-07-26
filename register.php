@@ -21,6 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $errors = [];
 
+    // IP-keyed - unauthenticated, and a successful submission sends two
+    // real emails and creates a DB row, so this is worth throttling
+    // before any of the validation below even runs.
+    if (!check_rate_limit($con, 'register_writer', $_SERVER['REMOTE_ADDR'] ?? '', 3, 600)) {
+        $errors[] = rate_limit_message($con, 'register_writer', $_SERVER['REMOTE_ADDR'] ?? '', 600, 'registration attempts');
+    }
+
     if (email_exists($email)) {
         $errors[] = "The email $email is already registered.";
     }

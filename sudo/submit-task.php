@@ -39,6 +39,13 @@ if (!isset($_POST['action']) || $_POST['action'] !== 'submitForm') {
     handleError('No action performed.');
 }
 
+// Generous - admins legitimately batch-create several tasks in a row -
+// this just catches a runaway loop/script, not normal usage.
+$creatorKey = $_SESSION['odmsaid'] ?? ($_SERVER['REMOTE_ADDR'] ?? '');
+if (!check_rate_limit($con, 'task_create', $creatorKey, 30, 600)) {
+    handleError(rate_limit_message($con, 'task_create', $creatorKey, 600, 'tasks created'));
+}
+
 // Validate required fields
 $requiredFields = ['topic', 'subject', 'account', 'description', 'writer', 'email', 'due_date', 'cpp', 'pages'];
 

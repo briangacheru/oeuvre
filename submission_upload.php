@@ -44,6 +44,17 @@ function downloadFile($url, $localPath)
 }
 
 if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
+    // Keyed by the trusted session identity, not $_POST['email'] (a
+    // client-controlled hidden field elsewhere in this file) - otherwise
+    // a caller could dodge or frame a different writer's bucket just by
+    // changing that field.
+    $writerKey = $_SESSION['sessionWriter'] ?? ($_SERVER['REMOTE_ADDR'] ?? '');
+    if (!check_rate_limit($con, 'task_submit', $writerKey, 2, 600)) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => rate_limit_message($con, 'task_submit', $writerKey, 600, 'submissions')]);
+        exit;
+    }
+
     // Ensure taskfiles has at least one file
     if (empty($_POST['uploadedFiles']) || $_POST['uploadedFiles'] === '[]') {
         header('Content-Type: application/json');

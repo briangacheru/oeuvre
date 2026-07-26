@@ -7,6 +7,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     $confirm_password = $_POST['confirm_password'] ?? '';
     if (!csrf_verify()) {
         $error = "Your request could not be verified (invalid or expired security token). Please try again.";
+    } elseif (!check_rate_limit($con, 'reset_password_admin', $_SERVER['REMOTE_ADDR'] ?? '', 10, 600)) {
+        // The token itself (32 random bytes, hashed) is far too strong to
+        // realistically brute-force, but a rate limit here is cheap
+        // defense in depth against that and against hammering this
+        // endpoint generally.
+        $error = rate_limit_message($con, 'reset_password_admin', $_SERVER['REMOTE_ADDR'] ?? '', 600, 'attempts');
     } elseif($new_password !== $confirm_password){
         $error = "Password does not match.";
     }else{

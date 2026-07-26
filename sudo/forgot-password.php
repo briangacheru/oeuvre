@@ -12,6 +12,11 @@ require_once __DIR__ . '/../shared-functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
     $error = "Your request could not be verified (invalid or expired security token). Please try again.";
+} elseif ($_SERVER['REQUEST_METHOD'] == 'POST' && !check_rate_limit($con, 'forgot_password_admin', $_SERVER['REMOTE_ADDR'] ?? '', 3, 600)) {
+    // Strict - this sends a real email per request, so it's both a cost
+    // and abuse vector (mail-bombing an address) with no account to
+    // attach a per-target counter to before we know if it even exists.
+    $error = rate_limit_message($con, 'forgot_password_admin', $_SERVER['REMOTE_ADDR'] ?? '', 600, 'password reset requests');
 } elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['email'] ?? '';
 

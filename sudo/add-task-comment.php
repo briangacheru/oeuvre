@@ -120,6 +120,12 @@ if (isset($_SESSION['sessionWriter'])) {
     sendJsonResponse(false, 'User session not found. Please login again.');
 }
 
+// One bucket for both branches above (writer or admin) - $userEmail is
+// always unique per account either way, so there's no collision risk.
+if (!check_rate_limit($con, 'comment_sudo', $userEmail, 20, 600)) {
+    sendJsonResponse(false, rate_limit_message($con, 'comment_sudo', $userEmail, 600, 'comments'));
+}
+
 // Verify user has access to this task
 if ($userType == 'writer') {
     $accessQuery = 'SELECT id FROM tbltasks WHERE id = ? AND email = ?';

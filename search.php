@@ -14,6 +14,17 @@ if (!isset($_SESSION['sessionWriter'])) {
 }
 
 $aid = $_SESSION['sessionWriter'];
+
+// This fires on every keystroke (300ms-debounced, see
+// assets/js/topbar-search.js) - a much shorter window and higher
+// ceiling than the other buckets here, just to catch a scripted flood
+// rather than normal typing.
+if (!check_rate_limit($con, 'search_writer', $aid, 60, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => rate_limit_message($con, 'search_writer', $aid, 60, 'searches')]);
+    exit;
+}
+
 $q = trim($_GET['q'] ?? '');
 
 if (mb_strlen($q) < 2) {

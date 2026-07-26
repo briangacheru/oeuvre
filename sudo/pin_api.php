@@ -144,6 +144,15 @@ try {
 
         // ── Verify PIN (called by lock overlay on 14.php) ─────────────────
         case 'verify_pin':
+            // A 4-8 digit PIN is otherwise brute-forceable (as few as
+            // 10,000 combinations) - no server-side check existed here
+            // before, only a client-side JS attempt counter that a direct
+            // POST to this endpoint trivially bypasses.
+            if (!check_rate_limit($con, 'pin_verify', $adminId, 5, 600)) {
+                echo json_encode(['success' => false, 'message' => rate_limit_message($con, 'pin_verify', $adminId, 600, 'PIN attempts')]);
+                exit;
+            }
+
             $pin  = trim($input['pin'] ?? '');
             $hash = getStoredHash($dbh, $adminId);
 

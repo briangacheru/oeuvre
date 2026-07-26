@@ -658,6 +658,73 @@ if (!function_exists('format_lockout_message')) {
     }
 }
 
+// ---- General-purpose rate limiting ----
+// A sliding-window request counter, independent of the login-lockout
+// mechanism above (that one is per-account and only fires on a WRONG
+// password; this one throttles a bucket of requests regardless of whether
+// each individual request succeeds, and works for unauthenticated
+// endpoints - register/forgot-password - where there's no account row to
+// attach a counter to yet). Backed by tbl_rate_limits, see
+// db-migrations/2026_07_26_add_rate_limits.sql.
+
+if (!function_exists('check_rate_limit')) {
+    /**
+     * Records this attempt against ($action, $identifier) and returns
+     * whether it's allowed under the last $windowSeconds. A blocked call
+     * does NOT record another row - retrying while blocked doesn't push
+     * the window out further, it just keeps reporting blocked until the
+     * oldest recorded hit ages out.
+     *
+     * $identifier is typically an IP address (unauthenticated endpoints:
+     * login, register, forgot-password) or a session email (authenticated
+     * endpoints: task submission, comments, search) - always something
+     * already trusted by the caller, never taken directly from request
+     * input that could be spoofed to frame/dodge a different bucket.
+     */
+    function check_rate_limit($con, $action, $identifier, $maxHits, $windowSeconds) {
+        $cutoff = date('Y-m-d H:i:s', time() - $windowSeconds);
+
+        // Opportunistic cleanup for this bucket - keeps the table small
+        // without needing a separate cron sweep for a table that's, by
+        // design, never queried outside its own narrow window.
+        $del = $con->prepare("DELETE FROM tbl_rate_limits WHERE action = ? AND identifier = ? AND created_at < ?");
+        $del->bind_param('sss', $action, $identifier, $cutoff);
+        $del->execute();
+
+        $stmt = $con->prepare("SELECT COUNT(*) AS c FROM tbl_rate_limits WHERE action = ? AND identifier = ? AND created_at >= ?");
+        $stmt->bind_param('sss', $action, $identifier, $cutoff);
+        $stmt->execute();
+        $count = (int) $stmt->get_result()->fetch_assoc()['c'];
+
+        if ($count >= $maxHits) {
+            return false;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $ins = $con->prepare("INSERT INTO tbl_rate_limits (action, identifier, created_at) VALUES (?, ?, ?)");
+        $ins->bind_param('sss', $action, $identifier, $now);
+        $ins->execute();
+
+        return true;
+    }
+}
+
+if (!function_exists('rate_limit_message')) {
+    // Consistent "slow down" copy - tells the user when the oldest hit in
+    // the current window will age out and let them through again.
+    function rate_limit_message($con, $action, $identifier, $windowSeconds, $what = 'requests') {
+        $stmt = $con->prepare("SELECT MIN(created_at) AS oldest FROM tbl_rate_limits WHERE action = ? AND identifier = ?");
+        $stmt->bind_param('ss', $action, $identifier);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+
+        $waitSeconds = ($row && $row['oldest']) ? max(1, (strtotime($row['oldest']) + $windowSeconds) - time()) : $windowSeconds;
+        $waitMinutes = max(1, (int) ceil($waitSeconds / 60));
+
+        return "Too many $what. Please wait $waitMinutes minute" . ($waitMinutes === 1 ? '' : 's') . " and try again.";
+    }
+}
+
 // ---- Login email verification codes ----
 // Required after a 7-day (normal) or 14-day (remember-me) session has
 // expired and the writer/admin logs back in with their password. Only the

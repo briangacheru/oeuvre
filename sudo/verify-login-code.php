@@ -16,6 +16,13 @@ $pendingEmail = $_SESSION['otp_pending_email'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['resend'])) {
+        if (!check_rate_limit($con, 'otp_resend_admin', $pendingEmail, 3, 600)) {
+            $verifyError = "
+                <div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                    <i class='bi bi-exclamation-circle me-1'></i> " . rate_limit_message($con, 'otp_resend_admin', $pendingEmail, 600, 'code resends') . "
+                    <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+                </div>";
+        } else {
         $otpCode = generate_login_otp($con, 'tbladmin', $pendingEmail);
         send_login_otp_code_email($pendingEmail, $otpCode);
         $verifyMessage = "
@@ -23,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <i class='bi bi-envelope me-1'></i> A new code has been sent to your email.
                 <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
             </div>";
+        }
     } else {
         $submittedCode = trim($_POST['code'] ?? '');
         $result = verify_login_otp($con, 'tbladmin', $pendingEmail, $submittedCode);
