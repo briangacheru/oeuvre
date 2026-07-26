@@ -384,27 +384,24 @@ if ($bonusItems) {
     $groups[] = ['label' => 'Bonus Management', 'icon' => 'fa-award', 'items' => $bonusItems];
 }
 
-// ---- Version ---- (single record from version.json, not a DB table)
-$versionFile = __DIR__ . '/version.json';
-if (is_file($versionFile)) {
-    $versionData = json_decode(file_get_contents($versionFile), true);
-    if (is_array($versionData)) {
-        $versionString = ($versionData['major'] ?? '0') . '.' . ($versionData['minor'] ?? '0') . '.' . ($versionData['patch'] ?? '0');
-        $versionDescription = $versionData['description'] ?? '';
-        $haystack = 'version ' . $versionString . ' ' . $versionDescription;
-        if (stripos($haystack, $q) !== false) {
-            $groups[] = [
-                'label' => 'Version',
-                'icon' => 'fa-code-branch',
-                'items' => [[
-                    'title' => 'App Version ' . $versionString,
-                    'subtitle' => htmlspecialchars($versionDescription, ENT_QUOTES),
-                    'actions' => [
-                        ['label' => 'View Version Info', 'url' => 'changelog'],
-                    ],
-                ]],
-            ];
-        }
+// ---- Version ---- (current row from tbl_changelog)
+$versionData = get_current_version($con);
+if ($versionData) {
+    $versionString = ($versionData['major'] ?? '0') . '.' . ($versionData['minor'] ?? '0') . '.' . ($versionData['patch'] ?? '0');
+    $versionDescription = $versionData['description'] ?? '';
+    $haystack = 'version ' . $versionString . ' ' . $versionDescription;
+    if (stripos($haystack, $q) !== false) {
+        $groups[] = [
+            'label' => 'Version',
+            'icon' => 'fa-code-branch',
+            'items' => [[
+                'title' => 'App Version ' . $versionString,
+                'subtitle' => htmlspecialchars($versionDescription, ENT_QUOTES),
+                'actions' => [
+                    ['label' => 'View Version Info', 'url' => 'changelog'],
+                ],
+            ]],
+        ];
     }
 }
 

@@ -59,6 +59,7 @@ if (!function_exists('finalize_writer_login')) {
         $_SESSION['sessionWriter'] = $email;
         require_once __DIR__ . '/session_tracker.php';
         record_writer_session($con, $email);
+        log_activity($con, 'writer', $email, 'login');
 
         if ($remember) {
             // Stored raw (not password_hash()'d) - check-login.php looks this

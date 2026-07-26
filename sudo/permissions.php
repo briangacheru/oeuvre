@@ -30,6 +30,10 @@ if (!defined('ADMIN_CAPABILITIES')) {
         'manage_settings' => ['superadmin'],
         // Create/approve admin accounts and assign roles (sudo/manage-admins.php).
         'manage_admins'   => ['superadmin'],
+        // View the rate-limit/activity log (sudo/activity-log.php) - login
+        // patterns and writer behavior across the whole app, not scoped to
+        // one task or writer the way operate_tasks's own pages are.
+        'view_activity_log' => ['admin', 'superadmin'],
     ]);
 }
 

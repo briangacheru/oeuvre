@@ -4,6 +4,7 @@ session_start();
 error_reporting(E_ALL);
 date_default_timezone_set('Africa/Nairobi');
 include('dbcon.php');
+require_once __DIR__ . '/shared-functions.php';
 
 if (isset($_REQUEST['logout'])) {
     // Store current page before logout
@@ -19,6 +20,8 @@ if (isset($_REQUEST['logout'])) {
     if (isset($_SESSION['sessionWriter'])) {
         $userEmail = $_SESSION['sessionWriter'];
         $lastSeen = gmdate('Y-m-d H:i:s');
+
+        log_activity($con, 'writer', $userEmail, 'logout');
 
         $updateStatusSql = "UPDATE tblwriters SET is_online = 0, last_seen = ? WHERE email = ?";
         $stmt = $con->prepare($updateStatusSql);

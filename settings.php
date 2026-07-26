@@ -1,6 +1,7 @@
 <?php
 include "head.php";
 csrf_verify_or_redirect();
+log_activity($con, 'writer', $aid, 'page_view', 'Settings');
 
 $message = ''; // Initialize an empty message variable
 $error_message = ''; // Initialize an empty error message variable

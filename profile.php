@@ -1,6 +1,7 @@
 <?php
 include "head.php";
 include "writer-performance-functions.php";
+log_activity($con, 'writer', $aid, 'page_view', 'Profile');
 ?>
 
 <?php

@@ -76,115 +76,26 @@ function get_picture($email) {
 
 
 /**
- * Updates the version number whenever code is edited
+ * Adds a new changelog entry, bumping the current version. Thin wrapper
+ * around add_changelog_entry() (shared-functions.php) - kept under this
+ * name since sudo/changelog.php already calls it this way.
  * @param string $type Type of update: 'patch', 'minor', or 'major'
  * @param string $description Description of the update
  * @return array The new version data
  */
 function updateVersionNumber($type = 'patch', $description = '') {
-    $versionFile = __DIR__ . '/version.json';
-
-    // Create version file if it doesn't exist
-    if (!file_exists($versionFile)) {
-        $versionData = [
-            'major' => 3,
-            'minor' => 0,
-            'patch' => 0,
-            'lastUpdated' => date('Y-m-d'),
-            'description' => $description ?: 'Initial release'
-        ];
-    } else {
-        // Read current version
-        $versionData = json_decode(file_get_contents($versionFile), true);
-
-        // If file is invalid, create a new one
-        if (json_last_error() !== JSON_ERROR_NONE || !isset($versionData['major'])) {
-            $versionData = [
-                'major' => 3,
-                'minor' => 0,
-                'patch' => 0,
-                'lastUpdated' => date('Y-m-d'),
-                'description' => $description ?: 'Initial release'
-            ];
-        }
-    }
-
-    // Update version based on type
-    switch ($type) {
-        case 'major':
-            $versionData['major']++;
-            $versionData['minor'] = 0;
-            $versionData['patch'] = 0;
-            break;
-        case 'minor':
-            $versionData['minor']++;
-            $versionData['patch'] = 0;
-            break;
-        case 'patch':
-        default:
-            $versionData['patch']++;
-            break;
-    }
-
-    // Update last updated date and description
-    $versionData['lastUpdated'] = date('Y-m-d');
-    if (!empty($description)) {
-        $versionData['description'] = $description;
-    }
-
-    // Save updated version
-    file_put_contents($versionFile, json_encode($versionData, JSON_PRETTY_PRINT));
-
-    return $versionData;
+    global $con;
+    $createdBy = $_SESSION['odmsaid'] ?? null;
+    return add_changelog_entry($con, $type, $description, $createdBy);
 }
 
 /**
- * Gets the current version data
+ * Gets the current version data (most recent tbl_changelog row).
  * @return array The current version data
  */
 function getVersionData() {
-    $versionFile = __DIR__ . '/version.json';
-
-    // Check if version file exists
-    if (!file_exists($versionFile)) {
-        // Create default version file
-        $versionData = [
-            'major' => 3,
-            'minor' => 0,
-            'patch' => 0,
-            'lastUpdated' => date('Y-m-d'),
-            'description' => 'Initial release'
-        ];
-        file_put_contents($versionFile, json_encode($versionData, JSON_PRETTY_PRINT));
-        return $versionData;
-    }
-
-    // Read current version
-    $versionData = json_decode(file_get_contents($versionFile), true);
-
-    // Check if parsing was successful
-    if (json_last_error() !== JSON_ERROR_NONE || !isset($versionData['major'])) {
-        // Create default version file
-        $versionData = [
-            'major' => 3,
-            'minor' => 0,
-            'patch' => 0,
-            'lastUpdated' => date('Y-m-d'),
-            'description' => 'Initial release'
-        ];
-        file_put_contents($versionFile, json_encode($versionData, JSON_PRETTY_PRINT));
-    }
-
-    return $versionData;
-}
-
-// If this file is called directly, update the version
-if (basename($_SERVER['SCRIPT_FILENAME']) == basename(__FILE__)) {
-    $type = isset($_GET['type']) ? $_GET['type'] : 'patch';
-    $description = isset($_GET['description']) ? $_GET['description'] : '';
-    $versionData = updateVersionNumber($type, $description);
-    $versionString = "v{$versionData['major']}.{$versionData['minor']}.{$versionData['patch']}";
-    echo "Version updated to $versionString";
+    global $con;
+    return get_current_version($con);
 }
 
 function formatFileSize($bytes) {

@@ -170,6 +170,9 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
             }
 
             mysqli_stmt_close($stmt);
+
+            $submitDetails = ($revisionCount > 0 ? "Resubmission #$revisionCount" : 'Submission') . " - Task #$taskId: $topic";
+            log_activity($con, 'writer', $writerKey, 'task_submit', $submitDetails);
         } else {
             throw new Exception('Database error: ' . safe_db_error(mysqli_error($con)));
         }

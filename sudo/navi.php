@@ -1231,6 +1231,12 @@
                                 </div>
                             </a>
                         <?php endif; ?>
+                        <?php if (adminCan($navRole, 'view_activity_log')): ?>
+                            <!-- parent pages--><a class="nav-link" href="activity-log" role="button">
+                                <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-clipboard-list"></span></span><span class="nav-link-text ps-1">Activity Log</span>
+                                </div>
+                            </a>
+                        <?php endif; ?>
 
                             <?php
                             }

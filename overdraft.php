@@ -1,4 +1,4 @@
-<?php include "head.php";?>
+<?php include "head.php"; log_activity($con, 'writer', $aid, 'page_view', 'Overdrafts'); ?>
     <title>Overdraft | iTasker</title>
 <?php include "navi.php";?>
 

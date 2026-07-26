@@ -9,6 +9,8 @@ if (isset($_SESSION['sessionWriter'])) {
     exit();
 }
 
+log_activity($con, 'writer', $aid, 'page_view', 'Chat');
+
 // Fetch current user information
 $currentUserQuery = mysqli_query($con, "
     SELECT id, 'admin' as type, is_online, last_seen FROM tbladmin WHERE email = '$aid'

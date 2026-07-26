@@ -1,76 +1,36 @@
 <?php
 /**
- * Shared version functions for both user and admin interfaces
+ * Shared version display helpers for both interfaces. Thin wrappers around
+ * tbl_changelog (see shared-functions.php's get_current_version()) -
+ * kept as separate named functions so existing callers (footer.php,
+ * sudo/footer.php) didn't need to change when this moved off the old
+ * sudo/version.json file.
  */
+require_once __DIR__ . '/shared-functions.php';
 
-/**
- * Gets the current version number from the sudo/version.json file
- * @return string The current version number
- */
-function getVersionNumber() {
-    $versionFile = __DIR__ . '/sudo/version.json';
-
-    // Check if version file exists
-    if (!file_exists($versionFile)) {
-        return "v3.0.0"; // Default version if file doesn't exist
+if (!function_exists('getVersionNumber')) {
+    // Gets the current version number, formatted as "vX.Y.Z"
+    function getVersionNumber() {
+        global $con;
+        $v = get_current_version($con);
+        return "v{$v['major']}.{$v['minor']}.{$v['patch']}";
     }
-
-    // Read current version
-    $versionData = json_decode(file_get_contents($versionFile), true);
-
-    // Check if parsing was successful
-    if (json_last_error() !== JSON_ERROR_NONE || !isset($versionData['major'])) {
-        return "v3.0.0"; // Default version if file is invalid
-    }
-
-    // Return formatted version string
-    return "v{$versionData['major']}.{$versionData['minor']}.{$versionData['patch']}";
 }
 
-/**
- * Gets the version description from the sudo/version.json file
- * @return string The version description
- */
-function getVersionDescription() {
-    $versionFile = __DIR__ . '/sudo/version.json';
-
-    // Check if version file exists
-    if (!file_exists($versionFile)) {
-        return ""; // Default empty description if file doesn't exist
+if (!function_exists('getVersionDescription')) {
+    // Gets the description attached to the current (most recent) version
+    function getVersionDescription() {
+        global $con;
+        $v = get_current_version($con);
+        return $v['description'] ?? '';
     }
-
-    // Read current version
-    $versionData = json_decode(file_get_contents($versionFile), true);
-
-    // Check if parsing was successful
-    if (json_last_error() !== JSON_ERROR_NONE || !isset($versionData['description'])) {
-        return ""; // Default empty description if file is invalid
-    }
-
-    return $versionData['description'];
 }
 
-/**
- * Gets the last updated date from the sudo/version.json file
- * @param string $format Date format (default: 'F j, Y')
- * @return string The formatted last updated date
- */
-function getVersionLastUpdated($format = 'F j, Y') {
-    $versionFile = __DIR__ . '/sudo/version.json';
-
-    // Check if version file exists
-    if (!file_exists($versionFile)) {
-        return date($format); // Default to current date if file doesn't exist
+if (!function_exists('getVersionLastUpdated')) {
+    // Gets the current version's timestamp, formatted per $format
+    function getVersionLastUpdated($format = 'F j, Y') {
+        global $con;
+        $v = get_current_version($con);
+        return date($format, strtotime($v['created_at']));
     }
-
-    // Read current version
-    $versionData = json_decode(file_get_contents($versionFile), true);
-
-    // Check if parsing was successful
-    if (json_last_error() !== JSON_ERROR_NONE || !isset($versionData['lastUpdated'])) {
-        return date($format); // Default to current date if file is invalid
-    }
-
-    return date($format, strtotime($versionData['lastUpdated']));
 }
-?>

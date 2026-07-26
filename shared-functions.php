@@ -725,6 +725,91 @@ if (!function_exists('rate_limit_message')) {
     }
 }
 
+// ---- Persistent activity log ----
+// Separate from the rate-limit table above - that one is a rolling
+// short-term window check_rate_limit() actively purges as rows age out;
+// this one is never purged by app code, so it's what the "writer actions"
+// section of sudo/activity-log.php actually reads from.
+
+if (!function_exists('log_activity')) {
+    function log_activity($con, $actorType, $email, $action, $details = null) {
+        $now = date('Y-m-d H:i:s');
+        $stmt = $con->prepare("INSERT INTO tbl_activity_log (actor_type, email, action, details, created_at) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param('sssss', $actorType, $email, $action, $details, $now);
+        $stmt->execute();
+    }
+}
+
+// ---- Changelog / version history ----
+// Replaces sudo/version.json, which only ever held ONE mutable record -
+// every version bump overwrote the previous description, so despite the
+// name there was no actual history. tbl_changelog is append-only; the
+// current version is simply its most recent row. See
+// db-migrations/2026_07_26_add_changelog.sql.
+
+if (!function_exists('get_current_version')) {
+    function get_current_version($con) {
+        $result = mysqli_query($con, "SELECT * FROM tbl_changelog ORDER BY created_at DESC, id DESC LIMIT 1");
+        $row = $result ? mysqli_fetch_assoc($result) : null;
+        if (!$row) {
+            // Table exists but is empty (or missing/migration not run yet) -
+            // a safe, obviously-a-placeholder default rather than a fatal
+            // error, matching how the old JSON reader handled a missing file.
+            return ['major' => 0, 'minor' => 0, 'patch' => 0, 'description' => '', 'created_by' => null, 'created_at' => date('Y-m-d H:i:s')];
+        }
+        return $row;
+    }
+}
+
+if (!function_exists('get_changelog_history')) {
+    function get_changelog_history($con, $limit = 50) {
+        $limit = (int) $limit;
+        $result = mysqli_query($con, "SELECT * FROM tbl_changelog ORDER BY created_at DESC, id DESC LIMIT $limit");
+        $rows = [];
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $rows[] = $row;
+            }
+        }
+        return $rows;
+    }
+}
+
+if (!function_exists('add_changelog_entry')) {
+    // $type is 'major', 'minor', or 'patch' - bumps the corresponding part
+    // of the CURRENT version and resets the lower parts, same semantics
+    // the old JSON-based updateVersionNumber() had.
+    function add_changelog_entry($con, $type, $description, $createdBy = null) {
+        $current = get_current_version($con);
+        $major = (int) $current['major'];
+        $minor = (int) $current['minor'];
+        $patch = (int) $current['patch'];
+
+        switch ($type) {
+            case 'major':
+                $major++;
+                $minor = 0;
+                $patch = 0;
+                break;
+            case 'minor':
+                $minor++;
+                $patch = 0;
+                break;
+            case 'patch':
+            default:
+                $patch++;
+                break;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $stmt = mysqli_prepare($con, "INSERT INTO tbl_changelog (major, minor, patch, description, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, 'iiisss', $major, $minor, $patch, $description, $createdBy, $now);
+        mysqli_stmt_execute($stmt);
+
+        return ['major' => $major, 'minor' => $minor, 'patch' => $patch, 'description' => $description, 'created_by' => $createdBy, 'created_at' => $now];
+    }
+}
+
 // ---- Login email verification codes ----
 // Required after a 7-day (normal) or 14-day (remember-me) session has
 // expired and the writer/admin logs back in with their password. Only the

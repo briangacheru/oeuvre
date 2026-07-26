@@ -1,4 +1,4 @@
-<?php include "head.php";?>
+<?php include "head.php"; log_activity($con, 'writer', $aid, 'page_view', 'Unconfirmed'); ?>
     <title>Unconfirmed Tasks | iTasker</title>
 <?php include "navi.php";?>
 

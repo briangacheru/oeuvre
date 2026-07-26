@@ -1,3 +1,8 @@
+<?php
+if (!function_exists('getVersionNumber')) {
+    require_once __DIR__ . '/version-functions.php';
+}
+?>
 <footer class="footer">
     <div class="row g-0 justify-content-between fs-10 mt-4 mb-3">
         <div class="col-12 col-sm-auto text-center">

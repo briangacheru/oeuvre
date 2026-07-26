@@ -1,5 +1,6 @@
 <?php
 include "head.php";
+log_activity($con, 'writer', $aid, 'page_view', 'Calendar');
 
 // Fetch tasks from the database
 $query = mysqli_query($con, "SELECT id, topic, due_date, status FROM tbltasks WHERE is_deleted = 0 AND email = '$aid' AND status != 'Draft'");

@@ -58,6 +58,8 @@ if (isset($_GET['task_id'])) {
         header("Location: all-tasks");
         exit();
     }
+
+    log_activity($con, 'writer', $aid, 'task_view', "Task #$taskId: " . ($taskRowCheck['topic'] ?? ''));
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                             <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
