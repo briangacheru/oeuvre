@@ -50,7 +50,7 @@ if (isset($_SESSION['alert'])) {
                             SUM(CASE 
                                 WHEN category = 'Income' AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m') 
                                 THEN amount ELSE 0 END) AS previousMonthIncome
-                        FROM tblbudget WHERE is_deleted = 0";
+                        FROM tblbudget WHERE is_deleted = 0 AND is_internal_transfer = 0";
                     $result = mysqli_query($con, $query);
                     if ($result) {
                         $row = mysqli_fetch_assoc($result);
@@ -116,7 +116,7 @@ if (isset($_SESSION['alert'])) {
                                     SUM(CASE WHEN category = 'Expense' AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m') 
                                         THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS previousMonthExpense
                                 FROM (SELECT category, amount, transactionCost, expenseDate 
-                                    FROM tblbudget WHERE is_deleted = 0) AS combined";
+                                    FROM tblbudget WHERE is_deleted = 0 AND is_internal_transfer = 0) AS combined";
 
                     $resultExpense = mysqli_query($con, $queryExpense);
                     if ($resultExpense) {
@@ -191,7 +191,7 @@ if (isset($_SESSION['alert'])) {
                                                 WHEN category = 'Savings' AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m') 
                                                 THEN amount ELSE 0 END) AS previousMonthSavings
                                         FROM tblbudget 
-                                        WHERE is_deleted = 0
+                                        WHERE is_deleted = 0 AND is_internal_transfer = 0
                                     ";
                     $resultSavings = mysqli_query($con, $querySavings);
                     if ($resultSavings) {
@@ -274,7 +274,7 @@ if (isset($_SESSION['alert'])) {
                                         FROM tblbudget
                                         WHERE category = 'Income' 
                                           AND YEAR(expenseDate) = YEAR(CURDATE()) 
-                                          AND is_deleted = 0
+                                          AND is_deleted = 0 AND is_internal_transfer = 0
                                     ";
                                 $result = mysqli_query($con, $query);
                                 if ($result) {
@@ -303,7 +303,7 @@ if (isset($_SESSION['alert'])) {
                                         SUM(CASE WHEN category = 'Expense' AND YEAR(expenseDate) = YEAR(CURDATE()) 
                                             THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS totalExpenses
                                     FROM (SELECT category, amount, transactionCost, expenseDate 
-                                        FROM tblbudget WHERE is_deleted = 0) AS combined";
+                                        FROM tblbudget WHERE is_deleted = 0 AND is_internal_transfer = 0) AS combined";
 
                                 $result = mysqli_query($con, $query);
                                 if ($result) {
@@ -340,7 +340,7 @@ if (isset($_SESSION['alert'])) {
                                         SUM(CASE WHEN category = 'Income' AND YEAR(expenseDate) = YEAR(CURDATE()) THEN amount ELSE 0 END) AS totalIncome,
                                         SUM(CASE WHEN category = 'Savings' AND YEAR(expenseDate) = YEAR(CURDATE()) THEN amount ELSE 0 END) AS totalSavings
                                     FROM tblbudget
-                                    WHERE is_deleted = 0
+                                    WHERE is_deleted = 0 AND is_internal_transfer = 0
                                 ";
                                 $result = mysqli_query($con, $query);
                                 if ($result) {
@@ -390,22 +390,22 @@ if (isset($_SESSION['alert'])) {
                                 -- Current Month Transaction Costs
                                 (SELECT SUM(transactionCost) 
                                  FROM tblbudget 
-                                 WHERE is_deleted = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')) AS totalTransactionCostCurrentMonth,
+                                 WHERE is_deleted = 0 AND is_internal_transfer = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')) AS totalTransactionCostCurrentMonth,
                                 
                                 -- Current Year Transaction Costs
                                 (SELECT SUM(transactionCost) 
                                  FROM tblbudget 
-                                 WHERE is_deleted = 0 AND YEAR(expenseDate) = YEAR(CURDATE())) AS totalTransactionCostCurrentYear,
+                                 WHERE is_deleted = 0 AND is_internal_transfer = 0 AND YEAR(expenseDate) = YEAR(CURDATE())) AS totalTransactionCostCurrentYear,
                             
                                 -- Previous Month Transaction Costs
                                 (SELECT SUM(transactionCost) 
                                  FROM tblbudget 
-                                 WHERE is_deleted = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')) AS totalTransactionCostPreviousMonth,
+                                 WHERE is_deleted = 0 AND is_internal_transfer = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')) AS totalTransactionCostPreviousMonth,
                                 
                                 -- Previous Year Transaction Costs
                                 (SELECT SUM(transactionCost) 
                                  FROM tblbudget 
-                                 WHERE is_deleted = 0 AND YEAR(expenseDate) = YEAR(CURDATE()) - 1) AS totalTransactionCostPreviousYear";
+                                 WHERE is_deleted = 0 AND is_internal_transfer = 0 AND YEAR(expenseDate) = YEAR(CURDATE()) - 1) AS totalTransactionCostPreviousYear";
 
                                 $result = mysqli_query($con, $query);
 
@@ -518,7 +518,7 @@ if (isset($_SESSION['alert'])) {
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag?>">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -639,7 +639,7 @@ if (isset($_SESSION['alert'])) {
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag?>" width="40">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -762,7 +762,7 @@ if (isset($_SESSION['alert'])) {
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag?>" width="45">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -884,7 +884,7 @@ if (isset($_SESSION['alert'])) {
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag?>" width="45">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -1008,7 +1008,7 @@ if (isset($_SESSION['alert'])) {
                             <div class="row g-0 align-items-center py-2 position-relative border-bottom border-200">
                                 <div class="col ps-x1 py-1 position-static">
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="40">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -1130,7 +1130,7 @@ if (isset($_SESSION['alert'])) {
                                 <div class="col ps-x1 py-1 position-static">
                                     <!-- UPDATED HTML: Replaced letter avatar with payment icon image -->
                                     <div class="d-flex align-items-center position-relative">
-                                        <img class="rounded-1 border border-200" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="40">
+                                        <img class="rounded-1 border border-200 me-2 p-1" src="../assets/img/icons/<?= $iconFile ?>" alt="<?= $tag ?>" width="32" height="32" style="object-fit: contain;">
                                         <div class="flex-1">
                                             <h6 class="mb-0 d-flex align-items-center">
                                                 <a href="#" class="text-800 stretched-link" data-bs-toggle="modal"
@@ -1220,9 +1220,9 @@ if (isset($_SESSION['alert'])) {
                 <div class="card-body p-0">
                     <?php
                     $query = "SELECT subcategory, SUM(amount) AS total_amount, ROUND((SUM(amount) / (SELECT SUM(amount) FROM tblbudget 
-                              WHERE category = 'Savings' AND is_deleted = 0 
+                              WHERE category = 'Savings' AND is_deleted = 0 AND is_internal_transfer = 0 
                               AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')) * 100), 2) AS percentage
-                                FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+                                FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 AND is_internal_transfer = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
                                 GROUP BY subcategory ORDER BY total_amount DESC";
                     $result = $con->query($query);
                     if ($result->num_rows > 0) {
@@ -1287,10 +1287,10 @@ if (isset($_SESSION['alert'])) {
                 <div class="card-body p-0">
                     <?php
                     $query = "SELECT subcategory, SUM(amount) AS total_amount, ROUND((SUM(amount) / 
-                        (SELECT SUM(amount) FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 
+                        (SELECT SUM(amount) FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 AND is_internal_transfer = 0 
                            AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m'))
                         ) * 100, 2) AS percentage
-                FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
+                FROM tblbudget WHERE category = 'Savings' AND is_deleted = 0 AND is_internal_transfer = 0 AND DATE_FORMAT(expenseDate, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
                 GROUP BY subcategory ORDER BY total_amount DESC";
 
                     $result = $con->query($query);

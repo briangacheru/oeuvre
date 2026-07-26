@@ -7,6 +7,12 @@
 // see requireCapability() below) and is what every other admin page uses.
 include "check-login.php";
 requireCapability($currentAdminRole, 'operate_finance');
+// Was previously only called much further down (right before the HTML
+// section renders), which is AFTER the export_csv/import_csv/bulk_delete
+// POST handlers below already run and exit — meaning those state-changing
+// actions were never actually CSRF-checked despite their forms sending a
+// token. Moved here so it covers every POST branch; still a no-op on GET.
+csrf_verify_or_redirect();
 
 error_reporting(E_ALL);
 ini_set('log_errors', 1);
@@ -68,7 +74,11 @@ if (isset($_POST['import_csv'])) {
         $normalizedHeader = array_map('trim', $header);
         $normalizedHeader = array_map('strtolower', $normalizedHeader);
 
-        // Define expected headers (also normalized)
+        // Define expected headers (also normalized). The 8th "Internal
+        // Transfer" column is optional — the statement importer's
+        // "Import Now" button generates it (see parse-statement.php /
+        // sudo/lib/statement-import.php), but a plain manually-built CSV
+        // without it is still accepted for backwards compatibility.
         $expectedHeaders = [
             'category',
             'subcategory',
@@ -78,9 +88,12 @@ if (isset($_POST['import_csv'])) {
             'tag',
             'date'
         ];
+        $expectedHeadersWithTransfer = array_merge($expectedHeaders, ['internal transfer']);
+
+        $hasTransferColumn = $normalizedHeader === $expectedHeadersWithTransfer;
 
         // Compare normalized headers with expected headers
-        if ($normalizedHeader !== $expectedHeaders) {
+        if ($normalizedHeader !== $expectedHeaders && !$hasTransferColumn) {
             error_log("Invalid headers found: " . implode(', ', $normalizedHeader));
             $_SESSION['alert'] = '
             <div class="alert alert-danger border-0 d-flex align-items-center">
@@ -95,11 +108,21 @@ if (isset($_POST['import_csv'])) {
             exit;
         }
 
+        $expectedColumnCount = $hasTransferColumn ? 8 : 7;
+
+        // When re-submitting rows the admin already reviewed in the
+        // "Possible Duplicates" modal (see below), skip the duplicate
+        // check entirely for this batch — they've explicitly confirmed
+        // these specific rows should be imported despite matching an
+        // existing one.
+        $forceImport = isset($_POST['force_import']) && $_POST['force_import'] === '1';
+
         $successCount = 0;
         $duplicateCount = 0;
         $errorCount = 0;
         $rowNumber = 1; // Track row number for debugging
         $errorDetails = []; // Store first 5 errors to show user
+        $duplicateRows = []; // Full row data for skipped duplicates, shown in a review modal on reload
 
         while (($row = fgetcsv($csvFile)) !== FALSE) {
             $rowNumber++;
@@ -109,17 +132,23 @@ if (isset($_POST['import_csv'])) {
                 continue;
             }
 
-            // Ensure we have exactly 7 columns
-            if (count($row) !== 7) {
+            // Ensure we have the expected number of columns
+            if (count($row) !== $expectedColumnCount) {
                 $errorCount++;
                 if (count($errorDetails) < 5) {
-                    $errorDetails[] = "Row $rowNumber: Expected 7 columns, found " . count($row);
+                    $errorDetails[] = "Row $rowNumber: Expected $expectedColumnCount columns, found " . count($row);
                 }
                 error_log("Row $rowNumber: Invalid column count - " . count($row));
                 continue;
             }
 
-            list($category, $subcategory, $description, $amount, $transactionCost, $tag, $date) = $row;
+            if ($hasTransferColumn) {
+                list($category, $subcategory, $description, $amount, $transactionCost, $tag, $date, $isTransferRaw) = $row;
+                $isInternalTransfer = in_array(strtolower(trim($isTransferRaw)), ['yes', '1', 'true'], true) ? 1 : 0;
+            } else {
+                list($category, $subcategory, $description, $amount, $transactionCost, $tag, $date) = $row;
+                $isInternalTransfer = 0;
+            }
 
             // ⚠️ BUG FIX: Correct date parsing for MM/DD/YY format
             $dateFormatted = false;
@@ -171,6 +200,16 @@ if (isset($_POST['import_csv'])) {
                 continue;
             }
 
+            // Keep un-sanitized copies (exactly as read from the CSV) for the
+            // duplicate-review modal / a possible force-import resubmission —
+            // the sanitized versions below are htmlspecialchars-encoded, and
+            // re-emitting THOSE into a fresh CSV on force-import would
+            // double-encode on the next pass through this same sanitize step.
+            $rawCategory = trim($category);
+            $rawSubcategory = trim($subcategory);
+            $rawDescription = trim($description);
+            $rawTag = trim($tag);
+
             // Sanitize input
             $category = mysqli_real_escape_string($con, htmlspecialchars(trim($category), ENT_QUOTES, 'UTF-8'));
             $subcategory = mysqli_real_escape_string($con, htmlspecialchars(trim($subcategory), ENT_QUOTES, 'UTF-8'));
@@ -180,26 +219,44 @@ if (isset($_POST['import_csv'])) {
             $tag = mysqli_real_escape_string($con, htmlspecialchars(trim($tag), ENT_QUOTES, 'UTF-8'));
 
             // Check for duplicate based on date, description, and amount
-            $checkSql = "
-                SELECT * FROM tblbudget 
-                WHERE expenseDate = '$dateFormatted'
-                  AND description = '$description'
-                  AND amount = '$amount'
-                  AND is_deleted = 0
-            ";
-            $result = mysqli_query($con, $checkSql);
+            // (skipped entirely when force-importing rows already reviewed
+            // in the duplicates modal).
+            $isDuplicate = false;
+            if (!$forceImport) {
+                $checkSql = "
+                    SELECT * FROM tblbudget
+                    WHERE expenseDate = '$dateFormatted'
+                      AND description = '$description'
+                      AND amount = '$amount'
+                      AND is_deleted = 0
+                ";
+                $result = mysqli_query($con, $checkSql);
+                $isDuplicate = mysqli_num_rows($result) > 0;
+            }
 
-            if (mysqli_num_rows($result) > 0) {
+            if ($isDuplicate) {
                 $duplicateCount++;
+                if (count($duplicateRows) < 200) {
+                    $duplicateRows[] = [
+                        'category' => $rawCategory,
+                        'subcategory' => $rawSubcategory,
+                        'description' => $rawDescription,
+                        'amount' => $amount,
+                        'cost' => $transactionCost,
+                        'tag' => $rawTag,
+                        'date' => $dateFormatted,
+                        'is_internal_transfer' => $isInternalTransfer,
+                    ];
+                }
                 continue;
             }
 
             // Insert into tblbudget
             $insertSql = "
                 INSERT INTO tblbudget (
-                    category, subcategory, description, amount, transactionCost, tag, expenseDate
+                    category, subcategory, description, amount, transactionCost, tag, expenseDate, is_internal_transfer
                 ) VALUES (
-                    '$category', '$subcategory', '$description', '$amount', '$transactionCost', '$tag', '$dateFormatted'
+                    '$category', '$subcategory', '$description', '$amount', '$transactionCost', '$tag', '$dateFormatted', $isInternalTransfer
                 )
             ";
 
@@ -232,11 +289,12 @@ if (isset($_POST['import_csv'])) {
         }
 
         if ($duplicateCount > 0) {
+            $reviewHint = !empty($duplicateRows) ? ' Review them below to import any anyway.' : '';
             $alerts[] = '
             <div class="alert alert-warning border-0 d-flex align-items-center alert-dismissible fade show">
                 <i class="fas fa-exclamation-triangle me-2 fs-4"></i>
                 <div class="flex-1">
-                    <strong>Skipped Duplicates:</strong> ' . $duplicateCount . ' transaction(s) already exist in the database (same date, description, and amount).
+                    <strong>Skipped Duplicates:</strong> ' . $duplicateCount . ' transaction(s) already exist in the database (same date, description, and amount).' . $reviewHint . '
                 </div>
                 <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>';
@@ -293,6 +351,9 @@ if (isset($_POST['import_csv'])) {
         </div>';
 
         $_SESSION['alert'] = $summaryAlert . implode('', $alerts);
+        if (!empty($duplicateRows)) {
+            $_SESSION['duplicate_transactions'] = $duplicateRows;
+        }
         header("Location: transactions");
         exit;
 
@@ -441,7 +502,6 @@ if (isset($_POST['bulk_delete'])) {
 }
 ?>
 <?php include "head.php";?>
-<?php csrf_verify_or_redirect(); ?>
     <title>Transactions Management</title>
 <?php include "navi.php";
 $status = "OK";
@@ -475,6 +535,12 @@ if (isset($_SESSION['alert'])) {
     unset($_SESSION['alert']);
     //echo '<meta http-equiv="refresh" content="10;url=' . htmlspecialchars($_SERVER['PHP_SELF']) . '">';
 }
+
+// Skipped-duplicate rows from the most recent CSV/statement import, shown
+// once in a review modal so the admin can force-import any that were
+// actually wanted (see the import_csv handler's $forceImport branch above).
+$duplicateTransactions = $_SESSION['duplicate_transactions'] ?? [];
+unset($_SESSION['duplicate_transactions']);
 ?>
     <div class="row mb-3">
         <div class="col">
@@ -502,6 +568,69 @@ if (isset($_SESSION['alert'])) {
                                 </a>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Statement (Equity / M-Pesa) -->
+    <div class="row mb-3">
+        <div class="col">
+            <div class="card shadow-none border">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload <span class="text-info fw-medium">Bank / M-Pesa Statement</span></h5>
+                    <p class="fs-10 text-600 mb-0">Upload one or more Equity or M-Pesa statements. They're parsed into an editable preview below — nothing is saved until you choose to import.</p>
+                </div>
+                <div class="card-body">
+                    <div id="statement-file-rows"></div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1" id="add-statement-file-row"><i class="fas fa-plus me-1"></i>Add Another File</button>
+                </div>
+                <div class="card-footer">
+                    <button type="button" class="btn btn-primary" id="parse-statements-btn"><i class="fas fa-magic me-1"></i>Parse &amp; Preview</button>
+                    <span id="parse-statements-status" class="ms-2 fs-10 text-600"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statement Preview -->
+    <div class="row mb-3 d-none" id="statement-preview-section">
+        <div class="col">
+            <div class="card shadow-none border">
+                <div class="card-header">
+                    <div class="row flex-between-center">
+                        <div class="col-auto">
+                            <h5 class="mb-0">Statement Preview</h5>
+                            <p class="fs-10 text-600 mb-0" id="statement-preview-summary"></p>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="statement-download-csv"><i class="fas fa-download me-1"></i>Download CSV</button>
+                            <button type="button" class="btn btn-sm btn-success" id="statement-import-btn"><i class="fas fa-check me-1"></i>Import <span id="statement-import-count">0</span></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="statement-discard-btn"><i class="fas fa-times me-1"></i>Discard</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="statement-preview-messages"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-10" id="statement-preview-table">
+                            <thead class="bg-200">
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Subcategory</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Cost</th>
+                                    <th>Tag</th>
+                                    <th>Date</th>
+                                    <th>Source</th>
+                                    <th class="text-center" data-bs-toggle="tooltip" title="Money moving between your own accounts — excluded from this import's own totals">Transfer</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="statement-preview-body"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -566,8 +695,8 @@ if (isset($_SESSION['alert'])) {
                                             </thead>
                                             <tbody class="list" id="table-simple-pagination-body">
                                             <?php
-                                            $query=mysqli_query($con,"SELECT 
-                                                budgetID AS id, category, subcategory, description, tag, amount, transactionCost, expenseDate AS date, 'tblbudget' AS table_source 
+                                            $query=mysqli_query($con,"SELECT
+                                                budgetID AS id, category, subcategory, description, tag, amount, transactionCost, expenseDate AS date, is_internal_transfer, 'tblbudget' AS table_source
                                                 FROM tblbudget WHERE is_deleted = 0 AND expenseDate >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
                                                 ORDER BY date DESC");
                                             $cnt=1;
@@ -594,6 +723,9 @@ if (isset($_SESSION['alert'])) {
                                                                         echo '<span class="badge fs-10 rounded-pill badge-subtle-primary">Income</span>';
                                                                     } else {
                                                                         echo htmlspecialchars($row["category"]);
+                                                                    }
+                                                                    if (!empty($row['is_internal_transfer'])) {
+                                                                        echo ' <span class="badge fs-10 rounded-pill badge-subtle-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="Money moving between your own accounts — excluded from Income/Expense totals"><i class="fas fa-exchange-alt me-1"></i>Transfer</span>';
                                                                     }
                                                                     ?>
                                                                 </h6>
@@ -1012,6 +1144,45 @@ if (isset($_SESSION['alert'])) {
         </div>
     </div>
 
+    <!-- Possible Duplicates Modal (populated from the most recent import, see $duplicateTransactions below) -->
+    <div class="modal fade" id="duplicateTransactionsModal" tabindex="-1" aria-labelledby="duplicateTransactionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="duplicateTransactionsModalLabel">Possible Duplicates Skipped</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-10 text-600">These rows matched an existing transaction (same date, description, and amount) and were skipped. Tick any that should be imported anyway.</p>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="duplicateSelectAll">
+                        <label class="form-check-label" for="duplicateSelectAll">Select all</label>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-10">
+                            <thead class="bg-200">
+                                <tr>
+                                    <th></th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="duplicateTransactionsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip All</button>
+                    <button type="button" class="btn btn-primary" id="duplicateImportSelectedBtn">
+                        <i class="fas fa-check me-1"></i>Import Selected (<span id="duplicateSelectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Populate the View Transaction modal from data passed via onclick.
         // This is called from both the eye button and the description cell.
@@ -1360,6 +1531,12 @@ if (isset($_SESSION['alert'])) {
             actionInput.value = '1';
             form.appendChild(actionInput);
 
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = GLOBAL_CSRF_TOKEN;
+            form.appendChild(csrfInput);
+
             // Add all selected transaction IDs
             selectedTransactions.forEach(transaction => {
                 const input = document.createElement('input');
@@ -1387,6 +1564,370 @@ if (isset($_SESSION['alert'])) {
         function loadDeleteModal(id) {
             document.getElementById('deleteBudgetID').value = id;
         }
+    </script>
+
+    <script>
+        // ---- Statement upload (Equity / M-Pesa) ----
+        (function () {
+            const CATEGORY_OPTIONS = ['Expense', 'Income', 'Savings'];
+            const TAG_OPTIONS = ['Card', 'Cash', 'Mpesa', 'PayPal', 'Airtel Money'];
+
+            const rowsContainer = document.getElementById('statement-file-rows');
+            let fileRowSeq = 0;
+
+            function addFileRow() {
+                const idx = fileRowSeq++;
+                const row = document.createElement('div');
+                row.className = 'row g-2 align-items-center mb-2 statement-file-row';
+                row.dataset.idx = idx;
+                row.innerHTML = `
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm statement-source-type">
+                            <option value="equity_csv">Equity (CSV)</option>
+                            <option value="equity_pdf">Equity (PDF)</option>
+                            <option value="mpesa_pdf">M-Pesa (PDF)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="file" class="form-control form-control-sm statement-file-input" accept=".csv">
+                    </div>
+                    <div class="col-md-3 statement-password-col d-none">
+                        <input type="password" class="form-control form-control-sm statement-password-input" placeholder="PDF password (if any)" autocomplete="new-password">
+                    </div>
+                    <div class="col-md-auto ms-auto">
+                        <button type="button" class="btn btn-sm btn-outline-danger statement-remove-row"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                rowsContainer.appendChild(row);
+
+                const typeSelect = row.querySelector('.statement-source-type');
+                const fileInput = row.querySelector('.statement-file-input');
+                const passwordCol = row.querySelector('.statement-password-col');
+
+                function syncType() {
+                    const isPdf = typeSelect.value.endsWith('_pdf');
+                    fileInput.accept = isPdf ? '.pdf' : '.csv';
+                    passwordCol.classList.toggle('d-none', !isPdf);
+                }
+                typeSelect.addEventListener('change', syncType);
+                syncType();
+
+                row.querySelector('.statement-remove-row').addEventListener('click', function () {
+                    row.remove();
+                });
+            }
+
+            document.getElementById('add-statement-file-row').addEventListener('click', addFileRow);
+            addFileRow();
+
+            const statusEl = document.getElementById('parse-statements-status');
+
+            document.getElementById('parse-statements-btn').addEventListener('click', function () {
+                const rows = rowsContainer.querySelectorAll('.statement-file-row');
+                const formData = new FormData();
+                formData.append('csrf_token', GLOBAL_CSRF_TOKEN);
+                let fileCount = 0;
+
+                rows.forEach(function (row) {
+                    const fileInput = row.querySelector('.statement-file-input');
+                    if (!fileInput.files || !fileInput.files[0]) {
+                        return;
+                    }
+                    formData.append('files[]', fileInput.files[0]);
+                    formData.append('source_type[]', row.querySelector('.statement-source-type').value);
+                    formData.append('password[]', row.querySelector('.statement-password-input').value || '');
+                    fileCount++;
+                });
+
+                if (fileCount === 0) {
+                    showToast('Select at least one file to parse.', 'warning');
+                    return;
+                }
+
+                const btn = document.getElementById('parse-statements-btn');
+                btn.disabled = true;
+                statusEl.textContent = 'Parsing…';
+
+                fetch('parse-statement', { method: 'POST', body: formData })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        btn.disabled = false;
+                        statusEl.textContent = '';
+                        if (!data.success) {
+                            showToast(data.error || 'Could not parse the uploaded file(s).', 'danger');
+                            return;
+                        }
+                        renderPreview(data);
+                    })
+                    .catch(function () {
+                        btn.disabled = false;
+                        statusEl.textContent = '';
+                        showToast('Network error while parsing.', 'danger');
+                    });
+            });
+
+            const previewSection = document.getElementById('statement-preview-section');
+            const previewBody = document.getElementById('statement-preview-body');
+            const previewMessages = document.getElementById('statement-preview-messages');
+            const previewSummary = document.getElementById('statement-preview-summary');
+            const importCountEl = document.getElementById('statement-import-count');
+
+            function optionsHtml(options, selected) {
+                return options.map(function (o) {
+                    return '<option value="' + o + '"' + (o === selected ? ' selected' : '') + '>' + o + '</option>';
+                }).join('');
+            }
+
+            function toDatetimeLocal(dateStr) {
+                // "Y-m-d H:i:s" -> "Y-m-dTH:i:s" for <input type="datetime-local" step="1">
+                // (seconds matter for M-Pesa timestamps — dropping them would
+                // silently truncate every row's time even when untouched).
+                return (dateStr || '').replace(' ', 'T').slice(0, 19);
+            }
+
+            function renderPreview(data) {
+                previewBody.innerHTML = '';
+                previewMessages.innerHTML = '';
+
+                (data.file_errors || []).forEach(function (msg) {
+                    previewMessages.insertAdjacentHTML('beforeend',
+                        '<div class="alert alert-danger py-2 px-3 fs-10 mb-1">' + msg.replace(/</g, '&lt;') + '</div>');
+                });
+                (data.warnings || []).forEach(function (msg) {
+                    previewMessages.insertAdjacentHTML('beforeend',
+                        '<div class="alert alert-warning py-2 px-3 fs-10 mb-1">' + msg.replace(/</g, '&lt;') + '</div>');
+                });
+
+                data.rows.forEach(function (row) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><select class="form-select form-select-sm pv-category">${optionsHtml(CATEGORY_OPTIONS, row.category)}</select></td>
+                        <td><input class="form-control form-control-sm pv-subcategory" value="${escapeAttr(row.subcategory)}"></td>
+                        <td><input class="form-control form-control-sm pv-description" value="${escapeAttr(row.description)}"></td>
+                        <td><input type="number" step="0.01" class="form-control form-control-sm pv-amount" value="${row.amount}"></td>
+                        <td><input type="number" step="0.01" class="form-control form-control-sm pv-cost" value="${row.cost}"></td>
+                        <td><select class="form-select form-select-sm pv-tag">${optionsHtml(TAG_OPTIONS, row.tag)}</select></td>
+                        <td><input type="datetime-local" step="1" class="form-control form-control-sm pv-date" value="${toDatetimeLocal(row.date)}"></td>
+                        <td><span class="badge badge-subtle-secondary fs-11 white-space-nowrap">${escapeAttr(row.source)}</span></td>
+                        <td class="text-center"><input type="checkbox" class="form-check-input pv-transfer" ${row.is_internal_transfer ? 'checked' : ''}></td>
+                        <td><button type="button" class="btn btn-sm btn-outline-danger pv-remove"><i class="fas fa-trash"></i></button></td>
+                    `;
+                    tr.querySelector('.pv-remove').addEventListener('click', function () {
+                        tr.remove();
+                        updateSummary();
+                    });
+                    previewBody.appendChild(tr);
+                });
+
+                updateSummary();
+                previewSection.classList.remove('d-none');
+                previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            function escapeAttr(v) {
+                return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            }
+
+            function updateSummary() {
+                const count = previewBody.querySelectorAll('tr').length;
+                const transferCount = previewBody.querySelectorAll('.pv-transfer:checked').length;
+                importCountEl.textContent = count;
+                previewSummary.textContent = count + ' transaction(s), ' + transferCount + ' marked as internal transfer.';
+            }
+            previewBody.addEventListener('change', function (e) {
+                if (e.target.classList.contains('pv-transfer')) {
+                    updateSummary();
+                }
+            });
+
+            function collectPreviewRows() {
+                return Array.from(previewBody.querySelectorAll('tr')).map(function (tr) {
+                    let dateVal = tr.querySelector('.pv-date').value; // "Y-m-dTH:i" or "Y-m-dTH:i:s"
+                    if (dateVal && dateVal.length === 16) {
+                        dateVal += ':00'; // browser omitted seconds (value unedited from a :00 default)
+                    }
+                    return {
+                        category: tr.querySelector('.pv-category').value,
+                        subcategory: tr.querySelector('.pv-subcategory').value,
+                        description: tr.querySelector('.pv-description').value,
+                        amount: tr.querySelector('.pv-amount').value,
+                        cost: tr.querySelector('.pv-cost').value,
+                        tag: tr.querySelector('.pv-tag').value,
+                        date: dateVal ? dateVal.replace('T', ' ') : '',
+                        is_internal_transfer: tr.querySelector('.pv-transfer').checked,
+                    };
+                });
+            }
+
+            function csvEscape(v) {
+                v = String(v == null ? '' : v);
+                return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+            }
+
+            function buildCsv(rows) {
+                const header = ['Category', 'Subcategory', 'Description', 'Amount (Ksh)', 'Cost (Ksh)', 'Tag', 'Date', 'Internal Transfer'];
+                const lines = [header.map(csvEscape).join(',')];
+                rows.forEach(function (r) {
+                    lines.push([r.category, r.subcategory, r.description, r.amount, r.cost, r.tag, r.date, r.is_internal_transfer ? 'Yes' : 'No']
+                        .map(csvEscape).join(','));
+                });
+                return lines.join('\r\n');
+            }
+
+            document.getElementById('statement-download-csv').addEventListener('click', function () {
+                const rows = collectPreviewRows();
+                if (!rows.length) {
+                    showToast('No rows to download.', 'warning');
+                    return;
+                }
+                const blob = new Blob([buildCsv(rows)], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'statement-transactions-' + Date.now() + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            });
+
+            document.getElementById('statement-import-btn').addEventListener('click', function () {
+                const rows = collectPreviewRows();
+                if (!rows.length) {
+                    showToast('No rows to import.', 'warning');
+                    return;
+                }
+                const csvBlob = new Blob([buildCsv(rows)], { type: 'text/csv' });
+                const dt = new DataTransfer();
+                dt.items.add(new File([csvBlob], 'statement-import.csv', { type: 'text/csv' }));
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '';
+                form.enctype = 'multipart/form-data';
+
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = GLOBAL_CSRF_TOKEN;
+                form.appendChild(csrfInput);
+
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'import_csv';
+                actionInput.value = '1';
+                form.appendChild(actionInput);
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.name = 'csv_file';
+                fileInput.style.display = 'none';
+                fileInput.files = dt.files;
+                form.appendChild(fileInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            });
+
+            document.getElementById('statement-discard-btn').addEventListener('click', function () {
+                previewBody.innerHTML = '';
+                previewMessages.innerHTML = '';
+                previewSection.classList.add('d-none');
+            });
+        })();
+    </script>
+
+    <script>
+        // ---- Possible-duplicates review modal (see $duplicateTransactions in the PHP above) ----
+        (function () {
+            const DUPLICATE_TRANSACTIONS = <?= json_encode($duplicateTransactions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+            if (!DUPLICATE_TRANSACTIONS.length) {
+                return;
+            }
+
+            const body = document.getElementById('duplicateTransactionsBody');
+            const selectAll = document.getElementById('duplicateSelectAll');
+            const selectedCountEl = document.getElementById('duplicateSelectedCount');
+
+            function escapeHtml(v) {
+                return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+
+            DUPLICATE_TRANSACTIONS.forEach(function (row, idx) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="checkbox" class="form-check-input duplicate-row-check" data-idx="${idx}"></td>
+                    <td>${escapeHtml(row.category)}</td>
+                    <td>${escapeHtml(row.subcategory)}${row.description ? ' — ' + escapeHtml(row.description) : ''}</td>
+                    <td>Ksh ${Number(row.amount).toLocaleString()}</td>
+                    <td>${escapeHtml(row.date)}</td>
+                `;
+                body.appendChild(tr);
+            });
+
+            function updateSelectedCount() {
+                selectedCountEl.textContent = body.querySelectorAll('.duplicate-row-check:checked').length;
+            }
+            body.addEventListener('change', updateSelectedCount);
+
+            selectAll.addEventListener('change', function () {
+                body.querySelectorAll('.duplicate-row-check').forEach(function (cb) {
+                    cb.checked = selectAll.checked;
+                });
+                updateSelectedCount();
+            });
+
+            function csvEscape(v) {
+                v = String(v == null ? '' : v);
+                return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+            }
+
+            document.getElementById('duplicateImportSelectedBtn').addEventListener('click', function () {
+                const selectedIdx = Array.from(body.querySelectorAll('.duplicate-row-check:checked'))
+                    .map(function (cb) { return parseInt(cb.dataset.idx, 10); });
+                if (!selectedIdx.length) {
+                    showToast('Select at least one row to import.', 'warning');
+                    return;
+                }
+
+                const header = ['Category', 'Subcategory', 'Description', 'Amount (Ksh)', 'Cost (Ksh)', 'Tag', 'Date', 'Internal Transfer'];
+                const lines = [header.map(csvEscape).join(',')];
+                selectedIdx.forEach(function (idx) {
+                    const r = DUPLICATE_TRANSACTIONS[idx];
+                    lines.push([r.category, r.subcategory, r.description, r.amount, r.cost, r.tag, r.date, r.is_internal_transfer ? 'Yes' : 'No']
+                        .map(csvEscape).join(','));
+                });
+
+                const csvBlob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+                const dt = new DataTransfer();
+                dt.items.add(new File([csvBlob], 'duplicate-import.csv', { type: 'text/csv' }));
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '';
+                form.enctype = 'multipart/form-data';
+
+                [['csrf_token', GLOBAL_CSRF_TOKEN], ['import_csv', '1'], ['force_import', '1']].forEach(function (pair) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = pair[0];
+                    input.value = pair[1];
+                    form.appendChild(input);
+                });
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.name = 'csv_file';
+                fileInput.style.display = 'none';
+                fileInput.files = dt.files;
+                form.appendChild(fileInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            });
+
+            new bootstrap.Modal(document.getElementById('duplicateTransactionsModal')).show();
+        })();
     </script>
 
 

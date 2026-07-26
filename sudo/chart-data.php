@@ -14,7 +14,7 @@ if ($filter === 'daily') {
             SUM(CASE WHEN category = 'Expense' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS expenses,
             SUM(CASE WHEN category = 'Savings' THEN amount ELSE 0 END) AS savings
         FROM tblbudget
-        WHERE is_deleted = 0 AND DATE(expenseDate) >= CURDATE() - INTERVAL 30 DAY
+        WHERE is_deleted = 0 AND is_internal_transfer = 0 AND DATE(expenseDate) >= CURDATE() - INTERVAL 30 DAY
         GROUP BY DATE(expenseDate)
         ORDER BY DATE(expenseDate) ASC
     ";
@@ -26,7 +26,7 @@ if ($filter === 'daily') {
             SUM(CASE WHEN category = 'Expense' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS expenses,
             SUM(CASE WHEN category = 'Savings' THEN amount ELSE 0 END) AS savings
         FROM tblbudget
-        WHERE is_deleted = 0 AND expenseDate >= CURDATE() - INTERVAL 90 DAY
+        WHERE is_deleted = 0 AND is_internal_transfer = 0 AND expenseDate >= CURDATE() - INTERVAL 90 DAY
         GROUP BY YEAR(expenseDate), WEEK(expenseDate, 1)
         ORDER BY YEAR(expenseDate) ASC, WEEK(expenseDate, 1) ASC
     ";
@@ -38,7 +38,7 @@ if ($filter === 'daily') {
             SUM(CASE WHEN category = 'Expense' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS expenses,
             SUM(CASE WHEN category = 'Savings' THEN amount ELSE 0 END) AS savings
         FROM tblbudget
-        WHERE is_deleted = 0
+        WHERE is_deleted = 0 AND is_internal_transfer = 0
         GROUP BY YEAR(expenseDate)
         ORDER BY YEAR(expenseDate) ASC
     ";
@@ -50,7 +50,7 @@ if ($filter === 'daily') {
             SUM(CASE WHEN category = 'Expense' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS expenses,
             SUM(CASE WHEN category = 'Savings' THEN amount ELSE 0 END) AS savings
         FROM tblbudget
-        WHERE is_deleted = 0
+        WHERE is_deleted = 0 AND is_internal_transfer = 0
         GROUP BY DATE_FORMAT(expenseDate, '%Y-%m')
         ORDER BY DATE_FORMAT(expenseDate, '%Y-%m') ASC
     ";

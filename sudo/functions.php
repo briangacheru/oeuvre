@@ -227,6 +227,11 @@ function bucketBudgetSubcategory(string $subcategory): string
         '/^TPG /i' => 'Bank App Transfers',
         '/^TRANSACTION \+ SMS CHARGE/i' => 'Transaction & SMS Charges',
         '/^COMMISSION .*PAYPAL WITHDRAWAL CHARGES/i' => 'PayPal Withdrawal Charges',
+        // CSV-sourced statement rows lack the "PAYPAL WITHDRAWAL CHARGES CUST..."
+        // continuation line the PDF has - just "COMMISSION <ref>" alone. Anchored
+        // to a single alphanumeric token (no spaces) so it can't also match the
+        // multi-word "COMMISSION ON INWARD SWIFT ..." line below.
+        '/^COMMISSION\s+[A-Z0-9]+$/i' => 'PayPal Withdrawal Charges',
         '/^COMMISSION ON INWARD SWIFT/i' => 'Inward SWIFT Commission',
         '/^Unit Trust Invest To /i' => 'Investments',
         '/CASH ADVANCE/i' => 'Cash Advances',

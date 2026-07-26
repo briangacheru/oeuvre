@@ -33,3 +33,8 @@
 /backups/*
 !/backups/.gitkeep
 !/backups/.htaccess
+
+# Sample bank/Mpesa statement PDFs used to build the transactions PDF-import
+# feature — real financial data, never commit
+/statement-samples/*
+!/statement-samples/.gitkeep
