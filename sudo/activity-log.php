@@ -78,7 +78,7 @@ $actionLabel = [
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12">
+    <div class="col">
         <div class="card mb-3">
             <div class="card-header">
                 <h5 class="mb-0">Rate Limits</h5>
@@ -87,9 +87,9 @@ $actionLabel = [
                     window (10 minutes for most actions, 60 seconds for search) passes, so this is recent activity,
                     not a permanent history.</p>
             </div>
-            <div class="card-body px-0 pt-0">
+            <div class="card-body pt-0">
                 <div class="table-responsive">
-                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables="data-datatables">
+                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables='{"order": []}'>
                         <thead class="bg-200">
                             <tr>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Action</th>
@@ -123,9 +123,9 @@ $actionLabel = [
                 <p class="text-600 fs-10 mb-0">Most recent 500 events - logins, logouts, tasks viewed, and
                     submissions/resubmissions.</p>
             </div>
-            <div class="card-body px-0 pt-0">
+            <div class="card-body pt-0">
                 <div class="table-responsive">
-                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables="data-datatables">
+                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables='{"order": []}'>
                         <thead class="bg-200">
                             <tr>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Time</th>

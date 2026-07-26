@@ -46,9 +46,9 @@ if ($result) {
                     <strong>pending</strong> (zero access) until approved here. Superadmin accounts are locked here -
                     change or remove one directly in the database if that's ever genuinely needed.</p>
             </div>
-            <div class="card-body px-0 pt-0">
+            <div class="card-body pt-0">
                 <div class="table-responsive">
-                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables="data-datatables">
+                    <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables='{"order": []}'>
                         <thead class="bg-200">
                             <tr>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Username</th>

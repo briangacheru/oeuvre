@@ -140,6 +140,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
                 exit;
 
+            case 'reorder_tasks':
+                // Manual drag-to-reorder within one due-date bucket
+                // (non-completed tasks only - the JS never fires this for
+                // a completed row). Persists position as sort_order =
+                // array index; bucket membership itself stays entirely
+                // due_date-driven, unaffected by this value.
+                if (!isset($_POST['ids']) || !is_array($_POST['ids'])) {
+                    echo json_encode(['success' => false, 'message' => 'Missing task order']);
+                    exit;
+                }
+                $orderedIds = array_values(array_filter(array_map('intval', $_POST['ids']), function($id) { return $id > 0; }));
+                if (empty($orderedIds)) {
+                    echo json_encode(['success' => false, 'message' => 'No valid task IDs']);
+                    exit;
+                }
+                $stmt = $con->prepare("UPDATE tbltodos SET sort_order = ? WHERE id = ?");
+                $ok = true;
+                foreach ($orderedIds as $position => $id) {
+                    $stmt->bind_param("ii", $position, $id);
+                    if (!$stmt->execute()) {
+                        $ok = false;
+                    }
+                }
+                echo json_encode(['success' => $ok, 'message' => $ok ? 'Order saved' : 'Some updates failed']);
+                exit;
+
             case 'quick_add_task':
                 // Lightweight inline create (no attachments, no subtasks)
                 $title = trim($_POST['title'] ?? '');
@@ -401,6 +427,7 @@ $sql = "
     $where_clause
     ORDER BY
         CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END,
+        t.sort_order ASC,
         CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
         t.due_date ASC,
         CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
@@ -669,13 +696,15 @@ function renderTaskRow($todo) {
          data-category="<?= (int)($todo['category_id'] ?? 0) ?>"
          data-status="<?= htmlspecialchars($todo['status']) ?>"
          data-due-date="<?= htmlspecialchars($todo['due_date'] ?? '') ?>"
-         draggable="true">
+         <?= $isCompleted ? '' : 'draggable="true"' ?>>
 
         <div class="task-row-main">
+            <?php if (!$isCompleted): ?>
             <!-- Drag handle (visible on hover) -->
-            <div class="task-drag-handle" title="Drag to reschedule">
+            <div class="task-drag-handle" title="Drag to reorder, or onto a date group to reschedule">
                 <i class="fas fa-grip-vertical"></i>
             </div>
+            <?php endif; ?>
 
             <!-- Bulk checkbox -->
             <input type="checkbox" class="form-check-input bulk-select flex-shrink-0"
@@ -1017,7 +1046,7 @@ function buildPaginationUrl($page) {
                     </span>
                     <div class="flex-1">
                         <h6>Description</h6>
-                        <p class="mb-0" id="viewTaskDescription">
+                        <p class="mb-0 fs-8" id="viewTaskDescription">
                             <!-- Description content will be loaded here -->
                         </p>
                     </div>
@@ -1104,9 +1133,9 @@ function buildPaginationUrl($page) {
                     </span>
                     <div class="flex-1">
                         <h6>Timeline</h6>
-                        <p class="mb-1">
-                            <small class="text-muted">Created: <span id="viewTaskCreated"></span></small><br>
-                            <small class="text-muted">Completed: <span id="viewTaskCompleted"></span></small>
+                        <p class="mb-1 fs-8">
+                            <span class="text-muted">Created: <span id="viewTaskCreated"></span></span><br>
+                            <span class="text-muted">Completed: <span id="viewTaskCompleted"></span></span>
                         </p>
                     </div>
                 </div>
@@ -2139,8 +2168,10 @@ function buildPaginationUrl($page) {
         });
 
         // ---------- Drag-to-reschedule (drop on group header) ----------
+        // ---------- Drag-to-reorder (drop on another row, same group) ----------
         let dragId = null;
         list.querySelectorAll('.task-row').forEach(bindRowDrag);
+        list.querySelectorAll('.task-row').forEach(bindRowSort);
         list.querySelectorAll('.task-group-header').forEach(bindHeaderDrop);
 
         function bindRowDrag(row) {
@@ -2154,10 +2185,42 @@ function buildPaginationUrl($page) {
                 e.dataTransfer.setData('text/plain', dragId);
             });
             row.addEventListener('dragend', () => {
+                const group = row.closest('.task-group-body');
                 row.classList.remove('dragging');
                 document.querySelectorAll('.task-group-header.drop-active').forEach(el => el.classList.remove('drop-active'));
                 dragId = null;
+                if (group) persistOrder(group);
             });
+        }
+
+        // Live-reorder within the same due-date group as you drag over
+        // another row (completed rows aren't draggable, so this never
+        // fires for them - see the is-completed check in renderTaskRow()).
+        function bindRowSort(row) {
+            row.addEventListener('dragover', e => {
+                const dragging = document.querySelector('.task-row.dragging');
+                if (!dragging || dragging === row) return;
+                const draggingGroup = dragging.closest('.task-group-body');
+                const rowGroup = row.closest('.task-group-body');
+                if (!draggingGroup || draggingGroup !== rowGroup) return; // only reorder within the same bucket
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const rect = row.getBoundingClientRect();
+                const after = (e.clientY - rect.top) > (rect.height / 2);
+                rowGroup.insertBefore(dragging, after ? row.nextSibling : row);
+            });
+        }
+
+        function persistOrder(groupEl) {
+            const ids = Array.from(groupEl.querySelectorAll(':scope > .task-row[data-id]')).map(r => r.dataset.id);
+            if (!ids.length) return;
+            const fd = new FormData();
+            fd.append('action', 'reorder_tasks');
+            ids.forEach(id => fd.append('ids[]', id));
+            fetch(window.location.href, { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(d => { if (!d.success) showNotification(d.message || 'Failed to save order', 'error'); })
+                .catch(() => showNotification('Network error saving order', 'error'));
         }
 
         function bucketToDate(bucket) {
