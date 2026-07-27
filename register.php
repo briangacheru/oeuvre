@@ -3,14 +3,9 @@ require_once __DIR__ . '/shared-functions.php';
 require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/email-template.php';
 require_once __DIR__ . '/login-helpers.php';
+require_once __DIR__ . '/google-oauth.php';
 include "check-login.php";
 csrf_verify_or_redirect();
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// Include PHPMailer autoloader
-require_once __DIR__ . '/vendor/autoload.php';
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -64,82 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->bind_param("sss", $username, $email, $hashed_password);
 
         if ($stmt->execute()) {
-            $loginUrl = rtrim(env('APP_URL'), '/') . '/login';
-            $writersUrl = rtrim(env('APP_URL'), '/') . '/sudo/usermanagement';
-
-            // Send a thank you email to the user
-            $user_mail = new PHPMailer(true);
-            $user_mail->isSMTP();
-            $user_mail->Host = env('SMTP_HOST');
-            $user_mail->SMTPAuth = true;
-            $user_mail->Username = env('SMTP_USER');
-            $user_mail->Password = env('SMTP_PASS');
-            $user_mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $user_mail->Port = (int) env('SMTP_PORT', 587);
-
-            $user_mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker');
-            $user_mail->addAddress($email, $username);
-
-            $user_mail->isHTML(true);
-            $user_mail->Subject = 'Thank you for Signing Up - iTasker';
-            $user_mail->Body = render_email_html(
-                'Welcome to iTasker',
-                '<p>Hi ' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . ',</p>'
-                . '<p>Thank you for signing up as a writer on iTasker. Your account is being reviewed and will be activated shortly - we\'ll let you know as soon as you\'re ready to log in.</p>',
-                'Go to Login',
-                $loginUrl
-            );
-            $user_mail->AltBody = "Thank you for signing up at iTasker. Your account will be activated shortly. Login: $loginUrl";
-
-            // Send an email to the system admin
-            $admin_mail = new PHPMailer(true);
-            $admin_mail->isSMTP();
-            $admin_mail->Host = env('SMTP_HOST');
-            $admin_mail->SMTPAuth = true;
-            $admin_mail->Username = env('SMTP_USER');
-            $admin_mail->Password = env('SMTP_PASS');
-            $admin_mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $admin_mail->Port = (int) env('SMTP_PORT', 587);
-
-            $admin_mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker');
-            $admin_mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin'); // Replace with admin's email
-
-            $admin_mail->isHTML(true);
-            $admin_mail->Subject = 'New Writer Registration [iTasker]';
-            $admin_mail->Body = render_email_html(
-                'New Writer Registration',
-                '<p>A new writer has registered and is awaiting activation:</p>'
-                . '<table role="presentation" style="width:100%;font-size:14px;border-collapse:collapse;margin-top:8px;">'
-                . '<tr><td style="padding:4px 0;color:#888;width:90px;">Username</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</td></tr>'
-                . '<tr><td style="padding:4px 0;color:#888;">Email</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</td></tr>'
-                . '<tr><td style="padding:4px 0;color:#888;">Role</td><td style="padding:4px 0;font-weight:600;">Writer</td></tr>'
-                . '</table>',
-                'Review Writers',
-                $writersUrl
-            );
-            $admin_mail->AltBody = "A new writer with email $email has registered (role: Writer). Consider activating their account. Review at: $writersUrl";
-
-            // The account already exists (the INSERT above succeeded) -
-            // email delivery is a side effect, not a precondition for that.
-            // new PHPMailer(true) throws on failure rather than returning
-            // false, and this used to have no try/catch around send() at
-            // all, so a real SMTP error (as opposed to a clean "false")
-            // was an UNCAUGHT FATAL ERROR: the user got a blank/broken page
-            // with no indication their account was actually created.
-            $mailErrors = [];
-            try {
-                $user_mail->send();
-            } catch (Exception $e) {
-                $mailErrors[] = 'user: ' . $e->getMessage();
-            }
-            try {
-                $admin_mail->send();
-            } catch (Exception $e) {
-                $mailErrors[] = 'admin: ' . $e->getMessage();
-            }
-            if ($mailErrors) {
-                error_log('register.php: registration email send failed for ' . $email . ': ' . implode('; ', $mailErrors));
-            }
+            send_writer_welcome_emails($email, $username);
 
             // Log the writer in exactly as a real login would (correct
             // session key, session-tracker row, online status) - this
@@ -348,14 +268,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <button class="btn btn-primary d-block w-100 mt-3" type="submit" name="submit">Register</button>
                                         </div>
                                     </form>
-<!--                                    <div class="position-relative mt-4">-->
-<!--                                        <hr />-->
-<!--                                        <div class="divider-content-center">or register with</div>-->
-<!--                                    </div>-->
-<!--                                    <div class="row g-2 mt-2">-->
-<!--                                        <div class="col-sm-6"><a class="btn btn-outline-google-plus btn-sm d-block w-100" href="#"><span class="fab fa-google-plus-g me-2" data-fa-transform="grow-8"></span> google</a></div>-->
-<!--                                        <div class="col-sm-6"><a class="btn btn-outline-facebook btn-sm d-block w-100" href="#"><span class="fab fa-facebook-square me-2" data-fa-transform="grow-8"></span> facebook</a></div>-->
-<!--                                    </div>-->
+                                    <?php if (google_oauth_configured()): ?>
+                                    <div class="position-relative mt-4">
+                                        <hr />
+                                        <div class="divider-content-center">or register with</div>
+                                    </div>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-12"><a class="btn btn-outline-google-plus btn-sm d-block w-100" href="google-login.php"><span class="fab fa-google me-2" data-fa-transform="grow-8"></span> Sign up with Google</a></div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

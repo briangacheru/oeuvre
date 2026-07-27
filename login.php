@@ -1,6 +1,7 @@
 <?php
 require_once('check-login.php');
 require_once('login-helpers.php');
+require_once('google-oauth.php');
 csrf_verify_or_redirect();
 $loginMessage = ''; // Initialize a variable to hold the login message
 $loginError = ''; // Initialize a variable to hold the login error message
@@ -267,7 +268,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <button class="btn btn-primary d-block w-100 mt-3" type="submit" name="submit">Log in</button>
                                         </div>
                                     </form>
-
+                                    <?php if (google_oauth_configured()): ?>
+                                    <div class="position-relative mt-4">
+                                        <hr />
+                                        <div class="divider-content-center">or log in with</div>
+                                    </div>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-12"><a class="btn btn-outline-google-plus btn-sm d-block w-100" href="google-login.php<?= isset($_GET['task_id']) ? '?task_id=' . urlencode($_GET['task_id']) : '' ?>"><span class="fab fa-google me-2" data-fa-transform="grow-8"></span> Sign in with Google</a></div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

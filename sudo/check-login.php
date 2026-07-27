@@ -54,7 +54,7 @@ function logout() {
 }
 
 $self = $_SERVER["PHP_SELF"];
-$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'public-task-view.php', 'verify-login-code.php'];
+$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'public-task-view.php', 'verify-login-code.php', 'google-login.php', 'google-callback.php'];
 
 // Get current script name
 $currentScript = basename($_SERVER['PHP_SELF']);

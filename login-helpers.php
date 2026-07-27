@@ -50,6 +50,83 @@ if (!function_exists('send_login_otp_code_email')) {
     }
 }
 
+if (!function_exists('send_writer_welcome_emails')) {
+    // The "thanks for signing up" email to the new writer plus a
+    // notification to the site admin. Shared by register.php (password
+    // signup) and google-callback.php (Google signup) - same two emails
+    // either way. Best-effort: the account row already exists by the time
+    // this runs, so a send failure is logged, never thrown/fatal.
+    function send_writer_welcome_emails($email, $username) {
+        $loginUrl = rtrim(env('APP_URL'), '/') . '/login';
+        $writersUrl = rtrim(env('APP_URL'), '/') . '/sudo/usermanagement';
+
+        $user_mail = new PHPMailer(true);
+        $user_mail->isSMTP();
+        $user_mail->Host = env('SMTP_HOST');
+        $user_mail->SMTPAuth = true;
+        $user_mail->Username = env('SMTP_USER');
+        $user_mail->Password = env('SMTP_PASS');
+        $user_mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $user_mail->Port = (int) env('SMTP_PORT', 587);
+
+        $user_mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker');
+        $user_mail->addAddress($email, $username);
+
+        $user_mail->isHTML(true);
+        $user_mail->Subject = 'Thank you for Signing Up - iTasker';
+        $user_mail->Body = render_email_html(
+            'Welcome to iTasker',
+            '<p>Hi ' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . ',</p>'
+            . '<p>Thank you for signing up as a writer on iTasker. Your account is being reviewed and will be activated shortly - we\'ll let you know as soon as you\'re ready to log in.</p>',
+            'Go to Login',
+            $loginUrl
+        );
+        $user_mail->AltBody = "Thank you for signing up at iTasker. Your account will be activated shortly. Login: $loginUrl";
+
+        $admin_mail = new PHPMailer(true);
+        $admin_mail->isSMTP();
+        $admin_mail->Host = env('SMTP_HOST');
+        $admin_mail->SMTPAuth = true;
+        $admin_mail->Username = env('SMTP_USER');
+        $admin_mail->Password = env('SMTP_PASS');
+        $admin_mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $admin_mail->Port = (int) env('SMTP_PORT', 587);
+
+        $admin_mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker');
+        $admin_mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin');
+
+        $admin_mail->isHTML(true);
+        $admin_mail->Subject = 'New Writer Registration [iTasker]';
+        $admin_mail->Body = render_email_html(
+            'New Writer Registration',
+            '<p>A new writer has registered and is awaiting activation:</p>'
+            . '<table role="presentation" style="width:100%;font-size:14px;border-collapse:collapse;margin-top:8px;">'
+            . '<tr><td style="padding:4px 0;color:#888;width:90px;">Username</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</td></tr>'
+            . '<tr><td style="padding:4px 0;color:#888;">Email</td><td style="padding:4px 0;font-weight:600;">' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</td></tr>'
+            . '<tr><td style="padding:4px 0;color:#888;">Role</td><td style="padding:4px 0;font-weight:600;">Writer</td></tr>'
+            . '</table>',
+            'Review Writers',
+            $writersUrl
+        );
+        $admin_mail->AltBody = "A new writer with email $email has registered (role: Writer). Consider activating their account. Review at: $writersUrl";
+
+        $mailErrors = [];
+        try {
+            $user_mail->send();
+        } catch (Exception $e) {
+            $mailErrors[] = 'user: ' . $e->getMessage();
+        }
+        try {
+            $admin_mail->send();
+        } catch (Exception $e) {
+            $mailErrors[] = 'admin: ' . $e->getMessage();
+        }
+        if ($mailErrors) {
+            error_log('send_writer_welcome_emails: registration email send failed for ' . $email . ': ' . implode('; ', $mailErrors));
+        }
+    }
+}
+
 if (!function_exists('finalize_writer_login')) {
     // Establishes the writer session, sets the remember-me cookie if
     // requested, and returns the URL to redirect to. Shared by the

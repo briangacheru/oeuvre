@@ -22,7 +22,7 @@ include('functions.php');
 require_once 'session_tracker.php';
 
 $self = $_SERVER["PHP_SELF"];
-$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'verify-login-code.php'];
+$allowed_pages = ['login.php', 'reset-password.php', 'forgot-password.php', 'verify-login-code.php', 'google-login.php', 'google-callback.php'];
 $currentScript = basename($_SERVER['PHP_SELF']);
 
 // AJAX/polling endpoints that shouldn't be recorded as the "last page" used
