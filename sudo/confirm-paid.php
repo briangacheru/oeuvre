@@ -1,36 +1,68 @@
 <?php
 include('check-login.php');
-csrf_verify_or_redirect();
+csrf_verify_or_json_die();
 
 require_once __DIR__ . '/session-name.php';
 session_start();
 
+header('Content-Type: application/json');
+$response = ['success' => false, 'message' => ''];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $encodedId = $_POST['task_id'];
+    $encodedId = $_POST['task_id'] ?? '';
     $taskId = decode_task_id($encodedId);
 
-    // Update the task status to 'Completed'
-    // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
-    // setting (see check-login.php), so the timestamp is computed here instead.
-    $paidOn = date('Y-m-d H:i:s');
-    $sql = "UPDATE tbltasks SET  is_paid = 1, paid_on = ? WHERE id = ?";
+    $paymentMethod = $_POST['payment_method'] ?? '';
+    $transactionCode = null;
+
+    if ($paymentMethod === 'transaction_code') {
+        $transactionCode = trim($_POST['transaction_code'] ?? '');
+        $paidOnInput = trim($_POST['paid_on'] ?? '');
+
+        if ($transactionCode === '') {
+            $response['message'] = 'Please enter the transaction code.';
+            echo json_encode($response);
+            exit;
+        }
+        if ($paidOnInput === '') {
+            $response['message'] = 'Please enter the transaction date and time.';
+            echo json_encode($response);
+            exit;
+        }
+
+        $paidOnDt = DateTime::createFromFormat('Y-m-d\TH:i', $paidOnInput);
+        if (!$paidOnDt) {
+            $response['message'] = 'Invalid transaction date/time.';
+            echo json_encode($response);
+            exit;
+        }
+        // paid_on is Nairobi-local (PHP date()) by convention across every
+        // writer of this column - the admin-entered value is treated the
+        // same way, no timezone conversion.
+        $paidOn = $paidOnDt->format('Y-m-d H:i:s');
+    } elseif ($paymentMethod === 'overdraft') {
+        $paidOn = date('Y-m-d H:i:s');
+        $transactionCode = null;
+    } else {
+        $response['message'] = 'Please choose a payment method.';
+        echo json_encode($response);
+        exit;
+    }
+
+    $sql = "UPDATE tbltasks SET is_paid = 1, paid_on = ?, payment_method = ?, transaction_code = ? WHERE id = ?";
     $stmt = $con->prepare($sql);
-    $stmt->bind_param("si", $paidOn, $taskId);
+    $stmt->bind_param("sssi", $paidOn, $paymentMethod, $transactionCode, $taskId);
 
     if ($stmt->execute()) {
-        $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert">
-                                Task marked as paid successfully.
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                              </div>';
+        $response['success'] = true;
+        $response['message'] = 'Task marked as paid successfully.';
     } else {
-        $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                Error updating task payment: ' . $stmt->error . '
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                              </div>';
+        $response['message'] = 'Error updating task payment: ' . safe_db_error($stmt->error);
     }
     $stmt->close();
+} else {
+    $response['message'] = 'Invalid request method.';
 }
 
-header('Location: view-task?task_id=' . $encodedId); // Redirect to the task details page with the encoded task ID
+echo json_encode($response);
 exit;
-?>

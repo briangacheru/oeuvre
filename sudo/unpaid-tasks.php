@@ -57,7 +57,7 @@ $msg = "";
                                         <div class="col-6 col-sm-auto ms-auto text-end ps-0">
                                             <div class="d-none" id="table-simple-pagination-actions">
                                                 <div class="d-flex">
-                                                    <button type="button" class="btn btn-falcon-success btn-sm ms-2" onclick="submitForm('mark-tasks-paid')">Mark as Paid</button>
+                                                    <button type="button" class="btn btn-falcon-success btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#bulkMarkPaidModal">Mark as Paid</button>
                                                 </div>
                                             </div>
                                             <div class="d-flex align-items-center" id="table-simple-pagination-replace-element">
@@ -312,6 +312,153 @@ $msg = "";
                     }
                 });
             });
+
+            // Exposed so the bulk "Mark as Paid" modal can show how many
+            // tasks are selected without duplicating the selection state.
+            window.getUnpaidSelectionCount = function() { return selectedIds.size; };
+        })();
+    </script>
+
+    <!-- Bulk Mark as Paid Modal -->
+    <div class="modal fade" id="bulkMarkPaidModal" tabindex="-1" aria-labelledby="bulkMarkPaidModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success-subtle">
+                    <h5 class="modal-title" id="bulkMarkPaidModalLabel">
+                        <i class="fas fa-check-circle me-2"></i>Mark Tasks as Paid
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">You are about to mark <strong id="bulkMarkPaidCount">0</strong> task(s) as paid.</p>
+
+                    <div id="bulkMarkPaidAlert" class="alert alert-danger d-none py-2 mb-3 fs-10"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semi-bold">Payment Method</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="bulkMarkPaidMethod" id="bulkMarkPaidMethodTxn" value="transaction_code" checked>
+                                <label class="form-check-label" for="bulkMarkPaidMethodTxn">Transaction Code</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="bulkMarkPaidMethod" id="bulkMarkPaidMethodOd" value="overdraft">
+                                <label class="form-check-label" for="bulkMarkPaidMethodOd">Overdraft</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="bulkMarkPaidTxnFields">
+                        <div class="mb-3">
+                            <label class="form-label" for="bulkMarkPaidTxnCode">Transaction Code</label>
+                            <input type="text" class="form-control" id="bulkMarkPaidTxnCode" placeholder="e.g. QGH7XXXXX">
+                            <small class="form-text text-muted">This code will be recorded on every selected task.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="bulkMarkPaidTxnDate">Transaction Date &amp; Time</label>
+                            <input type="datetime-local" class="form-control" id="bulkMarkPaidTxnDate">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-success" id="confirmBulkMarkPaidBtn">
+                        <i class="fas fa-check me-1"></i>Yes, Mark as Paid
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            function toggleBulkMarkPaidFields() {
+                var checked = document.querySelector('input[name="bulkMarkPaidMethod"]:checked');
+                var method = checked ? checked.value : 'transaction_code';
+                var fields = document.getElementById('bulkMarkPaidTxnFields');
+                if (fields) fields.style.display = (method === 'transaction_code') ? 'block' : 'none';
+            }
+
+            document.querySelectorAll('input[name="bulkMarkPaidMethod"]').forEach(function(radio) {
+                radio.addEventListener('change', toggleBulkMarkPaidFields);
+            });
+
+            var modalEl = document.getElementById('bulkMarkPaidModal');
+            if (modalEl) {
+                modalEl.addEventListener('show.bs.modal', function() {
+                    var alertBox = document.getElementById('bulkMarkPaidAlert');
+                    if (alertBox) alertBox.classList.add('d-none');
+
+                    var countEl = document.getElementById('bulkMarkPaidCount');
+                    if (countEl) countEl.textContent = (typeof window.getUnpaidSelectionCount === 'function') ? window.getUnpaidSelectionCount() : 0;
+
+                    var txnRadio = document.getElementById('bulkMarkPaidMethodTxn');
+                    var odRadio = document.getElementById('bulkMarkPaidMethodOd');
+                    if (txnRadio) txnRadio.checked = true;
+                    if (odRadio) odRadio.checked = false;
+                    toggleBulkMarkPaidFields();
+
+                    var codeInput = document.getElementById('bulkMarkPaidTxnCode');
+                    if (codeInput) codeInput.value = '';
+
+                    var dateInput = document.getElementById('bulkMarkPaidTxnDate');
+                    if (dateInput) {
+                        var now = new Date();
+                        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                        dateInput.value = now.toISOString().slice(0, 16);
+                    }
+                });
+            }
+
+            var confirmBtn = document.getElementById('confirmBulkMarkPaidBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function() {
+                    var alertBox = document.getElementById('bulkMarkPaidAlert');
+                    alertBox.classList.add('d-none');
+
+                    var checked = document.querySelector('input[name="bulkMarkPaidMethod"]:checked');
+                    var method = checked ? checked.value : '';
+                    var transactionCode = '';
+                    var paidOn = '';
+
+                    if (method === 'transaction_code') {
+                        transactionCode = document.getElementById('bulkMarkPaidTxnCode').value.trim();
+                        paidOn = document.getElementById('bulkMarkPaidTxnDate').value;
+
+                        if (!transactionCode) {
+                            alertBox.textContent = 'Please enter the transaction code.';
+                            alertBox.classList.remove('d-none');
+                            return;
+                        }
+                        if (!paidOn) {
+                            alertBox.textContent = 'Please enter the transaction date and time.';
+                            alertBox.classList.remove('d-none');
+                            return;
+                        }
+                    }
+
+                    var form = document.getElementById('tasksForm');
+                    if (!form) return;
+
+                    // Remove any stale payment fields from a previous submit attempt.
+                    form.querySelectorAll('input.bulk-payment-field').forEach(function(el) { el.remove(); });
+
+                    [
+                        ['payment_method', method],
+                        ['transaction_code', transactionCode],
+                        ['paid_on', paidOn]
+                    ].forEach(function(pair) {
+                        var hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = pair[0];
+                        hidden.value = pair[1];
+                        hidden.className = 'bulk-payment-field';
+                        form.appendChild(hidden);
+                    });
+
+                    submitForm('mark-tasks-paid');
+                });
+            }
         })();
     </script>
 

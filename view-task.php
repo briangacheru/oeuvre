@@ -633,6 +633,13 @@ if ($rowTask['status'] == 'Completed') {
                             <span class="badge rounded-pill badge-subtle-success fs-10 px-3 py-2">
                                 <i class="fas fa-check-circle me-1"></i>Paid · <?php echo date("d M Y", strtotime($paidOn)); ?>
                             </span>
+                            <?php if (!empty($rowTask['payment_method'])): ?>
+                                <?php if ($rowTask['payment_method'] === 'overdraft'): ?>
+                                    <span class="badge rounded-pill badge-subtle-danger fs-10 px-3 py-2"><i class="fas fa-university me-1"></i>Overdraft</span>
+                                <?php elseif (!empty($rowTask['transaction_code'])): ?>
+                                    <span class="badge rounded-pill badge-subtle-info fs-10 px-3 py-2"><i class="fas fa-receipt me-1"></i><?php echo htmlspecialchars($rowTask['transaction_code'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>

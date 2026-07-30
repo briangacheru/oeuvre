@@ -195,6 +195,15 @@ $msg = "";
                                                     $paidDate = date("d M Y, g:i A", strtotime($paidOn));
                                                     ?> <span class="text-success ms-2 fs-10"><?php echo $paidDate; ?></span>
                                                 <?php endif; ?></p>
+                                                <?php if ($is_paid == 1 && !empty($row['payment_method'])): ?>
+                                                    <p class="fs-11 mb-0">
+                                                        <?php if ($row['payment_method'] === 'overdraft'): ?>
+                                                            <span class="badge badge-subtle-danger rounded-pill"><i class="fas fa-university me-1"></i>Overdraft</span>
+                                                        <?php elseif (!empty($row['transaction_code'])): ?>
+                                                            <span class="badge badge-subtle-info rounded-pill"><i class="fas fa-receipt me-1"></i><?php echo htmlspecialchars($row['transaction_code'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                                        <?php endif; ?>
+                                                    </p>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="align-middle white-space-nowrap text-end position-relative">
                                                 <div class="hover-actions bg-100">

@@ -849,7 +849,34 @@ if (isset($_SESSION['alert'])) {
                                 <div class="modal-body">
                                     <p class="mb-1">Are you sure you have paid for this task?</p>
                                     <p class="fw-bold text-primary mb-0">Task ID: #<?php echo $taskId; ?></p>
-                                    <p class="text-muted small mb-0"><?php echo htmlspecialchars($taskTopic); ?></p>
+                                    <p class="text-muted small mb-3"><?php echo htmlspecialchars($taskTopic); ?></p>
+
+                                    <div id="markPaidAlert" class="alert alert-danger d-none py-2 mb-3 fs-10"></div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semi-bold">Payment Method</label>
+                                        <div class="d-flex gap-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="markPaidMethod" id="markPaidMethodTxn" value="transaction_code" checked>
+                                                <label class="form-check-label" for="markPaidMethodTxn">Transaction Code</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="markPaidMethod" id="markPaidMethodOd" value="overdraft">
+                                                <label class="form-check-label" for="markPaidMethodOd">Overdraft</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="markPaidTxnFields">
+                                        <div class="mb-3">
+                                            <label class="form-label" for="markPaidTxnCode">Transaction Code</label>
+                                            <input type="text" class="form-control" id="markPaidTxnCode" placeholder="e.g. QGH7XXXXX">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label" for="markPaidTxnDate">Transaction Date &amp; Time</label>
+                                            <input type="datetime-local" class="form-control" id="markPaidTxnDate">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -994,6 +1021,13 @@ if (isset($_SESSION['alert'])) {
                                     &middot; <?php echo date("d M Y", strtotime($rowTask['paid_on'])); ?>
                                 <?php endif; ?>
                             </span>
+                            <?php if (!empty($rowTask['payment_method'])): ?>
+                                <?php if ($rowTask['payment_method'] === 'overdraft'): ?>
+                                    <span class="badge rounded-pill badge-subtle-danger fs-10 px-3 py-2"><i class="fas fa-university me-1"></i>Overdraft</span>
+                                <?php elseif (!empty($rowTask['transaction_code'])): ?>
+                                    <span class="badge rounded-pill badge-subtle-info fs-10 px-3 py-2"><i class="fas fa-receipt me-1"></i><?php echo htmlspecialchars($rowTask['transaction_code'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
@@ -2690,6 +2724,13 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                     <span class="badge rounded-pill badge-subtle-warning fs-10 px-3 py-2"><i class="fas fa-exclamation-circle me-1"></i>Unpaid</span>
                                 <?php else: ?>
                                     <span class="badge rounded-pill badge-subtle-success fs-10 px-3 py-2"><i class="fas fa-check-circle me-1"></i>Paid · <?php echo date("d M Y", strtotime($rowTask['paid_on'])); ?></span>
+                                    <?php if (!empty($rowTask['payment_method'])): ?>
+                                        <?php if ($rowTask['payment_method'] === 'overdraft'): ?>
+                                            <span class="badge rounded-pill badge-subtle-danger fs-10 px-3 py-2"><i class="fas fa-university me-1"></i>Overdraft</span>
+                                        <?php elseif (!empty($rowTask['transaction_code'])): ?>
+                                            <span class="badge rounded-pill badge-subtle-info fs-10 px-3 py-2"><i class="fas fa-receipt me-1"></i><?php echo htmlspecialchars($rowTask['transaction_code'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </div>
@@ -3247,7 +3288,68 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
 
     </script>
     <script>
+        function toggleMarkPaidFields() {
+            const checked = document.querySelector('input[name="markPaidMethod"]:checked');
+            const method = checked ? checked.value : 'transaction_code';
+            const fields = document.getElementById('markPaidTxnFields');
+            if (fields) fields.style.display = (method === 'transaction_code') ? 'block' : 'none';
+        }
+
+        document.querySelectorAll('input[name="markPaidMethod"]').forEach(function(radio) {
+            radio.addEventListener('change', toggleMarkPaidFields);
+        });
+
+        // Reset the modal (default method, blank code, "now" datetime) every
+        // time it's opened so a previous attempt doesn't linger.
+        var markAsPaidModalEl = document.getElementById('markAsPaidModal');
+        if (markAsPaidModalEl) {
+            markAsPaidModalEl.addEventListener('show.bs.modal', function() {
+                var alertBox = document.getElementById('markPaidAlert');
+                if (alertBox) alertBox.classList.add('d-none');
+
+                var txnRadio = document.getElementById('markPaidMethodTxn');
+                var odRadio = document.getElementById('markPaidMethodOd');
+                if (txnRadio) txnRadio.checked = true;
+                if (odRadio) odRadio.checked = false;
+                toggleMarkPaidFields();
+
+                var codeInput = document.getElementById('markPaidTxnCode');
+                if (codeInput) codeInput.value = '';
+
+                var dateInput = document.getElementById('markPaidTxnDate');
+                if (dateInput) {
+                    var now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    dateInput.value = now.toISOString().slice(0, 16);
+                }
+            });
+        }
+
         function markAsPaidConfirm(encodedId, taskId) {
+            var alertBox = document.getElementById('markPaidAlert');
+            alertBox.classList.add('d-none');
+
+            var checked = document.querySelector('input[name="markPaidMethod"]:checked');
+            var method = checked ? checked.value : '';
+            var transactionCode = '';
+            var paidOn = '';
+
+            if (method === 'transaction_code') {
+                transactionCode = document.getElementById('markPaidTxnCode').value.trim();
+                paidOn = document.getElementById('markPaidTxnDate').value;
+
+                if (!transactionCode) {
+                    alertBox.textContent = 'Please enter the transaction code.';
+                    alertBox.classList.remove('d-none');
+                    return;
+                }
+                if (!paidOn) {
+                    alertBox.textContent = 'Please enter the transaction date and time.';
+                    alertBox.classList.remove('d-none');
+                    return;
+                }
+            }
+
             const confirmBtn = document.getElementById('confirmMarkAsPaidBtn');
             const originalText = confirmBtn.innerHTML;
             confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
@@ -3256,8 +3358,23 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             $.ajax({
                 url: 'confirm-paid',
                 type: 'POST',
-                data: { task_id: encodedId, csrf_token: '<?php echo csrf_token(); ?>' },
-                success: function() {
+                dataType: 'json',
+                data: {
+                    task_id: encodedId,
+                    payment_method: method,
+                    transaction_code: transactionCode,
+                    paid_on: paidOn,
+                    csrf_token: '<?php echo csrf_token(); ?>'
+                },
+                success: function(response) {
+                    if (!response || !response.success) {
+                        confirmBtn.innerHTML = originalText;
+                        confirmBtn.disabled = false;
+                        alertBox.textContent = (response && response.message) || 'Could not mark task as paid.';
+                        alertBox.classList.remove('d-none');
+                        return;
+                    }
+
                     // Hide modal
                     var modalEl = document.getElementById('markAsPaidModal');
                     var modalInstance = bootstrap.Modal.getInstance(modalEl);
