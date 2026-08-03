@@ -147,6 +147,17 @@ $publish = $rowTask['publish'];
 if ($publish == !1) {
     $publishText = 'Unpublished';
 }
+
+// Determine the previous/next task IDs (by task ID) for prev/next navigation
+$prevTaskId = $nextTaskId = null;
+$prevTaskResult = mysqli_query($con, "SELECT id FROM tbltasks WHERE id < '$taskId' AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
+if ($prevTaskResult && mysqli_num_rows($prevTaskResult) > 0) {
+    $prevTaskId = mysqli_fetch_assoc($prevTaskResult)['id'];
+}
+$nextTaskResult = mysqli_query($con, "SELECT id FROM tbltasks WHERE id > '$taskId' AND is_deleted = 0 ORDER BY id ASC LIMIT 1");
+if ($nextTaskResult && mysqli_num_rows($nextTaskResult) > 0) {
+    $nextTaskId = mysqli_fetch_assoc($nextTaskResult)['id'];
+}
 ?>
 <?php
 // Determine current user type and ID
@@ -574,6 +585,26 @@ if (isset($_GET['task_id'])) {
             <div class="row flex-between-center gx-0">
                 <div class="col-lg-auto d-flex align-items-center">
                     <h4 class="mb-0 text-primary fw-bold">View <span class="text-info fw-medium">Task Details</span></h4>
+                    <div class="btn-group btn-group-sm ms-3" role="group" aria-label="Task navigation">
+                        <?php if ($prevTaskId): ?>
+                            <a class="btn btn-outline-primary" href="view-task?task_id=<?php echo encode_task_id($prevTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Previous Task (#<?php echo $prevTaskId; ?>)">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        <?php else: ?>
+                            <button class="btn btn-outline-primary disabled" type="button" title="No previous task" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                        <?php endif; ?>
+                        <?php if ($nextTaskId): ?>
+                            <a class="btn btn-outline-primary" href="view-task?task_id=<?php echo encode_task_id($nextTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Next Task (#<?php echo $nextTaskId; ?>)">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        <?php else: ?>
+                            <button class="btn btn-outline-primary disabled" type="button" title="No next task" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="col-lg-auto pt-3 pt-lg-0">
                     <form class="$rowTask flex-lg-column flex-xxl-$rowTask gx-3 gy-2 align-items-center align-items-lg-start align-items-xxl-center">
