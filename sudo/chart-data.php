@@ -42,15 +42,16 @@ if ($filter === 'daily') {
         GROUP BY YEAR(expenseDate)
         ORDER BY YEAR(expenseDate) ASC
     ";
-} else { // Monthly
+} else { // Monthly - capped to the most recent 15 months (current + prior 14)
     $query = "
-        SELECT 
+        SELECT
             DATE_FORMAT(expenseDate, '%Y-%m') AS period,
             SUM(CASE WHEN category = 'Income' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS income,
             SUM(CASE WHEN category = 'Expense' THEN amount + IFNULL(transactionCost, 0) ELSE 0 END) AS expenses,
             SUM(CASE WHEN category = 'Savings' THEN amount ELSE 0 END) AS savings
         FROM tblbudget
         WHERE is_deleted = 0 AND is_internal_transfer = 0
+            AND expenseDate >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 14 MONTH)
         GROUP BY DATE_FORMAT(expenseDate, '%Y-%m')
         ORDER BY DATE_FORMAT(expenseDate, '%Y-%m') ASC
     ";

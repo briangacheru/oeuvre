@@ -2952,6 +2952,14 @@ echo $_headHtml;
         });
     }
 
+    // Compact "millions" label for chart axes (e.g. 21000000 -> "21 M"),
+    // used where full currency formatting would crowd the axis.
+    function formatMillions(val) {
+        const num = parseFloat(val) || 0;
+        const millions = num / 1000000;
+        return millions.toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' M';
+    }
+
     function formatDate(dateString) {
         return new Date(dateString).toLocaleDateString();
     }
@@ -3204,7 +3212,7 @@ echo $_headHtml;
                             colors: '#ffffff'
                         },
                         formatter: function (val) {
-                            return formatCurrency(val, preferredCurrency);
+                            return formatMillions(val);
                         }
                     }
                 }

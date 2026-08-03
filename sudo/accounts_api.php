@@ -743,11 +743,11 @@ function getGrowthForecast($db)
             $byMonth[$month]['accounts'][$row['account_id']] = true;
         }
 
-        // Keep at most the most recent 12 months, chronological ascending
+        // Keep at most the most recent 15 months, chronological ascending
         // (oldest first) — this is what the regression is fit against.
         ksort($byMonth);
-        if (count($byMonth) > 12) {
-            $byMonth = array_slice($byMonth, -12, 12, true);
+        if (count($byMonth) > 15) {
+            $byMonth = array_slice($byMonth, -15, 15, true);
         }
 
         $historical = [];
@@ -816,7 +816,7 @@ function getGrowthForecast($db)
         // inflated whenever it extrapolates the slope through a high-season
         // month and just keeps climbing — real balances usually dip back down
         // the next month or two. For each calendar month seen in the (up to
-        // 12-month) history window, average how far its actual balance sat
+        // 15-month) history window, average how far its actual balance sat
         // above/below the trend line; reuse that offset for the same calendar
         // month in the forecast. A calendar month never seen in the window
         // gets no adjustment (0), so with thin history this degenerates back

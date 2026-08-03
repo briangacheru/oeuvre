@@ -79,6 +79,18 @@ if (isset($_SESSION['alert'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
+        // Turns a "YYYY-MM" period string into "Mon-YYYY" (e.g. "2024-12" ->
+        // "Dec-2024") for chart axis labels. Non-monthly periods (plain
+        // years, "YYYY Wnn" weeks, daily dates) are left untouched.
+        const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const formatMonthPeriod = (period) => {
+            const parts = (period || '').split('-');
+            if (parts.length !== 2) return period;
+            const [year, month] = parts;
+            const mon = MONTH_NAMES[parseInt(month, 10) - 1];
+            return mon ? `${mon}-${year}` : period;
+        };
+
         const fetchDataAndRenderChart = (filter) => {
             fetch(`chart-data?filter=${filter}`)
                 .then(response => response.json())
@@ -105,7 +117,7 @@ if (isset($_SESSION['alert'])) {
                         }
                     });
                     //const reversedData = data.reverse();
-                    const categories = sortedData.map(d => d.period);
+                    const categories = sortedData.map(d => filter === 'monthly' ? formatMonthPeriod(d.period) : d.period);
                     const income = sortedData.map(d => parseFloat(d.income) || 0);
                     const expenses = sortedData.map(d => parseFloat(d.expenses) || 0);
                     const savings = sortedData.map(d => parseFloat(d.savings) || 0);
@@ -221,7 +233,9 @@ if (isset($_SESSION['alert'])) {
             fetch(`transaction-cost-chart?filter=${filter}`)
                 .then(response => response.json())
                 .then(data => {
-                    const categories = data.categories; // Time periods
+                    const categories = filter === 'monthly'
+                        ? data.categories.map(formatMonthPeriod)
+                        : data.categories; // Time periods
                     const seriesData = data.seriesData; // Transaction costs
 
                     const options = {

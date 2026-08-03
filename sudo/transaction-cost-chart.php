@@ -10,11 +10,11 @@ if ($filter === 'yearly') {
                                 SELECT YEAR(od_date) AS period, SUM(transactionCost) AS totalTransactionCost
                                 FROM tbloverdrafts WHERE is_deleted = 0
                                 GROUP BY period ORDER BY period;";
-} else { // Default to monthly
+} else { // Default to monthly - capped to the most recent 15 months (current + prior 14)
     $query = "SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS period, SUM(transactionCost) AS totalTransactionCost
-                                FROM tblbudget WHERE is_deleted = 0 GROUP BY period UNION ALL
+                                FROM tblbudget WHERE is_deleted = 0 AND expenseDate >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 14 MONTH) GROUP BY period UNION ALL
                                 SELECT DATE_FORMAT(od_date, '%Y-%m') AS period, SUM(transactionCost) AS totalTransactionCost
-                                FROM tbloverdrafts WHERE is_deleted = 0 GROUP BY period ORDER BY period;";
+                                FROM tbloverdrafts WHERE is_deleted = 0 AND od_date >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 14 MONTH) GROUP BY period ORDER BY period;";
 }
 $result = mysqli_query($con, $query);
 $chartData = [];
