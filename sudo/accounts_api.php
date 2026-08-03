@@ -811,6 +811,48 @@ function getGrowthForecast($db)
             $confidence = 'medium';
         }
 
+        // Seasonal component (additive, "seasonal naive" style): the straight
+        // trend line above treats every future month the same, which reads as
+        // inflated whenever it extrapolates the slope through a high-season
+        // month and just keeps climbing — real balances usually dip back down
+        // the next month or two. For each calendar month seen in the (up to
+        // 12-month) history window, average how far its actual balance sat
+        // above/below the trend line; reuse that offset for the same calendar
+        // month in the forecast. A calendar month never seen in the window
+        // gets no adjustment (0), so with thin history this degenerates back
+        // to the plain trend line — no seasonal data needed up front.
+        $seasonalSum = array_fill(1, 12, 0.0);
+        $seasonalCount = array_fill(1, 12, 0);
+        foreach ($historical as $i => $point) {
+            $trendValue = $intercept + ($slope * $i);
+            $calendarMonth = (int) date('n', strtotime($point['month']));
+            $seasonalSum[$calendarMonth] += ($point['total_balance'] - $trendValue);
+            $seasonalCount[$calendarMonth]++;
+        }
+
+        $seasonalDelta = array_fill(1, 12, 0.0);
+        foreach ($seasonalCount as $m => $count) {
+            if ($count > 0) {
+                $seasonalDelta[$m] = $seasonalSum[$m] / $count;
+            }
+        }
+
+        // Re-center so the deltas average to zero across the calendar months
+        // actually observed - this reshapes the trend line month-to-month
+        // without dragging its overall level up or down.
+        $observedMonths = array_filter($seasonalCount, function ($c) { return $c > 0; });
+        $seasonalityApplied = count($observedMonths) > 0;
+        if ($seasonalityApplied) {
+            $meanDelta = 0.0;
+            foreach ($observedMonths as $m => $c) {
+                $meanDelta += $seasonalDelta[$m];
+            }
+            $meanDelta /= count($observedMonths);
+            foreach ($observedMonths as $m => $c) {
+                $seasonalDelta[$m] -= $meanDelta;
+            }
+        }
+
         // Project forward. Last historical row's month is the anchor point
         // future months count forward from.
         $lastMonth = $historical[$n - 1]['month'];
@@ -820,8 +862,10 @@ function getGrowthForecast($db)
         $prevBalance = $lastBalance;
         for ($j = 1; $j <= $monthsAhead; $j++) {
             $futureIndex = $n - 1 + $j;
-            $projectedBalance = $intercept + ($slope * $futureIndex);
             $futureMonth = date('Y-m-01', strtotime($lastMonth . " +{$j} months"));
+            $calendarMonth = (int) date('n', strtotime($futureMonth));
+            $trendValue = $intercept + ($slope * $futureIndex);
+            $projectedBalance = $trendValue + $seasonalDelta[$calendarMonth];
 
             $forecast[] = [
                 'month' => $futureMonth,
@@ -836,10 +880,11 @@ function getGrowthForecast($db)
             'display_currency' => $targetCurrency,
             'historical' => $historical, // ascending chronological order
             'forecast' => $forecast,     // ascending, continues right after historical
-            'method' => 'linear_regression',
+            'method' => $seasonalityApplied ? 'linear_regression_with_seasonal_adjustment' : 'linear_regression',
             'r_squared' => round($rSquared, 3),
             'confidence' => $confidence,
-            'monthly_trend' => $slope // average projected change per month, in display currency
+            'monthly_trend' => $slope, // average projected change per month, in display currency
+            'seasonality_applied' => $seasonalityApplied
         ]);
 
     } catch (PDOException $e) {

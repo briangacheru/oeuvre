@@ -3149,7 +3149,8 @@ echo $_headHtml;
                 const trendDir = data.monthly_trend >= 0 ? 'up' : 'down';
                 const trendIcon = data.monthly_trend >= 0 ? '▲' : '▼';
                 const confidenceLabel = { high: 'High', medium: 'Medium', low: 'Low' }[data.confidence] || 'Low';
-                noteEl.innerHTML = `Forecast: ${trendIcon} ${formatCurrency(Math.abs(data.monthly_trend), data.display_currency)}/mo trend &nbsp;•&nbsp; Confidence: ${confidenceLabel} (R&sup2;=${data.r_squared})`;
+                const seasonalNote = data.seasonality_applied ? ' &nbsp;•&nbsp; Seasonally adjusted' : '';
+                noteEl.innerHTML = `Forecast: ${trendIcon} ${formatCurrency(Math.abs(data.monthly_trend), data.display_currency)}/mo trend &nbsp;•&nbsp; Confidence: ${confidenceLabel} (R&sup2;=${data.r_squared})${seasonalNote}`;
             }
         }
 
