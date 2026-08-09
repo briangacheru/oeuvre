@@ -10,131 +10,125 @@ if (isset($_SESSION['alert'])) {
     echo $_SESSION['alert'];
     unset($_SESSION['alert']);
 }
+
+// Shared card markup for both the Active Projects and Pinned Projects rows
+// below - same fields, same layout, just a different source query.
+function renderProjectCard(array $row): string {
+    $pID        = $row['projectID'];
+    $pName      = htmlspecialchars($row['projectName']);
+    $pDesc      = htmlspecialchars($row['projectDescription']);
+    $pBudget    = $row['projectAmount'];
+    $pDue       = $row['projectPeriod'];
+    $totalExp   = $row['totalExpenses'];
+    $totalInc   = $row['totalIncome'];
+    $netBalance = $totalInc - $totalExp;
+    $spentPct   = $pBudget > 0 ? min(($totalExp / $pBudget) * 100, 100) : 0;
+    $isOver     = $totalExp > $pBudget;
+    $encodedID  = encode_project_id($pID);
+
+    $now    = new DateTime();
+    $due    = new DateTime($pDue);
+    $isPast = $now > $due;
+    $diff   = $now->diff($due);
+    $parts  = [];
+    if ($diff->m) $parts[] = $diff->m . "mo";
+    $remDays = $diff->d;
+    if ($remDays >= 7) { $w = intdiv($remDays, 7); $parts[] = $w . "w"; $remDays %= 7; }
+    if ($remDays) $parts[] = $remDays . "d";
+    $tminus = $parts ? implode(" ", $parts) : "Today";
+
+    $progressClass = $isOver ? 'bg-danger' : ($spentPct >= 80 ? 'bg-warning' : 'bg-primary');
+    $netClass      = $netBalance >= 0 ? 'text-success' : 'text-danger';
+    $tminusBadge   = $isPast ? 'badge-subtle-danger' : 'badge-subtle-primary';
+
+    return '
+    <div class="col-md-6 col-xxl-4">
+        <div class="card h-100 font-sans-serif">
+            <div class="card-header pb-0 d-flex flex-between-center bg-body-tertiary">
+                <h6 class="mb-0 fw-bold">' . $pName . '</h6>
+                <span class="badge ' . $tminusBadge . ' fs-11">
+                    <span class="fas fa-clock me-1"></span>' . ($isPast ? 'Overdue' : $tminus) . '
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="text-600 fs-10 mb-3">' . ($pDesc ?: '<em>No description</em>') . '</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-4 text-center">
+                        <p class="mb-0 fs-11 text-600">Budget</p>
+                        <h6 class="mb-0 fw-bold">Ksh ' . number_format($pBudget, 0) . '</h6>
+                    </div>
+                    <div class="col-4 text-center border-start border-end">
+                        <p class="mb-0 fs-11 text-600">Expenses</p>
+                        <h6 class="mb-0 fw-bold text-danger">Ksh ' . number_format($totalExp, 0) . '</h6>
+                    </div>
+                    <div class="col-4 text-center">
+                        <p class="mb-0 fs-11 text-600">Income</p>
+                        <h6 class="mb-0 fw-bold text-success">Ksh ' . number_format($totalInc, 0) . '</h6>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between fs-10 mb-1">
+                        <span class="text-600">' . ($isOver ? 'Over budget' : round($spentPct, 1) . '% spent') . '</span>
+                        <span class="' . $netClass . ' fw-semi-bold">Net ' . ($netBalance >= 0 ? '+' : '') . 'Ksh ' . number_format(abs($netBalance), 0) . '</span>
+                    </div>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar ' . $progressClass . '" role="progressbar" style="width:' . round($spentPct, 1) . '%" aria-valuenow="' . round($spentPct, 1) . '" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-body-tertiary py-2">
+                <a class="btn btn-outline-primary btn-sm w-100" href="project-details?projectID=' . $encodedID . '">
+                    View Details <span class="fas fa-arrow-right ms-1 fs-11"></span>
+                </a>
+            </div>
+        </div>
+    </div>';
+}
 ?>
 
     <!-- Page Header -->
     <div class="card shadow-none border mb-3">
         <div class="card-header d-flex flex-between-center bg-body-tertiary py-2">
-            <h5 class="mb-0 text-primary">Active Projects</h5>
-            <a href="projects_archive" class="btn btn-outline-success btn-sm me-2"><span class="fas fa-trophy fs-11 me-1"></span>Archive</a>
+            <h5 class="mb-0 text-primary">My Projects</h5>
+            <a href="projects_archive" class="btn btn-outline-success btn-sm me-2"><span class="fas fa-trophy fs-11 me-1"></span>Archived</a>
             <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#addProjectModal">
                 <span class="fas fa-plus fs-11 me-1"></span>New Project
             </button>
         </div>
     </div>
 
-    <!-- Active Project Cards -->
-    <div class="row g-3 mb-3">
-        <?php
-        $sql = "
-            SELECT
-                p.projectID, p.projectName, p.projectDescription,
-                p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod,
-                COALESCE(SUM(CASE WHEN t.type = 'Expense' THEN t.amount ELSE 0 END), 0) AS totalExpenses,
-                COALESCE(SUM(CASE WHEN t.type = 'Income'  THEN t.amount ELSE 0 END), 0) AS totalIncome
-            FROM tbl_projects p
-            LEFT JOIN tbl_project_transactions t ON t.projectID = p.projectID
-            WHERE p.is_achieved = 0 AND p.is_deleted = 0 AND p.projectStatus = 0
-            GROUP BY p.projectID, p.projectName, p.projectDescription, p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod
-            ORDER BY p.projectPeriod ASC";
-        $result = $con->query($sql);
-
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $pID        = $row['projectID'];
-                $pName      = htmlspecialchars($row['projectName']);
-                $pDesc      = htmlspecialchars($row['projectDescription']);
-                $pBudget    = $row['projectAmount'];
-                $pDue       = $row['projectPeriod'];
-                $totalExp   = $row['totalExpenses'];
-                $totalInc   = $row['totalIncome'];
-                $netBalance = $totalInc - $totalExp;
-                $spentPct   = $pBudget > 0 ? min(($totalExp / $pBudget) * 100, 100) : 0;
-                $isOver     = $totalExp > $pBudget;
-                $encodedID  = encode_project_id($pID);
-
-                $now    = new DateTime();
-                $due    = new DateTime($pDue);
-                $isPast = $now > $due;
-                $diff   = $now->diff($due);
-                $parts  = [];
-                if ($diff->m) $parts[] = $diff->m . "mo";
-                $remDays = $diff->d;
-                if ($remDays >= 7) { $w = intdiv($remDays, 7); $parts[] = $w . "w"; $remDays %= 7; }
-                if ($remDays) $parts[] = $remDays . "d";
-                $tminus = $parts ? implode(" ", $parts) : "Today";
-
-                $progressClass = $isOver ? 'bg-danger' : ($spentPct >= 80 ? 'bg-warning' : 'bg-primary');
-                $netClass      = $netBalance >= 0 ? 'text-success' : 'text-danger';
-                $tminusBadge   = $isPast ? 'badge-subtle-danger' : 'badge-subtle-primary';
-
-                echo '
-                <div class="col-md-6 col-xxl-4">
-                    <div class="card h-100 font-sans-serif">
-                        <div class="card-header pb-0 d-flex flex-between-center bg-body-tertiary">
-                            <h6 class="mb-0 fw-bold">' . $pName . '</h6>
-                            <span class="badge ' . $tminusBadge . ' fs-11">
-                                <span class="fas fa-clock me-1"></span>' . ($isPast ? 'Overdue' : $tminus) . '
-                            </span>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-600 fs-10 mb-3">' . ($pDesc ?: '<em>No description</em>') . '</p>
-                            <div class="row g-2 mb-3">
-                                <div class="col-4 text-center">
-                                    <p class="mb-0 fs-11 text-600">Budget</p>
-                                    <h6 class="mb-0 fw-bold">Ksh ' . number_format($pBudget, 0) . '</h6>
-                                </div>
-                                <div class="col-4 text-center border-start border-end">
-                                    <p class="mb-0 fs-11 text-600">Expenses</p>
-                                    <h6 class="mb-0 fw-bold text-danger">Ksh ' . number_format($totalExp, 0) . '</h6>
-                                </div>
-                                <div class="col-4 text-center">
-                                    <p class="mb-0 fs-11 text-600">Income</p>
-                                    <h6 class="mb-0 fw-bold text-success">Ksh ' . number_format($totalInc, 0) . '</h6>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between fs-10 mb-1">
-                                    <span class="text-600">' . ($isOver ? 'Over budget' : round($spentPct, 1) . '% spent') . '</span>
-                                    <span class="' . $netClass . ' fw-semi-bold">Net ' . ($netBalance >= 0 ? '+' : '') . 'Ksh ' . number_format(abs($netBalance), 0) . '</span>
-                                </div>
-                                <div class="progress" style="height:6px;">
-                                    <div class="progress-bar ' . $progressClass . '" role="progressbar" style="width:' . round($spentPct, 1) . '%" aria-valuenow="' . round($spentPct, 1) . '" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer bg-body-tertiary py-2">
-                            <a class="btn btn-outline-primary btn-sm w-100" href="project-details?projectID=' . $encodedID . '">
-                                View Details <span class="fas fa-arrow-right ms-1 fs-11"></span>
-                            </a>
-                        </div>
-                    </div>
-                </div>';
-            }
-        } else {
-            echo '
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center py-5">
-                        <span class="fas fa-folder-open fs-2 text-300 mb-3 d-block"></span>
-                        <h6 class="text-600">No active projects yet</h6>
-                        <p class="fs-10 text-500 mb-3">Create your first project to start tracking expenses and income.</p>
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addProjectModal">
-                            <span class="fas fa-plus me-1"></span>New Project
-                        </button>
-                    </div>
-                </div>
-            </div>';
-        }
-        ?>
-    </div>
+    <!-- Pinned Projects -->
+    <?php
+    $sqlPinned = "
+        SELECT
+            p.projectID, p.projectName, p.projectDescription,
+            p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod,
+            COALESCE(SUM(CASE WHEN t.type = 'Expense' THEN t.amount ELSE 0 END), 0) AS totalExpenses,
+            COALESCE(SUM(CASE WHEN t.type = 'Income'  THEN t.amount ELSE 0 END), 0) AS totalIncome
+        FROM tbl_projects p
+        LEFT JOIN tbl_project_transactions t ON t.projectID = p.projectID
+        WHERE p.is_pinned = 1 AND p.is_deleted = 0
+        GROUP BY p.projectID, p.projectName, p.projectDescription, p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod
+        ORDER BY p.projectPeriod ASC";
+    $resultPinned = $con->query($sqlPinned);
+    if ($resultPinned && $resultPinned->num_rows > 0):
+    ?>
+        <div class="card shadow-none border mb-3">
+            <div class="card-header d-flex flex-between-center bg-body-tertiary py-2">
+                <h5 class="mb-0 text-primary"><span class="fas fa-thumbtack me-1"></span>Pinned Projects</h5>
+            </div>
+        </div>
+        <div class="row g-3 mb-3">
+            <?php while ($row = $resultPinned->fetch_assoc()) { echo renderProjectCard($row); } ?>
+        </div>
+    <?php endif; ?>
 
     <!-- All Projects Table -->
     <div class="row g-3 mb-3">
         <div class="col-12">
             <div class="card overflow-hidden">
                 <div class="card-header d-flex flex-between-center bg-body-tertiary py-2">
-                    <h5 class="mb-0 text-primary">All Projects</h5>
+                    <h5 class="mb-0 text-primary">Active Projects</h5>
                 </div>
                 <div class="card-body px-0 pt-0">
                     <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables="data-datatables">
@@ -160,13 +154,13 @@ if (isset($_SESSION['alert'])) {
                         $sqlAll = "
                             SELECT
                                 p.projectID, p.projectName, p.projectDescription,
-                                p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod,
+                                p.projectAmount, p.projectStatus, p.is_achieved, p.is_pinned, p.projectPeriod,
                                 COALESCE(SUM(CASE WHEN t.type = 'Expense' THEN t.amount ELSE 0 END), 0) AS totalExpenses,
                                 COALESCE(SUM(CASE WHEN t.type = 'Income'  THEN t.amount ELSE 0 END), 0) AS totalIncome
                             FROM tbl_projects p
                             LEFT JOIN tbl_project_transactions t ON t.projectID = p.projectID
                             WHERE p.is_deleted = 0
-                            GROUP BY p.projectID, p.projectName, p.projectDescription, p.projectAmount, p.projectStatus, p.is_achieved, p.projectPeriod
+                            GROUP BY p.projectID, p.projectName, p.projectDescription, p.projectAmount, p.projectStatus, p.is_achieved, p.is_pinned, p.projectPeriod
                             ORDER BY p.projectID DESC";
                         $resAll = $con->query($sqlAll);
                         $cnt = 1;
@@ -225,6 +219,15 @@ if (isset($_SESSION['alert'])) {
                                                     title="Edit">
                                                 <span class="fas fa-edit"></span>
                                             </button>
+                                            <form method="POST" action="toggle_project_pin" class="d-inline-block me-1">
+<?= csrf_field() ?>
+                                                <input type="hidden" name="projectID" value="<?php echo $rID; ?>">
+                                                <button type="submit"
+                                                        class="btn btn-outline-<?php echo $r['is_pinned'] ? 'warning' : 'secondary'; ?> icon-item rounded-3 fs-11 icon-item-sm"
+                                                        title="<?php echo $r['is_pinned'] ? 'Unpin' : 'Pin'; ?>">
+                                                    <span class="fas fa-thumbtack"></span>
+                                                </button>
+                                            </form>
                                             <button class="btn btn-outline-danger icon-item rounded-3 me-1 fs-11 icon-item-sm"
                                                     data-bs-toggle="modal" data-bs-target="#deleteProjectModal"
                                                     onclick="populateDeleteModal('<?php echo $rID; ?>')"

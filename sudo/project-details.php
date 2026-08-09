@@ -430,29 +430,40 @@ function formatBytes(int $bytes): string {
             </div>
             <div class="card-body p-0" style="max-height:400px;overflow-y:auto;">
                 <?php
-                $stmtN = $con->prepare("SELECT noteID, note, created_at FROM tbl_project_notes WHERE projectID=? ORDER BY created_at DESC");
+                $stmtN = $con->prepare("SELECT noteID, note, created_at, updated_at FROM tbl_project_notes WHERE projectID=? ORDER BY created_at DESC");
                 $stmtN->bind_param("i", $projectID);
                 $stmtN->execute();
                 $resN = $stmtN->get_result();
                 if ($resN->num_rows > 0) {
                     while ($n = $resN->fetch_assoc()) { ?>
-                        <div class="d-flex align-items-start border-bottom px-3 py-2 hover-bg-100">
+                        <div class="d-flex align-items-start border-bottom px-3 py-2 hover-bg-100 hover-actions-trigger position-relative">
                             <div class="icon-item icon-item-sm bg-primary-subtle rounded-circle me-2 flex-shrink-0">
                                 <span class="fas fa-comment text-primary fs-11"></span>
                             </div>
                             <div class="flex-1">
                                 <p class="mb-1 fs-10"><?php echo nl2br(htmlspecialchars($n['note'])); ?></p>
-                                <span class="text-500 fs-11"><?php echo date("M j, Y g:i A", strtotime($n['created_at'])); ?></span>
+                                <span class="text-500 fs-11">
+                                    <?php echo date("M j, Y g:i A", utcToNairobiTimestamp($n['created_at'])); ?>
+                                    <?php if (!empty($n['updated_at'])): ?>
+                                        <span class="badge badge-subtle-secondary fs-11 ms-1">
+                                            <span class="fas fa-pen fs-11 me-1"></span>Edited last at <?php echo date('g:i A, M j, Y', utcToNairobiTimestamp($n['updated_at'])); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </span>
                             </div>
-                            <form method="POST" action="delete_project_note" class="ms-2">
-<?= csrf_field() ?>
-                                <input type="hidden" name="noteID" value="<?php echo $n['noteID']; ?>">
-                                <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
-                                <button type="submit" class="btn btn-link text-300 p-0 fs-11" title="Delete note"
-                                        onclick="return confirm('Delete this note?')">
-                                    <span class="fas fa-times"></span>
-                                </button>
-                            </form>
+                            <div class="hover-actions bg-100 end-0 pe-3">
+                                <button class="btn btn-outline-primary icon-item rounded-3 me-1 fs-11 icon-item-sm"
+                                        data-bs-toggle="modal" data-bs-target="#editNoteModal"
+                                        data-note-id="<?php echo $n['noteID']; ?>"
+                                        data-note-text="<?php echo htmlspecialchars($n['note'], ENT_QUOTES); ?>"
+                                        onclick="populateEditNoteModal(this)"
+                                        title="Edit"><span class="fas fa-edit"></span></button>
+                                <button class="btn btn-outline-danger icon-item rounded-3 fs-11 icon-item-sm"
+                                        data-bs-toggle="modal" data-bs-target="#deleteNoteModal"
+                                        data-note-id="<?php echo $n['noteID']; ?>"
+                                        onclick="populateDeleteNoteModal(this)"
+                                        title="Delete"><span class="fas fa-trash"></span></button>
+                            </div>
                         </div>
                     <?php }
                 } else { ?>
@@ -743,6 +754,57 @@ function formatBytes(int $bytes): string {
     </div>
 </div>
 
+<!-- Edit Note -->
+<div class="modal fade" id="editNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="edit_project_note">
+<?= csrf_field() ?>
+                <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
+                <input type="hidden" id="editNoteID" name="noteID">
+                <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
+                    <div class="position-relative z-1"><h4 class="mb-0 text-white">Edit Note</h4></div>
+                    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 mt-2 me-2" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" id="editNoteText" name="note" rows="5" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><span class="fas fa-save me-1"></span>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Note -->
+<div class="modal fade" id="deleteNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="delete_project_note">
+<?= csrf_field() ?>
+                <input type="hidden" name="projectID" value="<?php echo $encodedID; ?>">
+                <input type="hidden" id="deleteNoteID" name="noteID">
+                <div class="modal-header px-5 position-relative modal-shape-header bg-shape">
+                    <div class="position-relative z-1"><h4 class="mb-0 text-white">Delete Note</h4></div>
+                    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 mt-2 me-2" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to delete this note? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><span class="fas fa-trash me-1"></span>Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Upload Attachment -->
 <div class="modal fade" id="uploadAttachModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -802,6 +864,13 @@ function formatBytes(int $bytes): string {
     function populateDeleteTxnModal(txnID, encodedProjectID) {
         document.getElementById('deleteTxnID').value        = txnID;
         document.getElementById('deleteTxnProjectID').value = encodedProjectID;
+    }
+    function populateEditNoteModal(btn) {
+        document.getElementById('editNoteID').value   = btn.dataset.noteId;
+        document.getElementById('editNoteText').value = btn.dataset.noteText;
+    }
+    function populateDeleteNoteModal(btn) {
+        document.getElementById('deleteNoteID').value = btn.dataset.noteId;
     }
     function openDocViewer(fileUrl, fileName) {
         var isPdf = fileName.toLowerCase().endsWith('.pdf');
