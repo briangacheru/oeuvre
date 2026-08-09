@@ -82,8 +82,8 @@ $legalPrivacy = get_legal_page($con, 'privacy');
     <div class="row g-3 mb-3">
         <div class="col">
             <div class="card">
-                <div class="card-header p-0 border-bottom">
-                    <ul class="nav nav-tabs card-header-tabs px-3 pt-2" role="tablist">
+                <div class="card-header p-0">
+                    <ul class="nav nav-tabs px-3 pt-2" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms-pane" type="button" role="tab">
                                 Terms of Service
@@ -156,20 +156,44 @@ $legalPrivacy = get_legal_page($con, 'privacy');
     </div>
 
 <script>
-    tinymce.init({
-        selector: '.tinymce-legal',
+    var tinymceLegalConfig = {
         height: 520,
         menubar: false,
         skin: 'oxide',
         plugins: 'advlist autolink lists link table code fullscreen wordcount',
         toolbar: 'undo redo | blocks | bold italic underline | forecolor | bullist numlist outdent indent | link table | removeformat code fullscreen',
         paste_data_images: false
-    });
+    };
+
+    // Initializing both editors up front (one shared selector for both
+    // textareas) breaks the Privacy one: its tab-pane is still display:none
+    // at that point, so TinyMCE measures the wrong width and its toolbar/
+    // statusbar borders end up wider than the card, poking out on both
+    // sides. Only initialize each editor once its own tab is actually shown.
+    var termsEditorInitialized = false;
+    var privacyEditorInitialized = false;
+
+    function initTermsEditor() {
+        if (termsEditorInitialized) return;
+        termsEditorInitialized = true;
+        tinymce.init(Object.assign({selector: '#terms-content'}, tinymceLegalConfig));
+    }
+
+    function initPrivacyEditor() {
+        if (privacyEditorInitialized) return;
+        privacyEditorInitialized = true;
+        tinymce.init(Object.assign({selector: '#privacy-content'}, tinymceLegalConfig));
+    }
 
     // Keep the tab shown after a save reflected in the URL hash so a page
     // reload/redirect doesn't silently drop the admin back on the Terms tab
     // after they were editing Privacy.
     document.addEventListener('DOMContentLoaded', function () {
+        // Terms is the tab rendered active server-side, so its pane is
+        // already visible - safe to initialize right away.
+        initTermsEditor();
+        document.getElementById('privacy-tab').addEventListener('shown.bs.tab', initPrivacyEditor);
+
         document.querySelectorAll('form').forEach(function (form) {
             form.addEventListener('submit', function () {
                 var activePane = form.closest('.tab-pane');
