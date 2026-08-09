@@ -48,6 +48,78 @@ use PHPMailer\PHPMailer\Exception;
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../email-template.php';
 
+// Builds a "what changed" HTML box (old value struck through, new value in
+// blue) comparing the task's pre-edit row against the newly-posted values.
+// Returns '' if nothing meaningfully changed, so callers can skip the box
+// entirely. Dates/numbers are compared by value, not raw string, so
+// re-saving the same due date/price in a different format isn't flagged.
+function buildTaskChangeSummary($oldRow, $new) {
+    if (!$oldRow) {
+        return '';
+    }
+
+    $labels = [
+        'topic' => 'Topic',
+        'subject' => 'Subject',
+        'account' => 'Account',
+        'due_date' => 'Due Date',
+        'pages' => 'Pages',
+        'cpp' => 'Price per Page',
+        'writer' => 'Writer',
+    ];
+
+    $rows = '';
+    foreach ($labels as $field => $label) {
+        $oldVal = trim((string) ($oldRow[$field] ?? ''));
+        $newVal = trim((string) ($new[$field] ?? ''));
+
+        if ($field === 'due_date') {
+            $oldTs = strtotime($oldVal);
+            $newTs = strtotime($newVal);
+            if ($oldTs !== false && $newTs !== false && $oldTs === $newTs) {
+                continue;
+            }
+        } elseif ($field === 'cpp' || $field === 'pages') {
+            if ((float) $oldVal === (float) $newVal) {
+                continue;
+            }
+        } elseif (strcasecmp($oldVal, $newVal) === 0) {
+            continue;
+        }
+
+        $displayOld = $oldVal !== '' ? htmlspecialchars($oldVal, ENT_QUOTES, 'UTF-8') : '<em>none</em>';
+        $displayNew = $newVal !== '' ? htmlspecialchars($newVal, ENT_QUOTES, 'UTF-8') : '<em>none</em>';
+        if ($field === 'cpp') {
+            $displayOld = 'Ksh ' . $displayOld;
+            $displayNew = 'Ksh ' . $displayNew;
+        }
+
+        $rows .= "<tr>"
+            . "<td style='padding:6px 10px;font-size:14px;color:#555;border-bottom:1px solid #eee;'>{$label}</td>"
+            . "<td style='padding:6px 10px;font-size:14px;color:#999;text-decoration:line-through;border-bottom:1px solid #eee;'>{$displayOld}</td>"
+            . "<td style='padding:6px 10px;font-size:14px;color:#0073e6;font-weight:bold;border-bottom:1px solid #eee;'>{$displayNew}</td>"
+            . "</tr>";
+    }
+
+    $oldDescription = trim((string) ($oldRow['description'] ?? ''));
+    $newDescription = trim((string) ($new['description'] ?? ''));
+    if (strcasecmp($oldDescription, $newDescription) !== 0) {
+        $rows .= "<tr>"
+            . "<td style='padding:6px 10px;font-size:14px;color:#555;'>Description</td>"
+            . "<td colspan='2' style='padding:6px 10px;font-size:14px;color:#0073e6;font-weight:bold;'>Updated</td>"
+            . "</tr>";
+    }
+
+    if ($rows === '') {
+        return '';
+    }
+
+    return "<div style='background:#f8f9fa;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #0073e6;'>"
+        . "<p style='margin:0 0 8px 0;'><strong>What Changed</strong></p>"
+        . "<table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;'>{$rows}</table>"
+        . "</div>";
+}
+
 if ($_POST['action'] == 'submitForm') {
     $requiredFields = ['topic', 'subject', 'account', 'description', 'writer', 'email', 'due_date', 'cpp', 'pages'];
 
@@ -88,22 +160,23 @@ if ($_POST['action'] == 'submitForm') {
     $acknowledged = mysqli_real_escape_string($con, $_POST['acknowledged']);
     $sendEmail = isset($_POST['sendEmail']) ? mysqli_real_escape_string($con, $_POST['sendEmail']) : '0';
 
-    // Was the task already "In Revision" before this save? Used below to
-    // decide whether this is a fresh transition into revision (bumps the
-    // counter) - checked before the main save so we're comparing against
-    // the pre-update state. Kept independent of the main UPDATE below so a
-    // missing revision_count column (migration not yet run) can never break
-    // saving a task, only skip the revision-tracking bump.
-    $wasInRevision = null;
-    if ($prevStmt = mysqli_prepare($con, "SELECT status FROM tbltasks WHERE id = ?")) {
+    // Snapshot the task's pre-edit row. Used below to (a) decide whether this
+    // is a fresh transition into "In Revision" (bumps the revision counter),
+    // (b) tell a duplicated/never-emailed task's first send apart from a
+    // later edit of an already-notified task, and (c) build a "what changed"
+    // summary for the update email. SELECT * (not named columns) so a
+    // not-yet-migrated first_notified_at column just comes back absent
+    // rather than failing the query.
+    $oldRow = null;
+    if ($prevStmt = mysqli_prepare($con, "SELECT * FROM tbltasks WHERE id = ?")) {
         mysqli_stmt_bind_param($prevStmt, 'i', $taskId);
         mysqli_stmt_execute($prevStmt);
         $prevResult = mysqli_stmt_get_result($prevStmt);
-        if ($prevRow = mysqli_fetch_assoc($prevResult)) {
-            $wasInRevision = ($prevRow['status'] === 'In Revision');
-        }
+        $oldRow = mysqli_fetch_assoc($prevResult);
         mysqli_stmt_close($prevStmt);
     }
+    $wasInRevision = $oldRow ? ($oldRow['status'] === 'In Revision') : null;
+    $isFirstNotification = empty($oldRow['first_notified_at'] ?? null);
 
     // Update the main task record (without file columns)
     $sql = 'UPDATE tbltasks SET topic=?, subject=?, account=?, description=?, writer=?, email=?, status=?, due_date=?, cpp=?, pages=?, is_confirmed=?, publish =?, admin_acknowledged=?, acknowledged=? WHERE id=?';
@@ -255,9 +328,35 @@ if ($_POST['action'] == 'submitForm') {
                         $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
                         $displayStatus = ($status == 'Draft' ? 'Unconfirmed' : $status);
 
-                        $emailBody = "
+                        // A duplicated task (or any task published for the first time) has
+                        // never had an assignment email - send the same "New Task Assigned"
+                        // wording/layout as submit-task.php instead of "Task Updated", since
+                        // this is genuinely the writer's first notification.
+                        if ($isFirstNotification) {
+                            $emailTitle = "New $displayStatus Task Assigned";
+                            $emailBody = "
                                 <p>Hello <span class='highlight'>$writer</span>,</p>
-                                <p>Your task has been updated. Below are the current details:</p>
+                                <p>A new task has been assigned to you. Below are the details:</p>
+                                <p><strong>Status:</strong> <span class='highlight'>$displayStatus</span></p>
+                                <p><strong>Topic:</strong> <span class='highlight'>$topic</span></p>
+                                <p><strong>Subject:</strong> $subject</p>
+                                <p><strong>Due Date:</strong> <span class='highlight'>$due_date</span></p>
+                                <p><strong>Pages:</strong> $pages</p>
+                                <p><strong>Price per Page:</strong> Ksh $cpp</p>
+                                <p><strong>Description:</strong> <span class='highlight'>$description</span></p>";
+                            $altIntro = "New $displayStatus Task Assigned\n\nHello $writer,\n\nA new task has been assigned to you.\n\n";
+                        } else {
+                            $emailTitle = "Task Updated - $displayStatus";
+                            $changesSummaryHtml = buildTaskChangeSummary($oldRow, [
+                                'topic' => $topic, 'subject' => $subject, 'account' => $account,
+                                'due_date' => $due_date, 'pages' => $pages, 'cpp' => $cpp,
+                                'description' => $description, 'writer' => $writer,
+                            ]);
+                            $emailBody = "
+                                <p>Hello <span class='highlight'>$writer</span>,</p>
+                                <p>Your task has been updated.</p>"
+                                . $changesSummaryHtml . "
+                                <p>Below are the current details:</p>
                                 <p><strong>Status:</strong> <span class='highlight'>$displayStatus</span></p>
                                 <p><strong>Topic:</strong> <span class='highlight'>$topic</span></p>
                                 <p><strong>Subject:</strong> $subject</p>
@@ -265,19 +364,19 @@ if ($_POST['action'] == 'submitForm') {
                                 <p><strong>Pages:</strong> $pages</p>
                                 <p><strong>Price per Page:</strong> Ksh $cpp</p>
                                 <p><strong>Description:</strong> $description</p>";
+                            $altIntro = "Task Update: $displayStatus\n\nHello $writer,\n\nYour task has been updated.\n\n";
+                        }
 
                         $mail->Body = render_email_html(
-                            "Task Updated - $displayStatus",
+                            $emailTitle,
                             $emailBody,
                             'View More Task Details',
                             $taskDetailsUrl,
                             "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
                         );
 
-                        $mail->AltBody = "Task Update: " . ($status == 'Draft' ? 'Unconfirmed' : $status) . "\n\n"
-                            . "Hello $writer,\n\n"
-                            . "Your task has been updated.\n\n"
-                            . "Status: " . ($status == 'Draft' ? 'Unconfirmed' : $status) . "\n"
+                        $mail->AltBody = $altIntro
+                            . "Status: $displayStatus\n"
                             . "Topic: $topic\n"
                             . "Subject: $subject\n"
                             . "Due Date: $due_date\n"
@@ -289,6 +388,16 @@ if ($_POST['action'] == 'submitForm') {
 
                         $mail->send();
                         $emailStatus = 'Email sent successfully.';
+
+                        // Best-effort: mark first notification sent, same no-op-if-missing
+                        // guard as submit-task.php.
+                        if ($isFirstNotification) {
+                            if ($notifyStmt = mysqli_prepare($con, "UPDATE tbltasks SET first_notified_at = NOW() WHERE id = ? AND first_notified_at IS NULL")) {
+                                mysqli_stmt_bind_param($notifyStmt, 'i', $taskId);
+                                mysqli_stmt_execute($notifyStmt);
+                                mysqli_stmt_close($notifyStmt);
+                            }
+                        }
 
                         // Clean up temporary files
                         foreach ($tempFiles as $tempFile) {

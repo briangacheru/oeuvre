@@ -261,6 +261,17 @@ try {
             $mail->send();
             $emailSent = true;
 
+            // Best-effort: mark this task as having received its first
+            // assignment email, so a later edit in update-task.php knows to
+            // send "Task Updated" (with a change summary) instead of
+            // repeating "New Task Assigned". Silently no-ops if the
+            // first_notified_at column doesn't exist yet (migration not run).
+            if ($notifyStmt = mysqli_prepare($con, "UPDATE tbltasks SET first_notified_at = NOW() WHERE id = ? AND first_notified_at IS NULL")) {
+                mysqli_stmt_bind_param($notifyStmt, 'i', $task_id);
+                mysqli_stmt_execute($notifyStmt);
+                mysqli_stmt_close($notifyStmt);
+            }
+
             // Clean up temp files
             foreach ($tempFiles as $tempFile) {
                 @unlink($tempFile);
