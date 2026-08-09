@@ -9,9 +9,27 @@ date_default_timezone_set('Africa/Nairobi');
 include('../sudo/dbcon.php');
 include('../sudo/functions.php');
 require_once('../sudo/spaces-helper.php');
+require_once __DIR__ . '/../storage-helper.php';
 
 // Initialize Spaces Helper
 $spacesHelper = new SpacesHelper();
+
+// file_url is already a full, provider-correct absolute URL on every row
+// written since storage-helper.php existed (both DigitalOcean and cPanel
+// uploads set it). The only place that matters here is the legacy fallback
+// below for old rows where file_url was never populated - those predate
+// local storage entirely, so they're always Spaces paths, UNLESS the admin
+// has since switched to cPanel and storage_upload_file_local() wrote a
+// bare local path in one of those legacy columns. Resolve via whichever
+// backend sudo/settings.php currently has selected.
+$currentStorageProviderForShare = get_storage_provider($con);
+if (!function_exists('resolve_legacy_file_url')) {
+    function resolve_legacy_file_url($spacesPath, $spacesHelper, $provider) {
+        return $provider === 'cpanel'
+            ? storage_local_url($spacesPath)
+            : $spacesHelper->getFileUrl($spacesPath);
+    }
+}
 
 // Helper function for file size formatting
 if (!function_exists('formatFileSize')) {
@@ -1054,7 +1072,7 @@ if ($taskData) {
 
                     // If no URL, generate it from spaces_path
                     if (empty($fileUrl) && !empty($spacesPath)) {
-                        $fileUrl = $spacesHelper->getFileUrl($spacesPath);
+                        $fileUrl = resolve_legacy_file_url($spacesPath, $spacesHelper, $currentStorageProviderForShare);
                     }
 
                     $fileSize = formatFileSize($fileSize);
@@ -1112,7 +1130,7 @@ if ($taskData) {
 
                     // If no URL, generate it from spaces_path
                     if (empty($fileUrl) && !empty($spacesPath)) {
-                        $fileUrl = $spacesHelper->getFileUrl($spacesPath);
+                        $fileUrl = resolve_legacy_file_url($spacesPath, $spacesHelper, $currentStorageProviderForShare);
                     }
 
                     $fileSize = formatFileSize($fileSize);

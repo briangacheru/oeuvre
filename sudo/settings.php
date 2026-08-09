@@ -3,6 +3,7 @@
     <title>iTasker | Settings</title>
 <?php include "navi.php";
 require_once "currency_helper.php";
+require_once __DIR__ . '/../storage-helper.php';
 
 $error_message = ''; // Initialize an empty error message variable
 
@@ -285,6 +286,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notificationDelete'])
     }
 }
 
+// Handle form submission for switching the file-storage provider
+$storageMigrationSummary = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['storageProviderSubmit'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to change storage settings.";
+    } else {
+        $newProvider = $_POST['storage_provider'] ?? '';
+        $currentProvider = get_storage_provider($con);
+
+        if (!in_array($newProvider, ['digitalocean', 'cpanel'], true)) {
+            $error_message = "Invalid storage provider.";
+        } elseif ($newProvider === $currentProvider) {
+            $message = "File storage is already set to " . ($newProvider === 'digitalocean' ? 'DigitalOcean Spaces' : 'cPanel (local server)') . ".";
+        } elseif ($newProvider === 'digitalocean' && !storage_spaces_reachable()) {
+            // Don't switch at all if Spaces can't be reached - saving the
+            // setting anyway would point every NEW upload at a backend that
+            // doesn't work, breaking task creation until someone notices.
+            $error_message = "Could not connect to DigitalOcean Spaces - check the SPACES_* settings in .env before switching. Storage is still set to cPanel.";
+        } else {
+            $stmt = mysqli_prepare($con,
+                "INSERT INTO tbl_storage_settings (id, provider, updated_by, updated_at) VALUES (1, ?, ?, NOW())
+                 ON DUPLICATE KEY UPDATE provider = VALUES(provider), updated_by = VALUES(updated_by), updated_at = VALUES(updated_at)"
+            );
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 'ss', $newProvider, $aid);
+                $saved = mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+            } else {
+                $saved = false;
+            }
+
+            if (!$saved) {
+                $error_message = "Could not save storage setting - has db-migrations/2026_08_09_add_storage_settings.sql been run yet?";
+            } else {
+                // New uploads go to $newProvider from here on. Now copy every
+                // existing task file that's still on the OTHER backend over,
+                // so old links (task attachments already emailed/shared) keep
+                // working even if that other backend goes away later.
+                $storageMigrationSummary = migrate_task_files($con);
+                $providerLabel = $newProvider === 'digitalocean' ? 'DigitalOcean Spaces' : 'cPanel (local server)';
+                $message = "File storage switched to $providerLabel. "
+                    . "Copied {$storageMigrationSummary['migrated']} existing file(s), "
+                    . "{$storageMigrationSummary['skipped']} were already there"
+                    . ($storageMigrationSummary['failed'] > 0 ? ", {$storageMigrationSummary['failed']} failed to copy (check the error log)." : ".");
+            }
+        }
+    }
+}
+
+$currentStorageProvider = get_storage_provider($con);
+
 // Fetch current notification
 $query = mysqli_query($con, "SELECT * FROM tblsettings WHERE id = 3");
 $row = mysqli_fetch_assoc($query);
@@ -491,6 +543,41 @@ $currentNotification = $row['description'];
                             </div>
                             <button class="btn btn-outline-primary me-1 mb-1" type="submit" name="notificationSubmit">Update Notification</button>
                             <button class="btn btn-outline-danger me-1 mb-1 float-end" type="submit" name="notificationDelete" onclick="return confirm('Are you sure you want to delete the notification?');">Delete Notification</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0 text-info">File Storage</h5>
+                    </div>
+                    <div class="card-body bg-body-tertiary">
+                        <p class="text-muted fs-10 mb-3">
+                            Where new task attachments (task creation, edits, and writer submissions) get uploaded.
+                            Switching this automatically copies every existing task file from the old backend to the
+                            new one, so old links keep working - do this <strong>before</strong> a DigitalOcean
+                            subscription lapses, not after (once it lapses, files on Spaces can no longer be copied).
+                        </p>
+                        <form method="post">
+<?= csrf_field() ?>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="storage_provider" id="storageProviderDO" value="digitalocean" <?php echo ($currentStorageProvider === 'digitalocean') ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="storageProviderDO">
+                                        <strong>DigitalOcean Spaces</strong> <span class="text-muted fs-10">- configured via .env (SPACES_*)</span>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="storage_provider" id="storageProviderCpanel" value="cpanel" <?php echo ($currentStorageProvider === 'cpanel') ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="storageProviderCpanel">
+                                        <strong>cPanel (local server)</strong> <span class="text-muted fs-10">- stored in /taskfiles on this domain</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-primary w-100" type="submit" name="storageProviderSubmit"
+                                    onclick="return confirm('Switch file storage provider? Existing task files will be copied to the new location automatically - this may take a while depending on how many files there are.');">
+                                Save Storage Setting
+                            </button>
                         </form>
                     </div>
                 </div>

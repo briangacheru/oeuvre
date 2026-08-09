@@ -3,6 +3,7 @@ require_once __DIR__ . '/../shared-functions.php';
 include "check-login.php";
 csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
+require_once __DIR__ . '/../storage-helper.php';
 
 // Sanitize filename to remove problematic characters
 
@@ -34,9 +35,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Sanitize the filename
         $sanitizedFileName = sanitizeFileName($originalFileName);
 
-        // Upload to Digital Ocean Spaces in the taskfiles folder
-        $spacesHelper = new SpacesHelper();
-        $result = $spacesHelper->uploadFile($tempFilePath, $sanitizedFileName, 'taskfiles');
+        // Upload via whichever backend is currently configured in sudo/settings.php
+        if (get_storage_provider($con) === 'digitalocean') {
+            // sudo's SpacesHelper (unlike root's) appends its own random
+            // suffix internally, so $sanitizedFileName is passed through as-is.
+            $spacesHelper = new SpacesHelper();
+            $result = $spacesHelper->uploadFile($tempFilePath, $sanitizedFileName, 'taskfiles');
+        } else {
+            // storage_upload_file_local() does NOT uniquify - do it here the
+            // same way sudo's SpacesHelper does, so two admins uploading a
+            // same-named file locally can't collide/overwrite each other.
+            $pathInfo = pathinfo($sanitizedFileName);
+            $extension = isset($pathInfo['extension']) && $pathInfo['extension'] !== '' ? '.' . $pathInfo['extension'] : '';
+            $randomId = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 4);
+            $uniqueFileName = $pathInfo['filename'] . '_' . $randomId . $extension;
+            $result = storage_upload_file_local($tempFilePath, $uniqueFileName, 'taskfiles');
+        }
 
         if ($result['success']) {
             // Extract just the filename from the full key path

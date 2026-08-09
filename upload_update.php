@@ -3,6 +3,7 @@ require_once __DIR__ . '/shared-functions.php';
 include "check-login.php";
 csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
+require_once __DIR__ . '/storage-helper.php';
 
 // Generate a 4-character unique ID
 function generateShortId($length = 4) {
@@ -54,9 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Create new filename: originalname_uniqueID.extension
         $newFileName = $fileNameWithoutExt . '_' . $uniqueId . '.' . $fileExtension;
 
-        // Upload to Digital Ocean Spaces in the taskfiles/submissions folder
-        $spacesHelper = new SpacesHelper();
-        $result = $spacesHelper->uploadFile($tempFilePath, $newFileName, 'taskfiles/submissions');
+        // Upload via whichever backend is currently configured in sudo/settings.php
+        if (get_storage_provider($con) === 'digitalocean') {
+            $spacesHelper = new SpacesHelper();
+            $result = $spacesHelper->uploadFile($tempFilePath, $newFileName, 'taskfiles/submissions');
+        } else {
+            $result = storage_upload_file_local($tempFilePath, $newFileName, 'taskfiles/submissions');
+        }
 
         if ($result['success']) {
             echo json_encode([
