@@ -167,12 +167,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <!--/.bg-holder-->
 
-                                    <div class="z-1 position-relative"><a class="link-light mb-4 font-sans-serif fs-5 d-inline-block fw-bolder" href="index">itasker</a>
+                                    <div class="z-1 position-relative"><a class="link-light mb-4 font-sans-serif fs-5 d-inline-flex align-items-center fw-bolder" href="index"><img class="me-2" src="assets/img/icons/spot-illustrations/itasker.png" alt="" width="28" />itasker</a>
                                         <p class="opacity-75 text-white">With the power of itasker, you can effortlessly streamline your workflow and boost productivity!</p>
                                     </div>
                                 </div>
                                 <div class="mt-3 mb-4 mt-md-4 mb-md-5" data-bs-theme="light">
-                                    <p class="mb-0 mt-4 mt-md-5 fs-10 fw-semi-bold text-white opacity-75">Read our <a class="text-decoration-underline text-white" href="#!">terms</a> and <a class="text-decoration-underline text-white" href="#!">conditions </a></p>
+                                    <p class="mb-0 mt-4 mt-md-5 fs-10 fw-semi-bold text-white opacity-75">Read our <a class="text-decoration-underline text-white" href="terms">terms</a> and <a class="text-decoration-underline text-white" href="privacy">privacy policy</a></p>
                                 </div>
                             </div>
                             <div class="col-md-7 d-flex flex-center">
@@ -203,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <!--/.bg-holder-->
 
-                                    <div class="z-1 position-relative"><a class="link-light mb-4 font-sans-serif fs-5 d-inline-block fw-bolder" href="index">itasker</a>
+                                    <div class="z-1 position-relative"><a class="link-light mb-4 font-sans-serif fs-5 d-inline-flex align-items-center fw-bolder" href="index"><img class="me-2" src="assets/img/icons/spot-illustrations/itasker.png" alt="" width="28" />itasker</a>
                                         <p class="opacity-75 text-white">With the power of itasker, you can effortlessly streamline your workflow and boost productivity!</p>
                                     </div>
                                 </div>
@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="terms" id="card-register-checkbox" required="required" />
-                                            <label class="form-label" for="card-register-checkbox">I accept the <a href="#!">terms </a>and <a class="white-space-nowrap" href="#!">privacy policy</a></label>
+                                            <label class="form-label" for="card-register-checkbox">I accept the <a href="terms" target="_blank" rel="noopener">terms</a> and <a class="white-space-nowrap" href="privacy" target="_blank" rel="noopener">privacy policy</a></label>
                                             <div class="invalid-feedback">You must accept the terms and conditions to register.</div>
                                         </div>
                                         <div class="mb-3">

@@ -1772,6 +1772,9 @@
                                 <a class="dropdown-item" href="settings">
                                     <i class="fas fa-cog me-2"></i>Settings
                                 </a>
+                                <a class="dropdown-item" href="legal-pages">
+                                    <i class="fas fa-file-contract me-2"></i>Terms &amp; Privacy
+                                </a>
                                 <a class="dropdown-item" href="level-management">
                                     <i class="fas fa-layer-group me-2"></i>Levels
                                 </a>
