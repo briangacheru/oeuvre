@@ -9,6 +9,7 @@ use PHPMailer\PHPMailer\Exception;
 // Include PHPMailer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../shared-functions.php';
+require_once __DIR__ . '/../email-template.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
     $error = "Your request could not be verified (invalid or expired security token). Please try again.";
@@ -52,15 +53,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !csrf_verify()) {
             $mail->Port = (int) env('SMTP_PORT', 587); // Adjust the port accordingly
 
             // Recipients
-            $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'Monk Freelancing Support');
+            $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker Support');
             $mail->addAddress($email);
 
             // Content
             $mail->isHTML(true);
-            $mail->Subject = "Monk Freelancing Account Password Reset";
-            ob_start();
-            include("reset_mail_template.php");
-            $mail->Body = ob_get_clean();
+            $mail->Subject = "iTasker Account Password Reset";
+            $resetUrl = rtrim(env('APP_URL'), '/') . '/sudo/reset-password?token=' . urlencode($resetToken);
+            $emailBody = "
+                <p>We have sent you this email in response to your request to reset your password.</p>
+                <p>To reset your password, please follow the button below:</p>";
+            $mail->Body = render_email_html(
+                'Password Reset Request',
+                $emailBody,
+                'Reset Password',
+                $resetUrl,
+                'Please ignore this email if you did not request a password change.'
+            );
 
             // Send email
             $mail->send();

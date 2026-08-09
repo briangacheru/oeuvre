@@ -16,6 +16,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 function sendJsonResponse($data) {
     if (ob_get_length()) ob_clean();
@@ -118,7 +119,6 @@ $amountPayable            = $subtotalBeforeDeductions - $overdraftTotal;
 $invoiceDate              = date('jS F Y');
 
 // ── 6. Build email HTML ───────────────────────────────────────────────────
-$companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
 
 // ── Tasks rows ────────────────────────────────────────────────────────────
 $tasksRowsHtml = '';
@@ -234,29 +234,7 @@ if ($overdraftTotal > 0) {
     $summaryRows .= "<tr><td style='padding:7px 10px; font-size:14px; color:#555; border-bottom:1px solid #eee;'>Overdraft Deductions</td><td style='padding:7px 10px; font-size:14px; text-align:right; color:#e53535; border-bottom:1px solid #eee;'>− Ksh " . number_format($overdraftTotal, 2) . "</td></tr>";
 }
 
-$htmlBody = "
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
-.email-container { max-width: 620px; background: #ffffff; margin: 0 auto; padding: 20px; border-radius: 8px; box-shadow: 0px 2px 10px rgba(0,0,0,0.1); }
-.email-header { text-align: center; border-bottom: 2px solid #0073e6; padding-bottom: 15px; }
-.email-header img { max-width: 100%; height: auto; max-height: 100px; }
-.email-content { padding: 20px; }
-.email-content h2 { color: #0073e6; text-align: center; }
-.email-content p { font-size: 16px; line-height: 1.5; color: #333; }
-.highlight { font-weight: bold; color: #0073e6; }
-.footer { text-align: center; padding-top: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee; margin-top: 20px; }
-</style>
-</head>
-<body>
-<div class='email-container'>
-    <div class='email-header'>
-        <img src='{$companyLogo}' alt='iTasker'>
-    </div>
-    <div class='email-content'>
-        <h2>Payment Invoice</h2>
+$invoiceBody = "
         <p>Hello <span class='highlight'>{$writerUsername}</span>,</p>
         <p>Payment invoice as of <span class='highlight'>{$invoiceDate}</span>.</p>
 
@@ -275,16 +253,15 @@ body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;
             </tbody>
         </table>
 
-        <p style='margin-top:20px;'>Thank you! The amount payable will be sent to your mobile banking account shortly and the above tasks will be marked as paid on the website.</p>
-    </div>
-    <div class='footer'>
-        <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-        <p>&copy; " . date('Y') . " iTasker. All rights reserved.</p>
-        <p style='font-size:11px; color:#aaa;'>This is an automated message. Please do not reply directly to this email.</p>
-    </div>
-</div>
-</body>
-</html>";
+        <p style='margin-top:20px;'>Thank you! The amount payable will be sent to your mobile banking account shortly and the above tasks will be marked as paid on the website.</p>";
+
+$htmlBody = render_email_html(
+    'Payment Invoice',
+    $invoiceBody,
+    null,
+    null,
+    "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a><br><span style='font-size:11px;color:#aaa;'>This is an automated message. Please do not reply directly to this email.</span>"
+);
 
 // ── Plain-text fallback ───────────────────────────────────────────────────
 $altBody  = "Hello {$writerUsername},\n\n";

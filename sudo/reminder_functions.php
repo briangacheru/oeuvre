@@ -11,6 +11,7 @@ ini_set('log_errors', 1); // Log errors to file
 ini_set('error_log', __DIR__ . '/php-errors.log');
 date_default_timezone_set('Africa/Nairobi');
 include('dbcon.php');
+require_once __DIR__ . '/../email-template.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -76,59 +77,7 @@ function getSetting($key, $default = '') {
 }
 
 function getModernEmailTemplate($title, $content, $footerText = '') {
-    return '
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>' . htmlspecialchars($title) . '</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; }
-            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }
-            .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
-            .header p { font-size: 16px; opacity: 0.9; }
-            .content { padding: 30px 20px; }
-            .reminder-card { background: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin: 15px 0; border-radius: 8px; }
-            .reminder-card.high { border-left-color: #dc3545; }
-            .reminder-card.medium { border-left-color: #ffc107; }
-            .reminder-card.low { border-left-color: #28a745; }
-            .reminder-card.overdue { border-left-color: #dc3545; background: #fff5f5; }
-            .reminder-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #2c3e50; }
-            .reminder-meta { font-size: 14px; color: #6c757d; margin-bottom: 10px; }
-            .reminder-description { font-size: 15px; color: #495057; }
-            .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-            .status-overdue { background: #fee; color: #dc3545; }
-            .status-due-today { background: #fff3cd; color: #856404; }
-            .status-upcoming { background: #d1ecf1; color: #0c5460; }
-            .status-completed { background: #d4edda; color: #155724; }
-            .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #dee2e6; }
-            .btn { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 10px 5px; }
-            .btn:hover { background: #0056b3; }
-            .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0; }
-            .stat-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; text-align: center; }
-            .stat-number { font-size: 24px; font-weight: 700; color: #007bff; }
-            .stat-label { font-size: 12px; color: #6c757d; text-transform: uppercase; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>' . htmlspecialchars($title) . '</h1>
-                <p>' . date('l, F j, Y') . '</p>
-            </div>
-            <div class="content">
-                ' . $content . '
-            </div>
-            <div class="footer">
-                ' . ($footerText ?: 'This is an automated message from your Reminder System.') . '
-                <br><small>© ' . date('Y') . ' Reminder System. All rights reserved.</small>
-            </div>
-        </div>
-    </body>
-    </html>';
+    return render_email_html($title, '<p style="text-align:center;color:#6c757d;margin-top:-10px;">' . date('l, F j, Y') . '</p>' . $content, null, null, $footerText ?: null);
 }
 
 // Updated Morning summary email - respects send_empty_summaries setting

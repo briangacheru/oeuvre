@@ -339,7 +339,7 @@
 
                                                 <div style="font-size: 14px; line-height: 140%; text-align: left; word-wrap: break-word;">
                                                     <p style="font-size: 14px; line-height: 140%;"><span style="font-size: 16px; line-height: 22.4px; color: #ecf0f1;">Contact</span></p>
-                                                    <p style="font-size: 14px; line-height: 140%;"><span style="font-size: 14px; line-height: 19.6px; color: #ecf0f1;">Monk Freelancing</span></p>
+                                                    <p style="font-size: 14px; line-height: 140%;"><span style="font-size: 14px; line-height: 19.6px; color: #ecf0f1;">iTasker</span></p>
                                                     <p style="font-size: 14px; line-height: 140%;"><span style="font-size: 14px; line-height: 19.6px; color: #ecf0f1;">+254 710 301 320 | support@monkbrian.com</span></p>
                                                 </div>
 

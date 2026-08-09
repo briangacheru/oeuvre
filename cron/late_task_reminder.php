@@ -6,6 +6,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 // Enhanced features configuration with hour-based thresholds
 $config = [
@@ -123,175 +124,23 @@ function generateEmailBody($lateTasksData, $config, $totalTasks, $totalValue, $p
     date_default_timezone_set('Africa/Nairobi');
     $currentDate = date('l, F j, Y \a\t g:i A');
 
-    $body = "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                padding: 10px;
-                margin: 0;
-            }
-            .email-container {
-                max-width: 800px;
-                background: #ffffff;
-                margin: 0 auto;
-                border-radius: 8px;
-                box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                overflow: hidden;
-            }
-             .email-head {
-                text-align: center;
-                background: white;
-            }
-            .email-head img {
-                max-width: 800px;
-                height: auto;
-            }
-            
-            .summary-section {
-                background: #f8f9fa;
-                padding: 20px;
-                border-bottom: 1px solid #dee2e6;
-            }
-            .summary-cards {
-                display: flex;
-                justify-content: space-around;
-                flex-wrap: wrap;
-                gap: 15px;
-            }
-            .summary-card {
-                background: white;
-                padding: 15px;
-                border-radius: 8px;
-                text-align: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                min-width: 120px;
-            }
-            .summary-card h3 {
-                margin: 0 0 5px 0;
-                font-size: 24px;
-                font-weight: bold;
-            }
-            .summary-card p {
-                margin: 0;
-                color: #666;
-                font-size: 12px;
-            }
-            .email-content {
-                padding: 20px;
-            }
-            .task-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 20px;
-            }
-            .task-table th {
-                background: #0073e6;
-                color: white;
-                padding: 12px 8px;
-                text-align: left;
-                font-size: 14px;
-            }
-            .task-table td {
-                padding: 12px 8px;
-                border-bottom: 1px solid #dee2e6;
-                font-size: 13px;
-            }
-            .task-table tr:hover {
-                background-color: #f8f9fa;
-            }
-            .priority-badge {
-                padding: 4px 8px;
-                border-radius: 12px;
-                color: white;
-                font-size: 11px;
-                font-weight: bold;
-                text-transform: uppercase;
-            }
-            .status-badge {
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 11px;
-                font-weight: bold;
-            }
-            .hours-late {
-                font-weight: bold;
-                color: #d32f2f;
-            }
-            .btn {
-                display: inline-block;
-                background: #0073e6;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 5px;
-                text-decoration: none;
-                font-weight: bold;
-                margin: 5px;
-            }
-            .btn:hover {
-                background: #005bb5;
-                color: white !important;
-            }
-            .footer {
-                text-align: center;
-                padding: 20px;
-                background: #f8f9fa;
-                color: #666;
-                font-size: 12px;
-            }
-            .alert-section {
-                background: #fff3cd;
-                border: 1px solid #ffeaa7;
-                border-radius: 5px;
-                padding: 15px;
-                margin: 20px 0;
-            }
-            .time-breakdown {
-                background: #e3f2fd;
-                padding: 15px;
-                border-radius: 5px;
-                margin: 20px 0;
-            }
-            @media (max-width: 600px) {
-                .summary-cards {
-                    flex-direction: column;
-                }
-                .task-table {
-                    font-size: 11px;
-                }
-                .task-table th, .task-table td {
-                    padding: 8px 4px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class='email-container'>
-            <div class='email-head'>
-                <img src='{$config['company_logo']}' alt='itasker Logo'>
-            </div>
-            <div class='email-header'>
-                        <h1>🚨 Late Tasks Alert</h1>
-                        <p style='margin: 5px 0 0 0; opacity: 0.9;'>{$currentDate}</p>
-            </div>
+    $thStyle = "background:#0073e6;color:white;padding:12px 8px;text-align:left;font-size:14px;";
+    $tdStyle = "padding:12px 8px;border-bottom:1px solid #dee2e6;font-size:13px;";
 
-            <div class='email-content'>
-                
-                <table class='task-table'>
-                    <thead>
-                        <tr>
-                            <th>Task ID</th>
-                            <th>Topic</th>
-                            <th>Writer</th>
-                            <th>Late By</th>
-                            <th>Priority</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>";
+    $body = "
+                    <p style='text-align:center;color:#666;margin-top:-10px;'>{$currentDate}</p>
+                    <table style='width:100%;border-collapse:collapse;margin-top:20px;'>
+                        <thead>
+                            <tr>
+                                <th style='$thStyle'>Task ID</th>
+                                <th style='$thStyle'>Topic</th>
+                                <th style='$thStyle'>Writer</th>
+                                <th style='$thStyle'>Late By</th>
+                                <th style='$thStyle'>Priority</th>
+                                <th style='$thStyle'>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>";
 
     foreach ($lateTasksData as $task) {
         $priorityColor = getPriorityColor($task['alert_level'], $config);
@@ -308,36 +157,25 @@ function generateEmailBody($lateTasksData, $config, $totalTasks, $totalValue, $p
 
         $body .= "
         <tr>
-            <td><strong>#{$task['id']}</strong></td>
-            <td style='max-width: 200px;'>" . htmlspecialchars(substr($task['topic'], 0, 50)) . (strlen($task['topic']) > 50 ? '...' : '') . "</td>
-            <td>" . htmlspecialchars($task['account']) . " - " . htmlspecialchars($task['writer']) . "</td>
-            <td class='hours-late'>{$hoursLateDisplay}</td>
-            <td><span class='priority-badge' style='background-color: {$priorityColor};'>{$priorityText}</span></td>
-            <td><a href='{$taskUrl}' class='btn' style='font-size: 11px; padding: 6px 12px;'>View Task</a></td>
+            <td style='$tdStyle'><strong>#{$task['id']}</strong></td>
+            <td style='$tdStyle max-width: 200px;'>" . htmlspecialchars(substr($task['topic'], 0, 50)) . (strlen($task['topic']) > 50 ? '...' : '') . "</td>
+            <td style='$tdStyle'>" . htmlspecialchars($task['account']) . " - " . htmlspecialchars($task['writer']) . "</td>
+            <td style='$tdStyle font-weight:bold;color:#d32f2f;'>{$hoursLateDisplay}</td>
+            <td style='$tdStyle'><span style='padding:4px 8px;border-radius:12px;color:white;font-size:11px;font-weight:bold;text-transform:uppercase;background-color: {$priorityColor};'>{$priorityText}</span></td>
+            <td style='$tdStyle'><a href='{$taskUrl}' class='btn' style='display:inline-block;margin:0;font-size: 11px; padding: 6px 12px;'>View Task</a></td>
         </tr>";
     }
 
     $body .= "
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
 
-                <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{$config['base_url']}index' class='btn' style='font-size: 16px; padding: 12px 24px;'>📊 View Dashboard</a>
-                    <a href='{$config['base_url']}all-tasks' class='btn' style='font-size: 16px; padding: 12px 24px;'>📋 Manage All Tasks</a>
-                </div>
-              
-            </div>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{$config['base_url']}index' class='btn' style='display:inline-block;width:auto;margin:5px;font-size: 16px; padding: 12px 24px;'>📊 View Dashboard</a>
+                        <a href='{$config['base_url']}all-tasks' class='btn' style='display:inline-block;width:auto;margin:5px;font-size: 16px; padding: 12px 24px;'>📋 Manage All Tasks</a>
+                    </div>";
 
-            <div class='footer'>
-                <p><strong>itasker Automated Reminder System</strong></p>
-                <p>This is an automated message. For support, contact <a href='mailto:{$config['admin_email']}'>{$config['admin_email']}</a></p>
-                <p>&copy; " . date('Y') . " itasker. All rights reserved.</p>
-            </div>
-        </div>
-    </body>
-    </html>";
-
-    return $body;
+    return render_email_html('🚨 Late Tasks Alert', $body, null, null, "This is an automated message. For support, contact <a href='mailto:{$config['admin_email']}'>{$config['admin_email']}</a>");
 }
 
 // Function to generate plain text email body

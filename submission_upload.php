@@ -8,6 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/email-template.php';
 
 // Function to download a file using cURL
 function downloadFile($url, $localPath)
@@ -238,91 +239,9 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
                 // Content
                 $mail->isHTML(true);
                 $mail->Subject = 'Task #' . $taskId . ': ' . $topic . ' (' . $account . ')';
-                $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
                 $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
-                $mail->Body = "
-                <!DOCTYPE html>
-                <html>
-                <head>
-                <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #f4f4f4;
-                    padding: 20px;
-                }
-                .email-container {
-                    max-width: 600px;
-                    background: #ffffff;
-                    margin: 0 auto;
-                    padding: 20px;
-                    border-radius: 8px;
-                    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                }
-                .email-header {
-                    text-align: center;
-                    border-bottom: 2px solid #1fa808;
-                    padding-bottom: 15px;
-                }
-                .email-header img {
-                    max-width: 100%;
-                    height: auto;
-                    max-height:100px;
-                }
-                .email-content {
-                    padding: 20px;
-                }
-                .email-content h2 {
-                    color: #1fa808;
-                    text-align: center;
-                }
-                .email-content p {
-                    font-size: 16px;
-                    line-height: 1.5;
-                    color: #333;
-                }
-                .highlight {
-                    font-weight: bold;
-                    color: #1fa808;
-                }
-                .comments-section {
-                    background-color: #f8f9fa;
-                    padding: 15px;
-                    border-left: 4px solid #1fa808;
-                    margin: 15px 0;
-                    border-radius: 4px;
-                }
-                .btn {
-                    display: block;
-                    text-align: center;
-                    background: #1fa808;
-                    color: #ffff;
-                    padding: 12px;
-                    border-radius: 5px;
-                    text-decoration: none;
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-top: 20px;
-                    transition: background 0.3s ease-in-out, color 0.3s ease-in-out;
-                }
-                .btn:hover {
-                    background: #1fa808;
-                    color: #ffff !important;
-                }
-                .footer {
-                    text-align: center;
-                    padding-top: 15px;
-                    font-size: 12px;
-                    color: #777;
-                }
-                </style>
-                </head>
-                <body>
-                <div class='email-container'>
-                <div class='email-header'>
-                <img src='{$companyLogo}' alt='itasker logo'>
-                </div>
-                <div class='email-content'>
-                <h2>Task Submitted Successfully!</h2>
+
+                $emailBody = "
                 <p>Hello <span class='highlight'>$writer</span>,</p>
                 <p>Task <strong>$taskId</strong> has been submitted successfully. Below are the task details:</p>
                 <p><strong>Topic:</strong> <span class='highlight'>$topic</span></p>
@@ -333,23 +252,20 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
                 <p><strong>Submitted:</strong> <span class='highlight'>$submittedOn</span></p>";
 
                 if (!empty($writerComments)) {
-                    $mail->Body .= "
-                    <div class='comments-section'>
+                    $emailBody .= "
+                    <div style='background-color:#f8f9fa;padding:15px;border-left:4px solid #0073e6;margin:15px 0;border-radius:4px;'>
                     <p><strong>$writer Comments:</strong></p>
                     <p>" . nl2br(htmlspecialchars($writerComments)) . '</p>
                     </div>';
                 }
 
-                $mail->Body .= "
-                <a class='btn' href='$taskDetailsUrl'>View More Task Details</a>
-                </div>
-                <div class='footer'>
-                <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-                <p>&copy; " . date('Y') . ' iTasker. All rights reserved.</p>
-                </div>
-                </div>
-                </body>
-                </html>';
+                $mail->Body = render_email_html(
+                    'Task Submitted Successfully!',
+                    $emailBody,
+                    'View More Task Details',
+                    $taskDetailsUrl,
+                    "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+                );
 
                 $mail->AltBody = "Task Submitted Successfully!\n\n
                 Hello $writer,\n

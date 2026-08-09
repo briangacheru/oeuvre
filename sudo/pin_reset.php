@@ -10,6 +10,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 if (ob_get_level()) ob_end_clean();
 header('Content-Type: application/json');
@@ -61,7 +62,6 @@ if ($action === 'request_reset') {
         . '?token=' . urlencode($rawToken)
         . '&ref='   . urlencode(base64_encode($adminEmail));
     $firstName   = htmlspecialchars($admin->FirstName);
-    $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
 
     $mail = new PHPMailer(true);
     try {
@@ -80,34 +80,20 @@ if ($action === 'request_reset') {
         $mail->addCustomHeader('List-Unsubscribe',  '<mailto:support@monkbrian.com>');
         $mail->Subject = 'iTasker - Financial Dashboard PIN Reset';
 
-        $mail->Body = "<!DOCTYPE html><html><head><style>
-        body{font-family:Arial,sans-serif;background:#f4f4f4;padding:20px}
-        .ec{max-width:600px;background:#fff;margin:0 auto;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
-        .eh{text-align:center;border-bottom:2px solid #0073e6;padding-bottom:15px}
-        .eh img{max-width:100%;height:auto;max-height:100px}
-        .eb{padding:20px}.eb h2{color:#0073e6;text-align:center}
-        .eb p{font-size:16px;line-height:1.5;color:#333}
-        .hi{font-weight:bold;color:#0073e6}
-        .btn{display:block;text-align:center;background:#0073e6;color:#fff;padding:12px;border-radius:5px;text-decoration:none;font-size:16px;font-weight:bold;margin-top:20px}
-        .warn{background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:10px 15px;font-size:14px;color:#856404;margin-top:15px}
-        .ft{text-align:center;padding-top:15px;font-size:12px;color:#777}
-        </style></head><body>
-        <div class='ec'>
-          <div class='eh'><img src='{$companyLogo}' alt='iTasker'></div>
-          <div class='eb'>
-            <h2>&#128272; PIN Reset Request</h2>
-            <p>Hello <span class='hi'>{$firstName}</span>,</p>
+        $emailBody = "
+            <p>Hello <span class='highlight'>{$firstName}</span>,</p>
             <p>We received a request to reset your <strong>Financial Dashboard PIN</strong>. Click the button below to set a new PIN.</p>
-            <a class='btn' href='{$resetUrl}'>Reset My Dashboard PIN</a>
-            <div class='warn'>&#9888;&#65039; This link expires in <strong>" . TOKEN_TTL_MINUTES . " minutes</strong>. If you did not request this, ignore this email.</div>
+            <div style='background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:10px 15px;font-size:14px;color:#856404;margin-top:15px;'>⚠️ This link expires in <strong>" . TOKEN_TTL_MINUTES . " minutes</strong>. If you did not request this, ignore this email.</div>
             <p style='font-size:13px;color:#888;margin-top:15px;'>Or copy this URL:<br>
-              <a href='{$resetUrl}' style='color:#0073e6;word-break:break-all;'>{$resetUrl}</a></p>
-          </div>
-          <div class='ft'>
-            <p>For help, contact <a href='mailto:support@monkbrian.com'>support@monkbrian.com</a></p>
-            <p>&copy; " . date('Y') . " iTasker. All rights reserved.</p>
-          </div>
-        </div></body></html>";
+              <a href='{$resetUrl}' style='color:#0073e6;word-break:break-all;'>{$resetUrl}</a></p>";
+
+        $mail->Body = render_email_html(
+            '🔒 PIN Reset Request',
+            $emailBody,
+            'Reset My Dashboard PIN',
+            $resetUrl,
+            "For help, contact <a href='mailto:support@monkbrian.com'>support@monkbrian.com</a>"
+        );
 
         $mail->AltBody = "Hello {$firstName},\nReset your Financial Dashboard PIN (expires in " . TOKEN_TTL_MINUTES . " minutes):\n{$resetUrl}\n\nIf you did not request this, ignore this email.\n\niTasker Support";
 

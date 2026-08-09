@@ -7,6 +7,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 $status = "OK";
 $msg = "";
@@ -72,103 +73,25 @@ if (isset($_GET['del'])) {
                     $mail->isHTML(true);
                     $mail->Subject = 'Task ID: ' . $cmpid . ' - ' . $taskTopic . ' - [ ' . $taskAccount . ' ] ';
 
-                    $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
                     $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
 
-                    $mail->Body = "
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                        <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            background-color: #f4f4f4;
-                            padding: 20px;
-                        }
-                        .email-container {
-                            max-width: 600px;
-                            background: #ffffff;
-                            margin: 0 auto;
-                            padding: 20px;
-                            border-radius: 8px;
-                            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                        }
-                        .email-header {
-                            text-align: center;
-                            border-bottom: 2px solid #dc3545;
-                            padding-bottom: 15px;
-                        }
-                        .email-header img {
-                            max-width: 100%;
-                            height: auto;
-                            max-height:100px;
-                        }
-                        .email-content {
-                            padding: 20px;
-                        }
-                        .email-content h2 {
-                            color: #dc3545;
-                            text-align: center;
-                        }
-                        .email-content p {
-                            font-size: 16px;
-                            line-height: 1.5;
-                            color: #333;
-                        }
-                        .highlight {
-                            font-weight: bold;
-                            color: #dc3545;
-                        }
-                        .btn {
-                            display: block;
-                            text-align: center;
-                            background: #dc3545;
-                            color: #ffffff;
-                            padding: 12px;
-                            border-radius: 5px;
-                            text-decoration: none;
-                            font-size: 16px;
-                            font-weight: bold;
-                            margin-top: 20px;
-                            transition: background 0.3s ease-in-out, color 0.3s ease-in-out;
-                        }
-                        .btn:hover {
-                            background: #c82333;
-                            color: #ffffff !important;
-                        }
-                        .footer {
-                            text-align: center;
-                            padding-top: 15px;
-                            font-size: 12px;
-                            color: #777;
-                        }
-                        </style>
-                        </head>
-                        <body>
-                        <div class='email-container'>
-                            <div class='email-header'>
-                                <img src='{$companyLogo}' alt='itasker logo'>
-                            </div>
-                            <div class='email-content'>
-                                <h2>Task ID " . $cmpid . " has beed CANCELLED</h2>
-                                <p>Hello <span class='highlight'>$writerName</span>,</p>
+                    $emailBody = "
+                                <p>Hello <span style='font-weight:bold;color:#dc3545;'>$writerName</span>,</p>
                                 <p>The following task has been cancelled. Please do not go ahead with it:</p>
-                                <p><strong>Topic:</strong> <span class='highlight'>$taskTopic</span></p>
+                                <p><strong>Topic:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskTopic</span></p>
                                 <p><strong>Subject:</strong> $taskSubject</p>
-                                <p><strong>Due Date:</strong> <span class='highlight'>$taskDueDate</span></p>
+                                <p><strong>Due Date:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskDueDate</span></p>
                                 <p><strong>Pages:</strong> $taskPages</p>
                                 <p><strong>Price per Page:</strong> Ksh $taskCpp</p>
-                                <p><strong>Reason for Cancellation:</strong> <span class='highlight'>$cancellationReason</span></p>
+                                <p><strong>Reason for Cancellation:</strong> <span style='font-weight:bold;color:#dc3545;'>$cancellationReason</span></p>";
 
-                                <a class='btn' href='$taskDetailsUrl'>View Task Details</a>
-                            </div>
-                            <div class='footer'>
-                                <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-                                <p>&copy; " . date('Y') . " iTasker. All rights reserved.</p>
-                            </div>
-                        </div>
-                        </body>
-                        </html>";
+                    $mail->Body = render_email_html(
+                        "Task ID $cmpid has been CANCELLED",
+                        $emailBody,
+                        'View Task Details',
+                        $taskDetailsUrl,
+                        "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+                    );
 
                     $mail->AltBody = "Task Cancelled\n\n
                         Hello $writerName,\n

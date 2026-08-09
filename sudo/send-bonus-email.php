@@ -14,6 +14,7 @@ use PHPMailer\PHPMailer\Exception;
 
 // Include PHPMailer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -84,8 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $monthName = date('F', mktime(0, 0, 0, $month, 1));
 
             $mail->Subject = "Monthly Performance Bonus Report - $monthName $year - iTasker";
-            // Email Body with same styling as task email
-            $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header2.png';
 
             // Format numbers for display
             $totalEarnings = number_format($bonus['total_earnings'], 2);
@@ -97,275 +96,112 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $perfectBonusAmount = number_format($bonus['perfect_month_bonus'], 2);
             $totalBonusAmount = number_format($bonus['total_bonus_amount'], 2);
 
-            // Simplified HTML with better text-to-image ratio and no emojis
-            $mail->Body = "
-<!DOCTYPE html>
-<html lang='en'>
-<head>
-<meta charset='UTF-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1.0'>
-<style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                padding: 20px;
-                margin: 0;
-            }
-            .email-container {
-                max-width: 650px;
-                background: #ffffff;
-                margin: 0 auto;
-                border-radius: 8px;
-                box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                overflow: hidden;
-            }
-            .email-head {
-                text-align: center;
-                background: white;
-            }
-            .email-head img {
-                max-width: 650px;
-                height: auto;
-            }
-           
-            .email-content {
-                padding: 30px;
-            }
-            .email-content h2 {
-                color: #0073e6;
-                text-align: center;
-                margin-bottom: 10px;
-                font-size: 22px;
-            }
-            .email-content p {
-                font-size: 16px;
-                line-height: 1.6;
-                color: #333;
-                margin-bottom: 15px;
-            }
-            .highlight {
-                font-weight: bold;
-                color: #0073e6;
-            }
-            .performance-badge {
-                text-align: center;
-                margin: 20px 0;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                border-left: 4px solid #28a745;
-            }
-            .stats-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                margin: 25px 0;
-            }
-            .stat-card {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 8px;
-                text-align: center;
-                border-left: 4px solid #0073e6;
-            }
-            .stat-card h3 {
-                margin: 0 0 10px 0;
-                color: #0073e6;
-                font-size: 18px;
-            }
-            .stat-card .big-number {
-                font-size: 24px;
-                font-weight: bold;
-                color: #333;
-                margin: 5px 0;
-            }
-            .stat-card .small-text {
-                font-size: 14px;
-                color: #666;
-            }
-            .bonus-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 25px 0;
-                background: white;
-                border-radius: 8px;
-                overflow: hidden;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            .bonus-table th {
-                background: #0073e6;
-                color: white;
-                padding: 15px;
-                text-align: left;
-                font-weight: bold;
-            }
-            .bonus-table td {
-                padding: 12px 15px;
-                border-bottom: 1px solid #eee;
-                color: #333;
-            }
-            .bonus-table tr:nth-child(even) {
-                background: #f8f9fa;
-            }
-            .bonus-table .total-row {
-                background: #d4edda !important;
-                font-weight: bold;
-                color: #155724;
-            }
-            .bonus-table .amount {
-                text-align: right;
-                font-weight: bold;
-            }
-            .btn {
-                display: block;
-                text-align: center;
-                background: #0073e6;
-                color: #ffffff;
-                padding: 15px 25px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-size: 16px;
-                font-weight: bold;
-                margin: 25px auto;
-                max-width: 250px;
-                transition: background 0.3s ease;
-            }
-            .btn:hover {
-                background: #5a6fd8;
-                color: #ffffff !important;
-            }
-            .footer {
-                text-align: center;
-                padding: 25px 20px;
-                background: #f8f9fa;
-                border-top: 1px solid #eee;
-                font-size: 14px;
-                color: #666;
-            }
-            .footer a {
-                color: #0073e6;
-                text-decoration: none;
-            }
-            @media (max-width: 600px) {
-                .stats-grid {
-                    grid-template-columns: 1fr;
-                }
-                .email-content {
-                    padding: 20px;
-                }
-            }
-            </style>
-            </head>
-            <body>
-            <div class='email-container'>
-                <div class='email-head'>
-                    <img src='{$companyLogo}' alt='iTasker logo'>
-                    <h1>Monthly Bonus Report</h1>
-                    <p>$monthName $year Performance Summary</p>
-                </div>
-                
-                <div class='email-content'>
+            $tableStyle = "width:100%;border-collapse:collapse;margin:25px 0;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);";
+            $thStyle = "background:#0073e6;color:white;padding:15px;text-align:left;font-weight:bold;";
+            $tdStyle = "padding:12px 15px;border-bottom:1px solid #eee;color:#333;";
+            $amountStyle = "$tdStyle text-align:right;font-weight:bold;";
+            $totalRowStyle = "background:#d4edda;font-weight:bold;color:#155724;";
+
+            $emailBody = "
+                    <p style='text-align:center;color:#666;'>$monthName $year Performance Summary</p>
                     <p>Hello <span class='highlight'>$writerUsername</span>,</p>
                     <p>We're excited to share your performance bonus report for <strong>$monthName $year</strong>. Your dedication and quality work continue to impress us!</p>
-                    
-                    <div class='performance-badge'>
+
+                    <div style='text-align:center;margin:20px 0;padding:15px;background:#f8f9fa;border-radius:8px;border-left:4px solid #28a745;'>
                         <h3 style='margin: 0; color: #28a745;'>Monthly Achievement</h3>
                         <p style='margin: 5px 0 0 0; font-size: 18px;'><strong>{$bonus['tasks_completed_on_time']}</strong> on-time + <strong>{$bonus['tasks_completed_early']}</strong> early out of <strong>{$bonus['total_tasks_completed']}</strong> total tasks</p>
                     </div>
-                    
-                    <div class='stats-grid'>
-                        <div class='stat-card'>
-                            <h3>Tasks Completed</h3>
-                            <div class='big-number'>{$bonus['total_tasks_completed']}</div>
-                            <div class='small-text'>This Month</div>
+
+                    <div style='display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:25px 0;'>
+                        <div style='background:#f8f9fa;padding:20px;border-radius:8px;text-align:center;border-left:4px solid #0073e6;'>
+                            <h3 style='margin:0 0 10px 0;color:#0073e6;font-size:18px;'>Tasks Completed</h3>
+                            <div style='font-size:24px;font-weight:bold;color:#333;margin:5px 0;'>{$bonus['total_tasks_completed']}</div>
+                            <div style='font-size:14px;color:#666;'>This Month</div>
                         </div>
-                        <div class='stat-card'>
-                            <h3>Total Earnings</h3>
-                            <div class='big-number'>Ksh. $totalEarnings</div>
-                            <div class='small-text'>Before Bonus</div>
+                        <div style='background:#f8f9fa;padding:20px;border-radius:8px;text-align:center;border-left:4px solid #0073e6;'>
+                            <h3 style='margin:0 0 10px 0;color:#0073e6;font-size:18px;'>Total Earnings</h3>
+                            <div style='font-size:24px;font-weight:bold;color:#333;margin:5px 0;'>Ksh. $totalEarnings</div>
+                            <div style='font-size:14px;color:#666;'>Before Bonus</div>
                         </div>
                     </div>
-                    
-                    <h3 style='color: #667eea; margin-top: 30px;'>Earnings Breakdown</h3>
-                    <table class='bonus-table'>
+
+                    <h3 style='color: #0073e6; margin-top: 30px;'>Earnings Breakdown</h3>
+                    <table style='$tableStyle'>
                         <tr>
-                            <th>Category</th>
-                            <th>Tasks</th>
-                            <th>Earnings</th>
+                            <th style='$thStyle'>Category</th>
+                            <th style='$thStyle'>Tasks</th>
+                            <th style='$thStyle'>Earnings</th>
                         </tr>
                         <tr>
-                            <td>Early Submissions</td>
-                            <td>{$bonus['tasks_completed_early']}</td>
-                            <td class='amount'>Ksh. $earlyEarnings</td>
+                            <td style='$tdStyle'>Early Submissions</td>
+                            <td style='$tdStyle'>{$bonus['tasks_completed_early']}</td>
+                            <td style='$amountStyle'>Ksh. $earlyEarnings</td>
                         </tr>
                         <tr>
-                            <td>On-Time Submissions</td>
-                            <td>{$bonus['tasks_completed_on_time']}</td>
-                            <td class='amount'>Ksh. $onTimeEarnings</td>
+                            <td style='$tdStyle'>On-Time Submissions</td>
+                            <td style='$tdStyle'>{$bonus['tasks_completed_on_time']}</td>
+                            <td style='$amountStyle'>Ksh. $onTimeEarnings</td>
                         </tr>";
 
             if ($bonus['tasks_completed_late'] > 0) {
-                $mail->Body .= "
+                $emailBody .= "
                         <tr>
-                            <td>Late Submissions</td>
-                            <td>{$bonus['tasks_completed_late']}</td>
-                            <td class='amount'>Ksh. $lateEarnings</td>
+                            <td style='$tdStyle'>Late Submissions</td>
+                            <td style='$tdStyle'>{$bonus['tasks_completed_late']}</td>
+                            <td style='$amountStyle'>Ksh. $lateEarnings</td>
                         </tr>";
             }
 
-            $mail->Body .= "
-                        <tr class='total-row'>
-                            <td><strong>Total Earnings</strong></td>
-                            <td><strong>{$bonus['total_tasks_completed']}</strong></td>
-                            <td class='amount'><strong>Ksh. $totalEarnings</strong></td>
+            $emailBody .= "
+                        <tr style='$totalRowStyle'>
+                            <td style='$tdStyle'><strong>Total Earnings</strong></td>
+                            <td style='$tdStyle'><strong>{$bonus['total_tasks_completed']}</strong></td>
+                            <td style='$amountStyle'><strong>Ksh. $totalEarnings</strong></td>
                         </tr>
                     </table>
-                    
-                    <h3 style='color: #667eea; margin-top: 30px;'>Bonus Calculation</h3>
-                    <table class='bonus-table'>
+
+                    <h3 style='color: #0073e6; margin-top: 30px;'>Bonus Calculation</h3>
+                    <table style='$tableStyle'>
                         <tr>
-                            <th>Bonus Type</th>
-                            <th>Rate</th>
-                            <th>Amount</th>
+                            <th style='$thStyle'>Bonus Type</th>
+                            <th style='$thStyle'>Rate</th>
+                            <th style='$thStyle'>Amount</th>
                         </tr>
                         <tr>
-                            <td>Base Performance Bonus</td>
-                            <td>{$bonus['base_percentage']}% of total earnings</td>
-                            <td class='amount'>Ksh. $baseBonusAmount</td>
+                            <td style='$tdStyle'>Base Performance Bonus</td>
+                            <td style='$tdStyle'>{$bonus['base_percentage']}% of total earnings</td>
+                            <td style='$amountStyle'>Ksh. $baseBonusAmount</td>
                         </tr>
                         <tr>
-                            <td>Early Completion Bonus</td>
-                            <td>{$bonus['early_percentage']}% of early submissions</td>
-                            <td class='amount'>Ksh. $earlyBonusAmount</td>
+                            <td style='$tdStyle'>Early Completion Bonus</td>
+                            <td style='$tdStyle'>{$bonus['early_percentage']}% of early submissions</td>
+                            <td style='$amountStyle'>Ksh. $earlyBonusAmount</td>
                         </tr>
                         <tr>
-                            <td>Perfect Month Bonus</td>
-                            <td>" . ($bonus['perfect_month_bonus'] > 0 ? "{$bonus['perfect_percentage']}% (no late tasks)" : "0% (had late tasks)") . "</td>
-                            <td class='amount'>Ksh. $perfectBonusAmount</td>
+                            <td style='$tdStyle'>Perfect Month Bonus</td>
+                            <td style='$tdStyle'>" . ($bonus['perfect_month_bonus'] > 0 ? "{$bonus['perfect_percentage']}% (no late tasks)" : "0% (had late tasks)") . "</td>
+                            <td style='$amountStyle'>Ksh. $perfectBonusAmount</td>
                         </tr>
-                        <tr class='total-row'>
-                            <td><strong>Total Bonus ({$bonus['bonus_percentage']}%)</strong></td>
-                            <td><strong></strong></td>
-                            <td class='amount'><strong>Ksh. $totalBonusAmount</strong></td>
+                        <tr style='$totalRowStyle'>
+                            <td style='$tdStyle'><strong>Total Bonus ({$bonus['bonus_percentage']}%)</strong></td>
+                            <td style='$tdStyle'></td>
+                            <td style='$amountStyle'><strong>Ksh. $totalBonusAmount</strong></td>
                         </tr>
                     </table>
-                    
+
                     <p style='text-align: center; font-size: 18px; color: #28a745; font-weight: bold; margin-top: 25px;'>
                         Your bonus payment will be processed shortly!
                     </p>
-                    
-                    <p>Thank you for your excellent work and commitment to quality. Your performance this month demonstrates why you're such a valued member of our team!</p>
-                    
-                    <a class='btn' href='https://web.monkbrian.com/index'>View Your Dashboard</a>
-                </div>
-                
-                <div class='footer'>
-                    <p>Questions about your bonus? Contact us at <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-                    <p>&copy; " . date('Y') . " iTasker. All rights reserved.</p>
-                </div>
-            </div>
-            </body>
-            </html>";
+
+                    <p>Thank you for your excellent work and commitment to quality. Your performance this month demonstrates why you're such a valued member of our team!</p>";
+
+            $mail->Body = render_email_html(
+                'Monthly Bonus Report',
+                $emailBody,
+                'View Your Dashboard',
+                'https://web.monkbrian.com/index',
+                "Questions about your bonus? Contact us at <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+            );
 
             // Alt body for non-HTML email clients
             $mail->AltBody = "Monthly Performance Bonus Report - $monthName $year\n\n

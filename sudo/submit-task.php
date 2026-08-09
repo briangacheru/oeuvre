@@ -5,6 +5,7 @@ ob_start();
 include "check-login.php";
 csrf_verify_or_json_die();
 require_once 'spaces-helper.php';
+require_once __DIR__ . '/../email-template.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -221,105 +222,28 @@ try {
             $mail->Subject = 'Task #' . $task_id . ': ' . $topic . ' (' . $account . ')';
 
 
-            // Email Body with Logo and Modern Formatting
-            $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
+            // Email Body via shared template
             $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
+            $displayStatus = ($status == 'Draft' ? 'Unconfirmed' : $status);
 
-            $mail->Body = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                padding: 20px;
-            }
-            .email-container {
-                max-width: 600px;
-                background: #ffffff;
-                margin: 0 auto;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-            }
-            .email-header {
-                text-align: center;
-                border-bottom: 2px solid #0073e6;
-                padding-bottom: 15px;
-            }
-            .email-header img {
-                max-width: 100%;
-                height: auto;
-                max-height:100px;
-            }
-            .email-content {
-                padding: 20px;
-            }
-            .email-content h2 {
-                color: #0073e6;
-                text-align: center;
-            }
-            .email-content p {
-                font-size: 16px;
-                line-height: 1.5;
-                color: #333;
-            }
-            .highlight {
-                font-weight: bold;
-                color: #0073e6;
-            }
-            .btn {
-                display: block;
-                text-align: center;
-                background: #0073e6;
-                color: #ffff;
-                padding: 12px;
-                border-radius: 5px;
-                text-decoration: none;
-                font-size: 16px;
-                font-weight: bold;
-                margin-top: 20px;
-                transition: background 0.3s ease-in-out, color 0.3s ease-in-out;
-            }
-            .btn:hover {
-                background: #005bb5;
-                color: #ffff !important;
-            }
-            .footer {
-                text-align: center;
-                padding-top: 15px;
-                font-size: 12px;
-                color: #777;
-            }
-            </style>
-            </head>
-            <body>
-            <div class='email-container'>
-                <div class='email-header'>
-                    <img src='{$companyLogo}' alt='itasker logo'>
-                </div>
-                <div class='email-content'>
-                    <h2>New " . ($status == 'Draft' ? 'Unconfirmed' : $status) . " Task Assigned</h2>
+            $emailBody = "
                     <p>Hello <span class='highlight'>$writerName</span>,</p>
                     <p>A new task has been assigned to you. Below are the details:</p>
-                    <p><strong>Status:</strong> <span class='highlight'>" . ($status == 'Draft' ? 'Unconfirmed' : $status) . "</span></p>
+                    <p><strong>Status:</strong> <span class='highlight'>$displayStatus</span></p>
                     <p><strong>Topic:</strong> <span class='highlight'>$topic</span></p>
                     <p><strong>Subject:</strong> $subject</p>
                     <p><strong>Due Date:</strong> <span class='highlight'>$due_date</span></p>
                     <p><strong>Pages:</strong> $pages</p>
                     <p><strong>Price per Page:</strong> Ksh $cpp</p>
-                    <p><strong>Description:</strong> <span class='highlight'>$description</span></p>
-                    
-                    <a class='btn' href='$taskDetailsUrl'>View More Task Details</a>
-                </div>
-                <div class='footer'>
-                    <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-                    <p>&copy; " . date('Y') . ' iTasker. All rights reserved.</p>
-                </div>
-            </div>
-            </body>
-            </html>';
+                    <p><strong>Description:</strong> <span class='highlight'>$description</span></p>";
+
+            $mail->Body = render_email_html(
+                "New $displayStatus Task Assigned",
+                $emailBody,
+                'View More Task Details',
+                $taskDetailsUrl,
+                "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+            );
 
             $mail->AltBody = 'New ' . ($status == 'Draft' ? 'Unconfirmed' : $status) . "Task Assigned\n\n
             Hello $writerName,\n

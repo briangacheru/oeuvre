@@ -8,6 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 function sendVerificationEmail($writerName, $writerEmail, $action, $writerId)
 {
@@ -33,128 +34,38 @@ function sendVerificationEmail($writerName, $writerEmail, $action, $writerId)
         $mail->isHTML(true);
         $mail->Subject = 'Account ' . $status . ' - itasker Writer ID: ' . $writerId . ' ';
 
-        // Email Body with Logo and Modern Formatting
-        $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
+        // Email Body via shared template
         $dashboardUrl = "https://web.monkbrian.com/login";
 
         $verificationMessage = $action == 'verified'
             ? "Congratulations! Your writer account has been successfully verified. You can now access all platform features and start receiving tasks."
             : "Your writer account verification has been revoked. Please contact support if you believe this is an error.";
 
+        $btnStyle = "display:block;text-align:center;color:#ffffff;padding:12px;border-radius:5px;text-decoration:none;font-size:16px;font-weight:bold;margin-top:20px;";
         $actionButton = $action == 'verified'
-            ? "<a class='btn' href='$dashboardUrl' style='background: #28a745;'>Access itasker</a>"
-            : "<a class='btn' href='mailto:bryo4419@gmail.com' style='background: #dc3545;'>Contact Support</a>";
+            ? "<a href='$dashboardUrl' style='$btnStyle background:#28a745;'>Access itasker</a>"
+            : "<a href='mailto:bryo4419@gmail.com' style='$btnStyle background:#dc3545;'>Contact Support</a>";
 
-        $mail->Body = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        background-color: #f4f4f4;
-                        padding: 20px;
-                    }
-                    .email-container {
-                        max-width: 600px;
-                        background: #ffffff;
-                        margin: 0 auto;
-                        padding: 20px;
-                        border-radius: 8px;
-                        box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                    }
-                    .email-header {
-                        text-align: center;
-                        border-bottom: 2px solid #0073e6;
-                        padding-bottom: 15px;
-                    }
-                    .email-header img {
-                        max-width: 100%;
-                        height: auto;
-                        max-height:100px;
-                    }
-                    .email-content {
-                        padding: 20px;
-                    }
-                    .email-content h2 {
-                        color: $statusColor;
-                        text-align: center;
-                    }
-                    .email-content p {
-                        font-size: 16px;
-                        line-height: 1.5;
-                        color: #333;
-                    }
-                    .highlight {
-                        font-weight: bold;
-                        color: #0073e6;
-                    }
-                    .status-badge {
-                        display: inline-block;
-                        background: $statusColor;
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        font-weight: bold;
-                        font-size: 14px;
-                    }
-                    .btn {
-                        display: block;
-                        text-align: center;
-                        color: #ffffff;
-                        padding: 12px;
-                        border-radius: 5px;
-                        text-decoration: none;
-                        font-size: 16px;
-                        font-weight: bold;
-                        margin-top: 20px;
-                        transition: opacity 0.3s ease-in-out;
-                    }
-                    .btn:hover {
-                        opacity: 0.8;
-                        color: #ffffff !important;
-                    }
-                    .footer {
-                        text-align: center;
-                        padding-top: 15px;
-                        font-size: 12px;
-                        color: #777;
-                    }
-                    .verification-info {
-                        background: #f8f9fa;
-                        padding: 15px;
-                        border-radius: 5px;
-                        margin: 15px 0;
-                        border-left: 4px solid $statusColor;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class='email-container'>
-                    <div class='email-header'>
-                        <img src='{$companyLogo}' alt='Company Logo'>
-                    </div>
-                    <div class='email-content'>
-                        <h2>Account Verification Update</h2>
+        $emailBody = "
                         <p>Hello <span class='highlight'>$writerName</span>,</p>
-                        <div class='verification-info'>
+                        <div style='background:#f8f9fa;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid $statusColor;'>
                             <p style='margin: 0; text-align: center;'>
-                                Your account status: <span class='status-badge'>$status</span>
+                                Your account status: <span style='display:inline-block;background:$statusColor;color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:14px;'>$status</span>
                             </p>
                         </div>
                         <p>$verificationMessage</p>
                         <p><strong>Writer ID:</strong> <span class='highlight'>$writerId</span></p>
                         <p><strong>Email:</strong> <span class='highlight'>$writerEmail</span></p>
                         <p><strong>Status Changed:</strong> <span class='highlight'>" . date('F j, Y \a\t g:i A') . "</span></p>
-                        $actionButton
-                    </div>
-                    <div class='footer'>
-                        <p>For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a></p>
-                        <p>&copy; " . date('Y') . " itasker. All rights reserved.</p>
-                    </div>
-                </div>
-            </body>
-            </html>";
+                        $actionButton";
+
+        $mail->Body = render_email_html(
+            'Account Verification Update',
+            $emailBody,
+            null,
+            null,
+            "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+        );
         $mail->AltBody = "Account Verification Update\n\n
                     Hello $writerName,\n\n
                     Your account status: $status\n
@@ -195,112 +106,24 @@ function sendDeactivationEmailToAdmin($writerName, $writerEmail, $writerId, $rea
         $mail->isHTML(true);
         $mail->Subject = 'Account DEACTIVATED (' . $deactivationType . ') - itasker Writer ID: ' . $writerId;
 
-        // Email Body
-        $companyLogo = 'https://web.monkbrian.com/assets/img/team/itasker-email-header.png';
+        // Email Body via shared template
+        $typeBadgeStyle = "display:inline-block;background:" . ($isAutomatic ? '#ffc107' : '#6c757d') . ";color:" . ($isAutomatic ? '#000' : '#fff') . ";padding:4px 10px;border-radius:10px;font-weight:bold;font-size:12px;";
 
-        $mail->Body = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        background-color: #f4f4f4;
-                        padding: 20px;
-                    }
-                    .email-container {
-                        max-width: 600px;
-                        background: #ffffff;
-                        margin: 0 auto;
-                        padding: 20px;
-                        border-radius: 8px;
-                        box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
-                    }
-                    .email-header {
-                        text-align: center;
-                        border-bottom: 2px solid #0073e6;
-                        padding-bottom: 15px;
-                    }
-                    .email-header img {
-                        max-width: 100%;
-                        height: auto;
-                        max-height:100px;
-                    }
-                    .email-content {
-                        padding: 20px;
-                    }
-                    .email-content h2 {
-                        color: #dc3545;
-                        text-align: center;
-                    }
-                    .email-content p {
-                        font-size: 16px;
-                        line-height: 1.5;
-                        color: #333;
-                    }
-                    .highlight {
-                        font-weight: bold;
-                        color: #0073e6;
-                    }
-                    .status-badge {
-                        display: inline-block;
-                        background: #dc3545;
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        font-weight: bold;
-                        font-size: 14px;
-                    }
-                    .type-badge {
-                        display: inline-block;
-                        background: " . ($isAutomatic ? '#ffc107' : '#6c757d') . ";
-                        color: " . ($isAutomatic ? '#000' : '#fff') . ";
-                        padding: 4px 10px;
-                        border-radius: 10px;
-                        font-weight: bold;
-                        font-size: 12px;
-                    }
-                    .footer {
-                        text-align: center;
-                        padding-top: 15px;
-                        font-size: 12px;
-                        color: #777;
-                    }
-                    .reason-box {
-                        background: #fff3cd;
-                        padding: 15px;
-                        border-radius: 5px;
-                        margin: 15px 0;
-                        border-left: 4px solid #ffc107;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class='email-container'>
-                    <div class='email-header'>
-                        <img src='{$companyLogo}' alt='Company Logo'>
-                    </div>
-                    <div class='email-content'>
-                        <h2>Account Deactivation Notice</h2>
+        $emailBody = "
                         <p style='text-align: center;'>
-                            <span class='status-badge'>DEACTIVATED</span>
-                            <span class='type-badge'>$deactivationType</span>
+                            <span style='display:inline-block;background:#dc3545;color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:14px;'>DEACTIVATED</span>
+                            <span style='$typeBadgeStyle'>$deactivationType</span>
                         </p>
                         <p><strong>Writer ID:</strong> <span class='highlight'>$writerId</span></p>
                         <p><strong>Writer Name:</strong> <span class='highlight'>$writerName</span></p>
                         <p><strong>Email:</strong> <span class='highlight'>$writerEmail</span></p>
                         <p><strong>Deactivated On:</strong> <span class='highlight'>" . date('F j, Y \a\t g:i A') . "</span></p>
-                        <div class='reason-box'>
+                        <div style='background:#fff3cd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ffc107;'>
                             <p style='margin: 0;'><strong>Reason for Deactivation:</strong></p>
                             <p style='margin: 5px 0 0 0;'>$reason</p>
-                        </div>
-                    </div>
-                    <div class='footer'>
-                        <p>&copy; " . date('Y') . " itasker. All rights reserved.</p>
-                    </div>
-                </div>
-            </body>
-            </html>";
+                        </div>";
+
+        $mail->Body = render_email_html('Account Deactivation Notice', $emailBody);
 
         $mail->AltBody = "Account Deactivation Notice\n\n
                     Writer ID: $writerId\n

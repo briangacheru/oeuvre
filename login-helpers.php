@@ -36,7 +36,7 @@ if (!function_exists('send_login_otp_code_email')) {
             $mail->Body = render_email_html(
                 'Verify it\'s you',
                 '<p>For your security, please confirm it\'s really you signing in to your iTasker account. Enter this code to continue:</p>'
-                . '<p style="font-size:32px;font-weight:700;letter-spacing:6px;text-align:center;background:#f5f7fa;padding:16px;border-radius:6px;color:#18163a;">' . htmlspecialchars($code) . '</p>'
+                . '<p style="font-size:32px;font-weight:700;letter-spacing:6px;text-align:center;background:#f5f7fa;padding:16px;border-radius:6px;color:#0073e6;">' . htmlspecialchars($code) . '</p>'
                 . '<p style="font-size:13px;color:#888;">This code expires in 10 minutes. If this wasn\'t you, change your password immediately.</p>'
             );
             $mail->AltBody = "Your iTasker verification code is: $code (expires in 10 minutes)";

@@ -7,6 +7,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 $status = "OK";
 $msg = "";
@@ -66,7 +67,21 @@ if (isset($_GET['del'])) {
                     // Content
                     $mail->isHTML(true);                        // Set email format to HTML
                     $mail->Subject = 'Task ID: ' . $cmpid . ' - ' . $taskTopic . ' - [ ' . $taskAccount. ' ] ';
-                    $mail->Body    = "<h1>Task $cmpid has been Cancelled. Do not go ahead with it.</h1>";
+
+                    $emailBody = "
+                                <p>The following task has been cancelled. Please do not go ahead with it:</p>
+                                <p><strong>Topic:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskTopic</span></p>
+                                <p><strong>Subject:</strong> $taskSubject</p>
+                                <p><strong>Due Date:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskDueDate</span></p>
+                                <p><strong>Pages:</strong> $taskPages</p>";
+
+                    $mail->Body = render_email_html(
+                        "Task ID $cmpid has been CANCELLED",
+                        $emailBody,
+                        null,
+                        null,
+                        "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+                    );
 
                     $mail->send();
 
