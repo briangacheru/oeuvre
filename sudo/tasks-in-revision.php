@@ -62,7 +62,7 @@ if (isset($_GET['del'])) {
                     $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'itasker');
                     $mail->addReplyTo(env('ADMIN_EMAIL'), 'Bryo Gacheru');
                     $mail->addAddress($writerEmail);
-                    $mail->addAddress(env('ADMIN_EMAIL'), 'iTasker Admin');
+                    $mail->addBCC(env('ADMIN_EMAIL'), 'iTasker Admin');
 
                     // Content
                     $mail->isHTML(true);                        // Set email format to HTML

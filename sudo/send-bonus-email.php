@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'itasker');
             $mail->addReplyTo(env('ADMIN_EMAIL'), 'Bryo Gacheru');
             $mail->addAddress($writerEmail); // Writer's email
-            $mail->addAddress(env('ADMIN_EMAIL'), 'itasker Admin');
+            $mail->addBCC(env('ADMIN_EMAIL'), 'itasker Admin');
 
             // Add important headers to improve deliverability
             $mail->MessageID = '<' . md5(uniqid(time())) . '@monkbrian.com>';

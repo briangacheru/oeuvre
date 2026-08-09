@@ -26,7 +26,7 @@ function sendVerificationEmail($writerName, $writerEmail, $action, $writerId)
         $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'itasker');
         $mail->addReplyTo(env('ADMIN_EMAIL'), 'itasker admin');
         $mail->addAddress($writerEmail);
-        $mail->addAddress(env('ADMIN_EMAIL'), 'itasker admin');
+        $mail->addBCC(env('ADMIN_EMAIL'), 'itasker admin');
 
         // Content
         $status = $action == 'verified' ? 'VERIFIED' : 'UNVERIFIED';
