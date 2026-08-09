@@ -39,13 +39,21 @@
                             <div class="card shadow-none">
                                 <form id="tasksForm" method="post">
 <?= csrf_field() ?>
+                                <?php
+                                    $unpaidCountRow = mysqli_fetch_assoc(mysqli_query($con,
+                                        "SELECT COUNT(*) AS cnt FROM tbltasks WHERE is_deleted = 0 AND status = 'Completed' AND is_paid = 0 AND email = '$aid'"
+                                    ));
+                                    $unpaidTaskCount = (int) ($unpaidCountRow['cnt'] ?? 0);
+                                ?>
                                 <div class="card-header">
                                     <div class="row flex-between-center">
                                         <div class="col-6 col-sm-auto d-flex align-items-center pe-0">
                                         </div>
                                         <div class="col-6 col-sm-auto ms-auto text-end ps-0">
                                             <div class="d-flex align-items-center" id="table-simple-pagination-replace-element">
+                                                <?php if ($unpaidTaskCount > 10): ?>
                                                 <button class="btn btn-falcon-primary btn-sm" onclick="exportUnpaid()" data-bs-toggle="tooltip" data-bs-placement="top" title="Export as CSV" type="button"><span class="fas fa-external-link-alt" data-fa-transform="shrink-3 down-2"></span><span class="d-none d-sm-inline-block ms-1">Export as CSV</span></button>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>

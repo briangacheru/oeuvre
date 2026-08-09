@@ -312,7 +312,7 @@ if (isset($_POST['update_password'])) {
                             <label for="last-name">Last Name</label>
                         </div>
                         <div class="col-lg-6 form-floating">
-                            <input class="form-control" id="email1" type="email" name="email" value="<?php echo $row->email; ?>" readonly />
+                            <input class="form-control bg-light text-muted" id="email1" type="email" name="email" value="<?php echo $row->email; ?>" readonly title="Email cannot be changed" />
                             <label for="email1">Email</label>
                         </div>
                         <div class="col-lg-6 form-floating">
@@ -320,7 +320,7 @@ if (isset($_POST['update_password'])) {
                             <label for="email2">Phone</label>
                         </div>
                         <div class="col-lg-6 form-floating">
-                            <input class="form-control" id="user-name" type="text" name="username" value="<?php echo htmlspecialchars($row->username, ENT_QUOTES, 'UTF-8'); ?>" readonly />
+                            <input class="form-control bg-light text-muted" id="user-name" type="text" name="username" value="<?php echo htmlspecialchars($row->username, ENT_QUOTES, 'UTF-8'); ?>" readonly title="Username cannot be changed" />
                             <label for="user-name">Username</label>
                         </div>
                         <div class="col-12 d-flex justify-content-end">

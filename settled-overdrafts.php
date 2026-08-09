@@ -52,7 +52,6 @@ if (isset($_SESSION['alert'])) {
                                         </div>
                                         <div class="col-6 col-sm-auto ms-auto text-end ps-0">
                                             <div class="d-flex align-items-center" id="table-simple-pagination-replace-element">
-                                                <button class="btn btn-falcon-primary btn-sm" onclick="exportTableToCSVWithConfirmation('settled_records.csv')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export as CSV" type="button"><span class="fas fa-external-link-alt" data-fa-transform="shrink-3 down-2"></span><span class="d-none d-sm-inline-block ms-1">Export as CSV</span></button>
                                             </div>
                                         </div>
                                     </div>
@@ -137,55 +136,6 @@ if (isset($_SESSION['alert'])) {
             // Set default filter to show all records
             filterRecords('all');
         });
-
-        function exportTableToCSVWithConfirmation(filename) {
-            if (confirm("Are you sure you want to export the table as a CSV file?")) {
-                exportTableToCSV(filename);
-            }
-        }
-
-        function exportTableToCSV(filename) {
-            var csv = [];
-            var rows = document.querySelectorAll("table tr");
-
-            for (var i = 0; i < rows.length; i++) {
-                var row = [], cols = rows[i].querySelectorAll("td, th");
-
-                for (var j = 0; j < cols.length; j++) {
-                    // Skip hidden columns and clean up the text
-                    var cellText = cols[j].innerText.trim();
-                    if (cellText !== '') {
-                        row.push('"' + cellText.replace(/"/g, '""') + '"');
-                    }
-                }
-
-                if (row.length > 0) {
-                    csv.push(row.join(","));
-                }
-            }
-
-            // Download CSV
-            downloadCSV(csv.join("\n"), filename);
-        }
-
-        function downloadCSV(csv, filename) {
-            var csvFile;
-            var downloadLink;
-
-            csvFile = new Blob([csv], {type: "text/csv"});
-
-            downloadLink = document.createElement("a");
-
-            downloadLink.download = filename;
-
-            downloadLink.href = window.URL.createObjectURL(csvFile);
-
-            downloadLink.style.display = "none";
-
-            document.body.appendChild(downloadLink);
-
-            downloadLink.click();
-        }
 
         function filterRecords(type) {
             const rows = document.querySelectorAll('.record-row');

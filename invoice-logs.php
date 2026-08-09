@@ -119,15 +119,6 @@ if (isset($_SESSION['alert'])) {
                                         <div class="col-auto align-self-center">
                                             <h5 class="mb-0">Invoice History</h5>
                                         </div>
-                                        <div class="col-auto ms-auto text-end">
-                                            <button class="btn btn-falcon-primary btn-sm"
-                                                    onclick="exportTableToCSVWithConfirmation('my_invoices.csv')"
-                                                    data-bs-toggle="tooltip" data-bs-placement="top"
-                                                    title="Export as CSV" type="button">
-                                                <span class="fas fa-external-link-alt" data-fa-transform="shrink-3 down-2"></span>
-                                                <span class="d-none d-sm-inline-block ms-1">Export as CSV</span>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body px-0 pt-0">
@@ -423,30 +414,5 @@ if (isset($_SESSION['alert'])) {
                 .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
-        function exportTableToCSVWithConfirmation(filename) {
-            if (confirm("Export your invoice history as a CSV file?")) {
-                exportTableToCSV(filename);
-            }
-        }
-
-        function exportTableToCSV(filename) {
-            var csv = [];
-            var rows = document.querySelectorAll("table tr");
-            for (var i = 0; i < rows.length; i++) {
-                var row = [], cols = rows[i].querySelectorAll("td, th");
-                for (var j = 0; j < cols.length; j++) {
-                    var cellText = cols[j].innerText.trim();
-                    if (cellText !== '') row.push('"' + cellText.replace(/"/g, '""') + '"');
-                }
-                if (row.length > 0) csv.push(row.join(","));
-            }
-            var csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
-            var link = document.createElement("a");
-            link.download = filename;
-            link.href = window.URL.createObjectURL(csvFile);
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-        }
     </script>
 <?php include "footer.php"; ?>

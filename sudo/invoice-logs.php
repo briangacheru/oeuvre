@@ -138,6 +138,7 @@ $totalLogs = mysqli_num_rows($logs);
                                     "SELECT * FROM tbl_invoice_logs ORDER BY sent_at DESC"
                                 );
                                 $cnt = 1;
+                                if ($logsTable && mysqli_num_rows($logsTable) > 0):
                                 while ($row = mysqli_fetch_assoc($logsTable)):
                                     $encodedId = encode_invoice_log_id($row['id']);
                                     $taskCount     = (int) $row['task_count'];
@@ -231,7 +232,15 @@ $totalLogs = mysqli_num_rows($logs);
                                             </div>
                                         </td>
                                     </tr>
-                                    <?php $cnt++; endwhile; ?>
+                                    <?php $cnt++; endwhile;
+                                else: ?>
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            <span class="fas fa-file-invoice fa-2x mb-2 d-block opacity-25"></span>
+                                            No invoice emails have been sent yet.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
