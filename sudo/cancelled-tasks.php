@@ -13,7 +13,7 @@ if (isset($_GET['task_id'])) {
     if (is_numeric($cmpid) && !empty($cmpid)) {
 
         // Perform the delete operation
-        $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 0 , status = 'Draft' WHERE id='$cmpid'");
+        $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 0, status = 'Draft', cancelled_at = NULL WHERE id='$cmpid'");
 
         if ($query) {
             $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert"><i class="bi bi-check-circle"></i> Task restored successfully as a draft.

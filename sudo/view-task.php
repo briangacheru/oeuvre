@@ -795,6 +795,8 @@ if (isset($_SESSION['alert'])) {
                                     <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                 <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
                                     <span class="fs-10 text-success ms-2"><?php echo date("d M Y, g:i A", strtotime($completedOn)); ?></span>
+                                <?php elseif ($taskStatus == 'Cancelled' && !empty($rowTask['cancelled_at'])): ?>
+                                    <span class="fs-10 text-danger ms-2"><?php echo date("d M Y, g:i A", strtotime($rowTask['cancelled_at'] . ' UTC')); ?></span>
                                 <?php endif; ?>
                                 <?php if ($is_confirmed != 0): ?>
                                     <?php echo $confirmation;?>
@@ -2667,6 +2669,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                             <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                         <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
                                             <span class="fs-10 text-success ms-2"><?php echo date("d M Y, g:i A", strtotime($completedOn)); ?></span>
+                                        <?php elseif ($taskStatus == 'Cancelled' && !empty($rowTask['cancelled_at'])): ?>
+                                            <span class="fs-10 text-danger ms-2"><?php echo date("d M Y, g:i A", strtotime($rowTask['cancelled_at'] . ' UTC')); ?></span>
                                         <?php endif; ?>
                                         <?php if ($is_confirmed == 1): ?><?php echo $confirmation; ?><?php endif; ?>
                                     </div>

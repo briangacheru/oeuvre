@@ -1,6 +1,14 @@
-<?php include "head.php";?>
+<?php
+require_once __DIR__ . '/../env.php';
+include "head.php";?>
     <title>iTasker | Unconfirmed Tasks</title>
 <?php include "navi.php";
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../email-template.php';
 
 $status = "OK";
 $msg = "";
@@ -8,21 +16,113 @@ $msg = "";
 if (isset($_GET['del'])) {
     $encodedId = $_GET['del'];
     $cmpid = decode_task_id($encodedId);
+    $cancellationReason = trim($_GET['reason'] ?? '') ?: 'No reason provided';
 
     // Validate $cmpid to ensure it's numeric and not empty
     if (is_numeric($cmpid) && !empty($cmpid)) {
 
-        // Perform the delete operation
-        $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1 , status = 'Cancelled' WHERE id='$cmpid'");
+        // First, retrieve the current status and is_paid value of the task
+        $checkQuery = mysqli_query($con, "SELECT status, is_paid FROM tbltasks WHERE id='$cmpid'");
+        $rowData = mysqli_fetch_assoc($checkQuery);
 
-        if ($query) {
-            $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert"><i class="bi bi-check-circle"></i> Task cancelled successfully.
-                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>';
+        if ($rowData && ($rowData['status'] == 'Completed' || $rowData['status'] == 'Submitted' || $rowData['is_paid'] == 1)) {
+            $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                  <i class="bi bi-exclamation-triangle"></i> Task cannot be cancelled as it is already completed, submitted, or paid.
+                                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                  </div>';
         } else {
-            $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-octagon"></i> Error cancelling task record.
-                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>';
+            // Perform the delete operation if the task is not completed, submitted, or paid
+            $escapedReason = mysqli_real_escape_string($con, $cancellationReason);
+            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1, status = 'Cancelled', cancellation_reason = '$escapedReason', cancelled_at = NOW() WHERE id='$cmpid'");
+
+            if ($query) {
+
+                // Fetch task details and writer's email
+                $taskQuery = mysqli_query($con, "SELECT * FROM tbltasks WHERE id='$cmpid'");
+                $taskData = mysqli_fetch_assoc($taskQuery);
+                $writerEmail = $taskData['email'];
+                $writerName = $taskData['writer'];
+                $taskTopic = $taskData['topic'];
+                $taskSubject = $taskData['subject'];
+                $taskDueDate = $taskData['due_date'];
+                $taskPages = $taskData['pages'];
+                $taskCpp = $taskData['cpp'];
+                $taskDescription = $taskData['description'];
+                $taskAccount = $taskData['account'];
+
+                // Initialize PHPMailer
+                $mail = new PHPMailer(true);
+
+                try {
+                    // Server settings
+                    $mail->SMTPDebug = 0;
+                    $mail->isSMTP();
+                    $mail->Host       = env('SMTP_HOST');
+                    $mail->SMTPAuth   = true;
+                    $mail->Username   = env('SMTP_USER');
+                    $mail->Password   = env('SMTP_PASS');
+                    $mail->SMTPSecure = 'tls';
+                    $mail->Port       = (int) env('SMTP_PORT', 587);
+
+                    $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'itasker');
+                    $mail->addReplyTo(env('ADMIN_EMAIL'), 'Bryo Gacheru');
+                    $mail->addAddress($writerEmail);
+                    $mail->addBCC(env('ADMIN_EMAIL'), 'iTasker Admin');
+
+                    // Content - styled the same as the task-assignment ("acknowledgement")
+                    // email, but with red accents to signal a cancellation instead of a new task.
+                    $mail->isHTML(true);
+                    $mail->Subject = 'Task ID: ' . $cmpid . ' - ' . $taskTopic . ' - [ ' . $taskAccount . ' ] ';
+
+                    $taskDetailsUrl = 'https://web.monkbrian.com/view-task?task_id=' . $encodedId;
+
+                    $emailBody = "
+                                <p>Hello <span style='font-weight:bold;color:#dc3545;'>$writerName</span>,</p>
+                                <p>The following task has been cancelled. Please do not go ahead with it:</p>
+                                <p><strong>Topic:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskTopic</span></p>
+                                <p><strong>Subject:</strong> $taskSubject</p>
+                                <p><strong>Due Date:</strong> <span style='font-weight:bold;color:#dc3545;'>$taskDueDate</span></p>
+                                <p><strong>Pages:</strong> $taskPages</p>
+                                <p><strong>Price per Page:</strong> Ksh $taskCpp</p>
+                                <p><strong>Reason for Cancellation:</strong> <span style='font-weight:bold;color:#dc3545;'>$cancellationReason</span></p>";
+
+                    $mail->Body = render_email_html(
+                        "Task ID $cmpid has been CANCELLED",
+                        $emailBody,
+                        'View Task Details',
+                        $taskDetailsUrl,
+                        "For any questions, contact <a href='mailto:bryo4419@gmail.com'>bryo4419@gmail.com</a>"
+                    );
+
+                    $mail->AltBody = "Task Cancelled\n\n
+                        Hello $writerName,\n
+                        The following task has been cancelled. Please do not go ahead with it:\n
+                        Topic: $taskTopic\n
+                        Subject: $taskSubject\n
+                        Due Date: $taskDueDate\n
+                        Pages: $taskPages\n
+                        Price per Page: Ksh $taskCpp\n
+                        Reason for Cancellation: $cancellationReason\n
+                        View Task Details: $taskDetailsUrl\n\n
+                        For any questions, contact bryo4419@gmail.com";
+
+                    $mail->send();
+
+                    $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                              <i class="bi bi-check-circle"></i> Task cancelled successfully and email notification sent.
+                              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                              </div>';
+                } catch (Exception $e) {
+                    $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                              <i class="bi bi-check-circle"></i> Task cancelled successfully, but email notification could not be sent. Mailer Error: ' . $mail->ErrorInfo . '
+                              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                              </div>';
+                }
+            } else {
+                $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-octagon"></i> Error cancelling task record.
+                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>';
+            }
         }
     } else {
         $_SESSION['alert'] = '<div class="alert alert-warning alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-octagon"></i> Invalid or missing ID.
@@ -203,7 +303,24 @@ if (isset($_GET['del'])) {
                                                        title="Duplicate Task">
                                                         <span class="fas fa-copy"></span>
                                                     </a>
-                                                    <a class="btn bg-danger-subtle icon-item rounded-3 me-2 fs-11 icon-item-sm" href="unconfirmed?del=<?php echo $encodedId; ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Cancel Task" onclick="return confirm('Do you really want to cancel task?');"><span class="fas fa-trash"></span></a>
+                                                    <a class="btn bg-danger-subtle icon-item rounded-3 me-2 fs-11 icon-item-sm delete-task-btn"
+                                                       href="#"
+                                                       data-task-id="<?php echo $row['id']; ?>"
+                                                       data-task-encoded-id="<?php echo $encodedId; ?>"
+                                                       data-task-topic="<?php echo htmlspecialchars($row['topic'], ENT_QUOTES); ?>"
+                                                       data-task-subject="<?php echo htmlspecialchars($row['subject'], ENT_QUOTES); ?>"
+                                                       data-task-account="<?php echo htmlspecialchars($row['account'], ENT_QUOTES); ?>"
+                                                       data-task-writer="<?php echo htmlspecialchars($row['writer'], ENT_QUOTES); ?>"
+                                                       data-task-pages="<?php echo $row['pages']; ?>"
+                                                       data-task-cpp="<?php echo $row['cpp']; ?>"
+                                                       data-task-price="<?php echo number_format($totalprice,2); ?>"
+                                                       data-task-duedate="<?php echo date('M j, Y g:ia', strtotime($row['due_date'])); ?>"
+                                                       data-task-status="<?php echo $row['status']; ?>"
+                                                       data-bs-toggle="tooltip"
+                                                       data-bs-placement="top"
+                                                       title="Cancel Task">
+                                                        <span class="fas fa-trash"></span>
+                                                    </a>
                                                 </div>
                                                 <div class="dropdown font-sans-serif btn-reveal-trigger">
                                                     <button class="btn btn-link text-600 btn-sm dropdown-toggle dropdown-caret-none btn-reveal-sm transition-none" type="button" id="crm-recent-leads-4" data-bs-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false"><span class="fas fa-chevron-left fs-11"></span></button>
@@ -435,6 +552,201 @@ if (isset($_GET['del'])) {
         </div>
     </div>
 
+    <!-- Cancel Confirmation Modal -->
+    <div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <!-- Header with gradient background -->
+                <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 2rem;">
+                    <div class="position-absolute" style="top: 0; left: 0; right: 0; bottom: 0; opacity: 0.1; background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+                <div class="d-flex align-items-center w-100 position-relative">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-exclamation-triangle text-white" style="font-size: 28px;"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h4 class="modal-title text-white fw-bold mb-1" id="deleteTaskModalLabel">Confirm Task Cancellation</h4>
+                        <p class="text-white text-opacity-75 mb-0 small">Review task details before cancelling</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute" style="top: 1.5rem; right: 1.5rem;" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Body with modern card layout -->
+            <div class="modal-body p-4">
+                <!-- Warning Alert -->
+                <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert" style="border-left: 4px solid #ffc107 !important;">
+                    <div class="d-flex align-items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-warning" style="font-size: 20px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="alert-heading fw-bold mb-1">Important Notice</h6>
+                            <p class="mb-0 small">This action will cancel the task and send a notification email to the assigned writer.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Details Card -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="mb-0 fw-bold text-primary">
+                            <i class="fas fa-file-alt me-2"></i>Task Information
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Task ID & Status Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-hashtag text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block mb-1">Task ID</small>
+                                        <strong class="d-block" id="modalTaskId"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-flag text-info"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block mb-1">Status</small>
+                                        <span id="modalTaskStatus" class="badge"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Task Title -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-heading text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Task Title</small>
+                                    <strong class="d-block text-primary fs-6" id="modalTaskTopic"></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-warning bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-book text-warning"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Subject</small>
+                                    <strong class="d-block" id="modalTaskSubject"></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Account & Writer Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-secondary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-user-circle text-secondary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Account</small>
+                                        <strong class="d-block" id="modalTaskAccount"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-user-edit text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Writer</small>
+                                        <strong class="d-block" id="modalTaskWriter"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pages & Pricing Row -->
+                        <div class="row mb-3 pb-3 border-bottom">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-file-invoice text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Pages</small>
+                                        <strong class="d-block"><span id="modalTaskPages"></span> page(s) @ Ksh <span id="modalTaskCpp"></span> per page</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                                        <i class="fas fa-dollar-sign text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted d-block mb-1">Total Amount</small>
+                                        <span class="badge bg-success fs-6 fw-bold">Ksh <span id="modalTaskPrice"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="mb-0">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
+                                    <i class="fas fa-clock text-danger"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="text-muted d-block mb-1">Due Date</small>
+                                    <strong class="d-block" id="modalTaskDueDate"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cancellation Reason -->
+                <div class="card border-0 shadow-sm mt-3">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="mb-0 fw-bold text-danger">
+                            <i class="fas fa-comment-dots me-2"></i>Reason for Cancellation
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <select class="form-select mb-3" id="cancelReasonSelect">
+                            <option value="" selected disabled>Select a reason...</option>
+                            <option value="Client asked the task to be cancelled">Client asked the task to be cancelled</option>
+                            <option value="The task timeline has depleted">The task timeline has depleted</option>
+                            <option value="other">Other (please specify)</option>
+                        </select>
+                        <textarea class="form-control d-none" id="cancelReasonCustom" rows="3" placeholder="Please specify the reason for cancelling this task..."></textarea>
+                        <div class="invalid-feedback d-block d-none" id="cancelReasonError">Please provide a reason for cancelling this task.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer with modern buttons -->
+            <div class="modal-footer border-0 px-4 py-3">
+                <button type="button" class="btn btn-light border px-4 py-2" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>No, Keep Task
+                </button>
+                <button type="button" class="btn btn-danger px-4 py-2 shadow-sm" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>Yes, Cancel Task
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const duplicateButtons = document.querySelectorAll('.duplicate-task-btn');
@@ -505,6 +817,99 @@ if (isset($_GET['del'])) {
                 if (currentDuplicateTaskEncodedId) {
                     window.location.href = 'duplicate-task?task_id=' + currentDuplicateTaskEncodedId;
                 }
+            });
+
+            // Cancel Task modal
+            const deleteButtons = document.querySelectorAll('.delete-task-btn');
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteTaskModal'));
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            const cancelReasonSelect = document.getElementById('cancelReasonSelect');
+            const cancelReasonCustom = document.getElementById('cancelReasonCustom');
+            const cancelReasonError = document.getElementById('cancelReasonError');
+            let currentTaskEncodedId = null;
+
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    const taskId = this.dataset.taskId;
+                    const taskEncodedId = this.dataset.taskEncodedId;
+                    const taskTopic = this.dataset.taskTopic;
+                    const taskSubject = this.dataset.taskSubject;
+                    const taskAccount = this.dataset.taskAccount;
+                    const taskWriter = this.dataset.taskWriter;
+                    const taskPages = this.dataset.taskPages;
+                    const taskCpp = this.dataset.taskCpp;
+                    const taskPrice = this.dataset.taskPrice;
+                    const taskDueDate = this.dataset.taskDuedate;
+                    const taskStatus = this.dataset.taskStatus;
+
+                    currentTaskEncodedId = taskEncodedId;
+
+                    document.getElementById('modalTaskId').textContent = taskId;
+                    document.getElementById('modalTaskTopic').textContent = taskTopic;
+                    document.getElementById('modalTaskSubject').textContent = taskSubject;
+                    document.getElementById('modalTaskAccount').textContent = taskAccount;
+                    document.getElementById('modalTaskWriter').textContent = taskWriter;
+                    document.getElementById('modalTaskPages').textContent = taskPages;
+                    document.getElementById('modalTaskCpp').textContent = taskCpp;
+                    document.getElementById('modalTaskPrice').textContent = taskPrice;
+                    document.getElementById('modalTaskDueDate').textContent = taskDueDate;
+
+                    const deleteStatusBadge = document.getElementById('modalTaskStatus');
+                    deleteStatusBadge.textContent = taskStatus;
+                    deleteStatusBadge.className = 'badge';
+
+                    switch (taskStatus) {
+                        case 'Active':
+                            deleteStatusBadge.classList.add('bg-primary');
+                            break;
+                        case 'In Progress':
+                            deleteStatusBadge.classList.add('bg-warning');
+                            break;
+                        case 'Revision':
+                            deleteStatusBadge.classList.add('bg-danger');
+                            break;
+                        case 'Unconfirmed':
+                            deleteStatusBadge.classList.add('bg-secondary');
+                            break;
+                        case 'Submitted':
+                            deleteStatusBadge.classList.add('bg-info');
+                            break;
+                        case 'Completed':
+                            deleteStatusBadge.classList.add('bg-success');
+                            break;
+                        default:
+                            deleteStatusBadge.classList.add('bg-secondary');
+                    }
+
+                    // Reset the cancellation reason fields for this fresh confirmation
+                    cancelReasonSelect.value = '';
+                    cancelReasonCustom.value = '';
+                    cancelReasonCustom.classList.add('d-none');
+                    cancelReasonError.classList.add('d-none');
+
+                    deleteModal.show();
+                });
+            });
+
+            cancelReasonSelect.addEventListener('change', function() {
+                cancelReasonCustom.classList.toggle('d-none', this.value !== 'other');
+                cancelReasonError.classList.add('d-none');
+            });
+
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (!currentTaskEncodedId) return;
+
+                const selectedReason = cancelReasonSelect.value;
+                const reason = selectedReason === 'other' ? cancelReasonCustom.value.trim() : selectedReason;
+
+                if (!reason) {
+                    cancelReasonError.classList.remove('d-none');
+                    return;
+                }
+
+                window.location.href = 'unconfirmed?del=' + currentTaskEncodedId + '&reason=' + encodeURIComponent(reason);
             });
         });
     </script>

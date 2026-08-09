@@ -354,6 +354,8 @@ if (isset($_GET['message'])) {
                                     <span class="fs-10 text-info ms-2"><?php echo date("d M Y, g:i A", strtotime($submittedOn)); ?></span>
                                 <?php elseif ($taskStatus == 'Completed' && !empty($completedOn)): ?>
                                     <span class="fs-10 text-success ms-2"><?php echo date("d M Y, g:i A", strtotime($completedOn)); ?></span>
+                                <?php elseif ($taskStatus == 'Cancelled' && !empty($rowTask['cancelled_at'])): ?>
+                                    <span class="fs-10 text-danger ms-2"><?php echo date("d M Y, g:i A", strtotime($rowTask['cancelled_at'] . ' UTC')); ?></span>
                                 <?php endif; ?>
                                 <?php if ($is_confirmed == 1): ?>
                                     <?php echo $confirmation; ?>

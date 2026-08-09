@@ -30,7 +30,7 @@ if (isset($_GET['del'])) {
                                   </div>';
         } else {
             // Perform the delete operation if the task is not completed, submitted, or paid
-            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1 , status = 'Cancelled' WHERE id='$cmpid'");
+            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1, status = 'Cancelled', cancelled_at = NOW() WHERE id='$cmpid'");
 
             if ($query) {
 

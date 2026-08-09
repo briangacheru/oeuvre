@@ -32,7 +32,7 @@ if (isset($_GET['del'])) {
         } else {
             // Perform the delete operation if the task is not completed, submitted, or paid
             $escapedReason = mysqli_real_escape_string($con, $cancellationReason);
-            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1, status = 'Cancelled', cancellation_reason = '$escapedReason' WHERE id='$cmpid'");
+            $query = mysqli_query($con, "UPDATE tbltasks SET is_deleted = 1, status = 'Cancelled', cancellation_reason = '$escapedReason', cancelled_at = NOW() WHERE id='$cmpid'");
 
             if ($query) {
 
