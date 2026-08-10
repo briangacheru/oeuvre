@@ -1579,16 +1579,16 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             align-items: center;
             padding: 0.5rem 0.9rem;
             border-radius: 999px;
-            border: 1px solid var(--bs-border-color);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
+            border: 1px solid var(--falcon-border-color);
+            background: var(--falcon-body-bg);
+            color: var(--falcon-body-color);
             text-decoration: none;
             font-size: 0.85rem;
             font-weight: 500;
             transition: all 0.15s ease;
         }
         .stat-pill:hover {
-            background: var(--bs-body-tertiary-bg);
+            background: var(--falcon-tertiary-bg);
             transform: translateY(-1px);
             text-decoration: none;
         }
@@ -1623,9 +1623,9 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         .reminder-group-header {
             position: sticky;
             top: 0;
-            background: var(--bs-body-bg);
+            background: var(--falcon-body-bg);
             padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--bs-border-color);
+            border-bottom: 1px solid var(--falcon-border-color);
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.04em;
@@ -1633,24 +1633,32 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             transition: background-color 0.15s ease;
         }
         .reminder-group-header.drop-active {
-            background: var(--bs-primary-bg-subtle);
-            outline: 2px dashed var(--bs-primary);
+            background: var(--falcon-primary-bg-subtle);
+            outline: 2px dashed var(--falcon-primary);
             outline-offset: -4px;
         }
 
         /* Each row */
         .reminder-item {
             padding: 0.85rem 1rem 0.85rem 1.1rem;
-            border-bottom: 1px solid var(--bs-border-color);
+            border-bottom: 1px solid var(--falcon-border-color);
             cursor: pointer;
             transition: background-color 0.12s ease;
             user-select: none;
         }
         .reminder-item:hover {
-            background: var(--bs-body-tertiary-bg);
+            background: var(--falcon-tertiary-bg);
         }
         .reminder-item.is-selected {
-            background: var(--bs-primary-bg-subtle);
+            background: var(--falcon-primary-bg-subtle);
+        }
+        /* Checkbox-driven (bulk action) highlight - kept separate from
+           .is-selected (the click-row-for-details highlight further down)
+           since selectReminderRow() clears .is-selected off every other row
+           each time one is clicked, which would otherwise wipe out a
+           checkbox's highlight the moment any row was opened for viewing. */
+        .reminder-item.is-checked {
+            background: var(--falcon-primary-bg-subtle);
         }
         .reminder-item.is-completed { opacity: 0.7; }
         .reminder-item.dragging {
@@ -1696,9 +1704,9 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             border-radius: 50%;
             flex-shrink: 0;
         }
-        .priority-high   { background: var(--bs-danger); }
-        .priority-medium { background: var(--bs-warning); }
-        .priority-low    { background: var(--bs-secondary); }
+        .priority-high   { background: var(--falcon-danger); }
+        .priority-medium { background: var(--falcon-warning); }
+        .priority-low    { background: var(--falcon-secondary); }
 
         /* Quick action buttons: show on hover */
         .reminder-quick-actions {
@@ -1724,17 +1732,17 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         #reminderDetailContent { overflow-y: auto; flex: 1 1 auto; }
         .detail-hero {
             padding: 1.5rem 1.75rem 1rem;
-            border-bottom: 1px solid var(--bs-border-color);
+            border-bottom: 1px solid var(--falcon-border-color);
         }
         .detail-section {
             padding: 1rem 1.75rem;
-            border-bottom: 1px solid var(--bs-border-color);
+            border-bottom: 1px solid var(--falcon-border-color);
         }
         .detail-label {
             font-size: 0.72rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: var(--bs-secondary-color);
+            color: var(--falcon-secondary-color);
             margin-bottom: 0.25rem;
             font-weight: 600;
         }
@@ -1748,19 +1756,19 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         /* Tab nav refresh */
         #reminderTabs .nav-link {
             border: 0;
-            color: var(--bs-secondary-color);
+            color: var(--falcon-secondary-color);
             font-weight: 500;
             border-bottom: 2px solid transparent;
             border-radius: 0;
         }
         #reminderTabs .nav-link.active {
             background: transparent;
-            color: var(--bs-primary);
-            border-bottom-color: var(--bs-primary);
+            color: var(--falcon-primary);
+            border-bottom-color: var(--falcon-primary);
         }
 
         /* Quick add bar focus state */
-        .quick-add-bar { background: var(--bs-body-bg); }
+        .quick-add-bar { background: var(--falcon-body-bg); }
         #quickAddForm.expanded .quick-add-meta { display: flex !important; }
 
         /* Scrollbar polish */
@@ -1768,7 +1776,7 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         #reminderDetailContent::-webkit-scrollbar { width: 6px; }
         .reminders-list-scroll::-webkit-scrollbar-thumb,
         #reminderDetailContent::-webkit-scrollbar-thumb {
-            background: var(--bs-border-color);
+            background: var(--falcon-border-color);
             border-radius: 3px;
         }
 
@@ -3197,11 +3205,15 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('reminder-checkbox')) {
                 const reminderId = e.target.value;
+                const row = e.target.closest('.reminder-item');
 
                 if (e.target.checked) {
                     selectedReminders.add(reminderId);
                 } else {
                     selectedReminders.delete(reminderId);
+                }
+                if (row) {
+                    row.classList.toggle('is-checked', e.target.checked);
                 }
 
                 updateBulkActions();
@@ -3222,6 +3234,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     selectedReminders.add(reminderId);
                 } else {
                     selectedReminders.delete(reminderId);
+                }
+                const row = checkbox.closest('.reminder-item');
+                if (row) {
+                    row.classList.toggle('is-checked', isChecked);
                 }
             });
 
@@ -3346,6 +3362,10 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
             selectedReminders.clear();
             document.querySelectorAll('.reminder-checkbox').forEach(checkbox => {
                 checkbox.checked = false;
+                const row = checkbox.closest('.reminder-item');
+                if (row) {
+                    row.classList.remove('is-checked');
+                }
             });
             updateBulkActions();
             updateSelectAllState();
@@ -4449,48 +4469,48 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                             if (reminder.is_dismissed == 1) {
                                 status = 'dismissed';
                                 badgeIcon = 'D';
-                                backgroundColor = 'var(--bs-warning)';
-                                borderColor = 'var(--bs-warning)';
-                                textColor = 'var(--bs-dark)';
+                                backgroundColor = 'var(--falcon-warning)';
+                                borderColor = 'var(--falcon-warning)';
+                                textColor = 'var(--falcon-dark)';
                             } else if (reminder.is_completed == 1) {
                                 status = 'completed';
                                 badgeIcon = '✓';
-                                backgroundColor = 'var(--bs-success)';
-                                borderColor = 'var(--bs-success)';
+                                backgroundColor = 'var(--falcon-success)';
+                                borderColor = 'var(--falcon-success)';
                                 textColor = 'white';
                             } else if (reminderDateTime < now) {
                                 status = 'overdue';
                                 badgeIcon = '!';
-                                backgroundColor = 'var(--bs-danger)';
-                                borderColor = 'var(--bs-danger)';
+                                backgroundColor = 'var(--falcon-danger)';
+                                borderColor = 'var(--falcon-danger)';
                                 textColor = 'white';
                             } else if (reminderDate.getTime() === today.getTime()) {
                                 status = 'today';
                                 badgeIcon = 'T';
-                                backgroundColor = 'var(--bs-info)';
-                                borderColor = 'var(--bs-info)';
+                                backgroundColor = 'var(--falcon-info)';
+                                borderColor = 'var(--falcon-info)';
                                 textColor = 'white';
                             } else {
                                 // Upcoming - use priority colors
                                 switch (reminder.priority) {
                                     case 'high':
-                                        backgroundColor = 'var(--bs-danger)';
-                                        borderColor = 'var(--bs-danger)';
+                                        backgroundColor = 'var(--falcon-danger)';
+                                        borderColor = 'var(--falcon-danger)';
                                         textColor = 'white';
                                         break;
                                     case 'medium':
-                                        backgroundColor = 'var(--bs-warning)';
-                                        borderColor = 'var(--bs-warning)';
-                                        textColor = 'var(--bs-dark)';
+                                        backgroundColor = 'var(--falcon-warning)';
+                                        borderColor = 'var(--falcon-warning)';
+                                        textColor = 'var(--falcon-dark)';
                                         break;
                                     case 'low':
-                                        backgroundColor = 'var(--bs-secondary)';
-                                        borderColor = 'var(--bs-secondary)';
+                                        backgroundColor = 'var(--falcon-secondary)';
+                                        borderColor = 'var(--falcon-secondary)';
                                         textColor = 'white';
                                         break;
                                     default:
-                                        backgroundColor = 'var(--bs-primary)';
-                                        borderColor = 'var(--bs-primary)';
+                                        backgroundColor = 'var(--falcon-primary)';
+                                        borderColor = 'var(--falcon-primary)';
                                         textColor = 'white';
                                 }
                             }
