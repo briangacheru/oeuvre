@@ -80,9 +80,9 @@ if ($writerID) {
                     <img class="rounded-circle img-thumbnail shadow-sm" src="../profileimages/<?php echo htmlspecialchars($rowWriter['Photo'] ?: 'avatar.png'); ?>" width="200" alt="">
                     <!-- Level Badge -->
                     <div class="position-absolute bottom-0 end-0">
-                        <div class="badge rounded-pill p-2 shadow-lg" style="background: linear-gradient(135deg, <?php echo $currentLevel['icon_color']; ?>, <?php echo $currentLevel['icon_color']; ?>aa);">
-                            <i class="fas <?php echo $currentLevel['icon_class']; ?> text-white me-1"></i>
-                            <span class="text-white fw-bold"><?php echo $currentLevel['level_name']; ?></span>
+                        <div class="badge rounded-pill p-2 shadow-lg" style="background: linear-gradient(135deg, <?php echo htmlspecialchars($currentLevel['icon_color']); ?>, <?php echo htmlspecialchars($currentLevel['icon_color']); ?>aa);">
+                            <i class="<?php echo htmlspecialchars($currentLevel['icon_class']); ?> text-white me-1"></i>
+                            <span class="text-white fw-bold"><?php echo htmlspecialchars($currentLevel['level_name']); ?></span>
                         </div>
                     </div>
                 </div>
@@ -126,16 +126,16 @@ if ($writerID) {
                         <div class="card border-0 bg-body-quaternary mb-3">
                             <div class="card-body py-3">
                                 <div class="d-flex align-items-center mb-2">
-                                    <i class="fas <?php echo $currentLevel['icon_class']; ?> fa-2x me-3" style="color: <?php echo $currentLevel['icon_color']; ?>;"></i>
+                                    <i class="<?php echo htmlspecialchars($currentLevel['icon_class']); ?> fa-2x me-3" style="color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;"></i>
                                     <div class="flex-1">
-                                        <h6 class="mb-0" style="color: <?php echo $currentLevel['icon_color']; ?>;">Level <?php echo $currentLevel['level_number']; ?> - <?php echo $currentLevel['level_name']; ?></h6>
+                                        <h6 class="mb-0" style="color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;">Level <?php echo $currentLevel['level_number']; ?> - <?php echo htmlspecialchars($currentLevel['level_name']); ?></h6>
                                         <small class="text-muted"><?php echo $performance['completed_tasks']; ?> tasks completed</small>
                                     </div>
                                 </div>
 
                                 <?php if ($levelProgress['progress'] < 100): ?>
                                     <div class="progress mb-1" style="height: 8px;">
-                                        <div class="progress-bar" role="progressbar" style="width: <?php echo $levelProgress['progress']; ?>%; background-color: <?php echo $currentLevel['icon_color']; ?>;"></div>
+                                        <div class="progress-bar" role="progressbar" style="width: <?php echo $levelProgress['progress']; ?>%; background-color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;"></div>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <small class="text-muted"><?php echo $levelProgress['progress']; ?>% to next level</small>
@@ -143,8 +143,8 @@ if ($writerID) {
                                     </div>
                                     <?php if (isset($levelProgress['next_level'])): ?>
                                         <small class="text-success">
-                                            <i class="fas <?php echo $levelProgress['next_level']['icon_class']; ?> me-1"></i>
-                                            Next: <?php echo $levelProgress['next_level']['level_name']; ?>
+                                            <i class="<?php echo htmlspecialchars($levelProgress['next_level']['icon_class']); ?> me-1"></i>
+                                            Next: <?php echo htmlspecialchars($levelProgress['next_level']['level_name']); ?>
                                         </small>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -453,68 +453,56 @@ if ($writerID) {
                     </div>
                     <div class="card-body">
                         <?php
-                        // Get recent tasks, with enough context to tell what actually happened
-                        // at a glance (client/account, due date, and real timing vs. just an icon).
-                        $recentTasksQuery = "SELECT topic, account, status, completed_on, due_date, create_date, pages, cpp
-                                           FROM tbltasks
-                                           WHERE email = ? AND is_deleted = 0
-                                           ORDER BY create_date DESC
-                                           LIMIT 5";
-                        $recentStmt = $con->prepare($recentTasksQuery);
-                        $recentStmt->bind_param("s", $rowWriter['email']);
-                        $recentStmt->execute();
-                        $recentTasks = $recentStmt->get_result();
+                        // Writer-interface activity only - what the writer actually did while
+                        // logged into their own dashboard (view/accept/decline/submit a task),
+                        // pulled from the persistent tbl_activity_log (see shared-functions.php's
+                        // log_activity()), not the raw task list.
+                        $recentActivityQuery = "SELECT action, details, created_at
+                                               FROM tbl_activity_log
+                                               WHERE actor_type = 'writer' AND email = ?
+                                               AND action IN ('task_view', 'task_accept', 'task_decline', 'task_submit')
+                                               ORDER BY id DESC
+                                               LIMIT 8";
+                        // Guarded like the Logged-in Devices query above - tbl_activity_log
+                        // is a recent addition and may not exist on every install yet.
+                        $recentActivity = [];
+                        $recentStmt = mysqli_prepare($con, $recentActivityQuery);
+                        if ($recentStmt) {
+                            mysqli_stmt_bind_param($recentStmt, 's', $rowWriter['email']);
+                            mysqli_stmt_execute($recentStmt);
+                            $recentRes = mysqli_stmt_get_result($recentStmt);
+                            while ($row = mysqli_fetch_assoc($recentRes)) { $recentActivity[] = $row; }
+                            mysqli_stmt_close($recentStmt);
+                        }
 
-                        $statusStyles = [
-                            'Completed'   => ['success', 'check'],
-                            'In Progress' => ['warning', 'spinner'],
-                            'In Revision' => ['danger', 'flag'],
-                            'Unconfirmed' => ['primary', 'question'],
-                            'Submitted'   => ['info', 'paper-plane'],
-                            'Cancelled'   => ['secondary', 'ban'],
-                            'Draft'       => ['secondary', 'pencil-alt'],
+                        $activityStyles = [
+                            'task_view'    => ['info', 'eye', 'Viewed a task'],
+                            'task_accept'  => ['success', 'check', 'Accepted a task'],
+                            'task_decline' => ['danger', 'times', 'Declined a task'],
+                            'task_submit'  => ['primary', 'paper-plane', 'Submitted a task'],
                         ];
 
-                        if ($recentTasks->num_rows > 0):
-                            while ($task = $recentTasks->fetch_assoc()):
-                                [$statusClass, $statusIcon] = $statusStyles[$task['status']] ?? ['secondary', 'circle'];
-                                $topicDisplay = mb_strimwidth($task['topic'], 0, 40, '…');
+                        if (count($recentActivity) > 0):
+                            foreach ($recentActivity as $event):
+                                [$eventClass, $eventIcon, $eventLabel] = $activityStyles[$event['action']] ?? ['secondary', 'circle', ucfirst(str_replace('_', ' ', $event['action']))];
                                 ?>
                                 <div class="d-flex align-items-start mb-3 pb-3 border-bottom border-dashed">
                                     <div class="me-3">
-                                        <span class="badge bg-<?php echo $statusClass; ?> rounded-pill">
-                                            <i class="fas fa-<?php echo $statusIcon; ?>"></i>
+                                        <span class="badge bg-<?php echo $eventClass; ?> rounded-pill">
+                                            <i class="fas fa-<?php echo $eventIcon; ?>"></i>
                                         </span>
                                     </div>
                                     <div class="flex-1">
                                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
-                                            <h6 class="mb-1 fs-9"><?php echo htmlspecialchars($topicDisplay); ?></h6>
-                                            <span class="badge bg-<?php echo $statusClass; ?>-subtle text-<?php echo $statusClass; ?> fs-11"><?php echo htmlspecialchars($task['status']); ?></span>
+                                            <h6 class="mb-1 fs-9"><?php echo htmlspecialchars($eventLabel); ?></h6>
+                                            <small class="text-muted"><?php echo date('M j, Y g:i A', strtotime($event['created_at'])); ?></small>
                                         </div>
-                                        <?php if (!empty($task['account'])) { ?>
-                                            <div class="fs-11 text-500 mb-1"><span class="fas fa-building me-1"></span><?php echo htmlspecialchars($task['account']); ?></div>
+                                        <?php if (!empty($event['details'])) { ?>
+                                            <small class="text-600 d-block"><?php echo htmlspecialchars($event['details']); ?></small>
                                         <?php } ?>
-                                        <small class="text-muted d-block">
-                                            <span class="fas fa-file-alt me-1"></span><?php echo $task['pages']; ?> pages
-                                            <span class="mx-1">&middot;</span>
-                                            <span class="fas fa-money-bill-wave me-1"></span>Ksh. <?php echo number_format($task['pages'] * $task['cpp'], 2); ?>
-                                        </small>
-                                        <?php if (!empty($task['due_date'])) { ?>
-                                            <small class="text-muted d-block">
-                                                <span class="fas fa-calendar-day me-1"></span>Due <?php echo date('M j, Y', strtotime($task['due_date'])); ?>
-                                            </small>
-                                        <?php } ?>
-                                        <?php if ($task['status'] == 'Completed' && $task['completed_on']):
-                                            $onTime = strtotime($task['completed_on']) <= strtotime($task['due_date']);
-                                            ?>
-                                            <small class="text-<?php echo $onTime ? 'success' : 'danger'; ?>">
-                                                <span class="fas fa-<?php echo $onTime ? 'check' : 'exclamation-triangle'; ?> me-1"></span>
-                                                Completed <?php echo $onTime ? 'on time' : 'late'; ?> (<?php echo date('M j, Y', strtotime($task['completed_on'])); ?>)
-                                            </small>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
-                            <?php endwhile;
+                            <?php endforeach;
                         else: ?>
                             <p class="text-muted text-center mb-0">No recent activity</p>
                         <?php endif; ?>

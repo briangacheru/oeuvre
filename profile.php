@@ -217,16 +217,16 @@ if ($query->rowCount() > 0) {
                 <div class="card border-0 bg-body-quaternary mt-4">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2">
-                            <i class="fas <?php echo $currentLevel['icon_class']; ?> fa-2x me-3" style="color: <?php echo $currentLevel['icon_color']; ?>;"></i>
+                            <i class="<?php echo htmlspecialchars($currentLevel['icon_class']); ?> fa-2x me-3" style="color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;"></i>
                             <div class="flex-1">
-                                <h6 class="mb-0" style="color: <?php echo $currentLevel['icon_color']; ?>;">Level <?php echo $currentLevel['level_number']; ?> - <?php echo htmlspecialchars($currentLevel['level_name']); ?></h6>
+                                <h6 class="mb-0" style="color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;">Level <?php echo $currentLevel['level_number']; ?> - <?php echo htmlspecialchars($currentLevel['level_name']); ?></h6>
                                 <small class="text-muted"><?php echo $performance['completed_tasks']; ?> tasks completed</small>
                             </div>
                         </div>
 
                         <?php if ($levelProgress['progress'] < 100): ?>
                             <div class="progress mb-1" style="height: 8px;">
-                                <div class="progress-bar" role="progressbar" style="width: <?php echo $levelProgress['progress']; ?>%; background-color: <?php echo $currentLevel['icon_color']; ?>;"></div>
+                                <div class="progress-bar" role="progressbar" style="width: <?php echo $levelProgress['progress']; ?>%; background-color: <?php echo htmlspecialchars($currentLevel['icon_color']); ?>;"></div>
                             </div>
                             <div class="d-flex justify-content-between">
                                 <small class="text-muted"><?php echo $levelProgress['progress']; ?>% to next level</small>
@@ -234,7 +234,7 @@ if ($query->rowCount() > 0) {
                             </div>
                             <?php if (isset($levelProgress['next_level'])): ?>
                                 <small class="text-success">
-                                    <i class="fas <?php echo $levelProgress['next_level']['icon_class']; ?> me-1"></i>
+                                    <i class="<?php echo htmlspecialchars($levelProgress['next_level']['icon_class']); ?> me-1"></i>
                                     Next: <?php echo htmlspecialchars($levelProgress['next_level']['level_name']); ?>
                                 </small>
                             <?php endif; ?>

@@ -114,6 +114,11 @@ if (isset($_GET['task_id']) && isset($_GET['action'])) {
         // Send email notification
         sendEmail($writer, $pages, $cpp, $due_date, $writerEmail, $taskId, $action, $topic, $account);
 
+        // Record the writer-interface action so it shows up in the writer's
+        // recent activity (admin's sudo/writer.php reads from this same log).
+        $activityAction = $action == 'accept' ? 'task_accept' : 'task_decline';
+        log_activity($con, 'writer', $_SESSION['sessionWriter'] ?? $writerEmail, $activityAction, "Task #$taskId: $topic");
+
         $status = $action == 'accept' ? 'accepted' : 'declined';
         $_SESSION['alert'] = '<div class="alert alert-success border-0 d-flex align-items-center" role="alert">
                                     <div class="bg-success me-3 icon-item"><span class="fas fa-check-circle text-white fs-6"></span></div>

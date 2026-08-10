@@ -41,18 +41,22 @@ if ($result) {
 }
 
 $actionBadgeClass = [
-    'login'       => 'badge-subtle-success',
-    'logout'      => 'badge-subtle-secondary',
-    'task_view'   => 'badge-subtle-info',
-    'task_submit' => 'badge-subtle-primary',
-    'page_view'   => 'badge-subtle-warning',
+    'login'        => 'badge-subtle-success',
+    'logout'       => 'badge-subtle-secondary',
+    'task_view'    => 'badge-subtle-info',
+    'task_accept'  => 'badge-subtle-success',
+    'task_decline' => 'badge-subtle-danger',
+    'task_submit'  => 'badge-subtle-primary',
+    'page_view'    => 'badge-subtle-warning',
 ];
 $actionLabel = [
-    'login'       => 'Login',
-    'logout'      => 'Logout',
-    'task_view'   => 'Task Viewed',
-    'task_submit' => 'Task Submitted',
-    'page_view'   => 'Page Viewed',
+    'login'        => 'Login',
+    'logout'       => 'Logout',
+    'task_view'    => 'Task Viewed',
+    'task_accept'  => 'Task Accepted',
+    'task_decline' => 'Task Declined',
+    'task_submit'  => 'Task Submitted',
+    'page_view'    => 'Page Viewed',
 ];
 ?>
 

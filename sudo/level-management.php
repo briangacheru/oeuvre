@@ -1,5 +1,6 @@
 <?php
 include_once('head.php');
+requireCapability($currentAdminRole, 'operate_tasks');
 csrf_verify_or_redirect();
 
 // Handle level updates
@@ -94,6 +95,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         }
         $stmt->close();
     }
+
+    if ($_POST['action'] == 'delete_level') {
+        $levelId = intval($_POST['level_id']);
+
+        $levelStmt = $con->prepare("SELECT level_number, level_name FROM tbl_writer_levels WHERE id = ?");
+        $levelStmt->bind_param("i", $levelId);
+        $levelStmt->execute();
+        $levelToDelete = $levelStmt->get_result()->fetch_assoc();
+        $levelStmt->close();
+
+        if (!$levelToDelete) {
+            $errorMessage = "Level not found.";
+        } else {
+            // Block deletion while any active writer is currently sitting at
+            // this level - deleting it out from under them would leave their
+            // profile/level badge referencing a level that no longer exists.
+            $countStmt = $con->prepare("SELECT COUNT(*) as active_count
+                                         FROM tbl_writer_performance wp
+                                         JOIN tblwriters w ON w.id = wp.writer_id
+                                         WHERE wp.current_level = ? AND w.is_active = 1");
+            $countStmt->bind_param("i", $levelToDelete['level_number']);
+            $countStmt->execute();
+            $activeCount = $countStmt->get_result()->fetch_assoc()['active_count'];
+            $countStmt->close();
+
+            if ($activeCount > 0) {
+                $errorMessage = "Can't delete \"{$levelToDelete['level_name']}\" - $activeCount active writer" . ($activeCount == 1 ? ' is' : 's are') . " currently at this level.";
+            } else {
+                $deleteStmt = $con->prepare("DELETE FROM tbl_writer_levels WHERE id = ?");
+                $deleteStmt->bind_param("i", $levelId);
+                if ($deleteStmt->execute()) {
+                    $successMessage = "Level \"{$levelToDelete['level_name']}\" deleted successfully!";
+                } else {
+                    $errorMessage = "Failed to delete level: " . $deleteStmt->error;
+                }
+                $deleteStmt->close();
+            }
+        }
+    }
 }
 
 // Get all levels
@@ -162,7 +202,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                                 <strong><?php echo htmlspecialchars($level['level_name']); ?></strong>
                             </td>
                             <td>
-                                <i class="<?php echo $level['icon_class']; ?> fa-2x" style="color: <?php echo $level['icon_color']; ?>;"></i>
+                                <i class="<?php echo htmlspecialchars($level['icon_class']); ?> fa-2x" style="color: <?php echo htmlspecialchars($level['icon_color']); ?>;"></i>
                             </td>
                             <td>
                                 <?php echo $level['min_completed_tasks']; ?> -
@@ -175,6 +215,11 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                                 <button class="btn btn-sm btn-outline-primary edit-level-btn"
                                         data-level='<?php echo htmlspecialchars(json_encode($level)); ?>'>
                                     <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-level-btn"
+                                        data-level-id="<?php echo (int) $level['id']; ?>"
+                                        data-level-name="<?php echo htmlspecialchars($level['level_name'], ENT_QUOTES); ?>">
+                                    <i class="fas fa-trash"></i> Delete
                                 </button>
                             </td>
                         </tr>
@@ -192,13 +237,17 @@ $levelsResult = mysqli_query($con, $levelsQuery);
         </div>
         <div class="card-body">
             <?php
-            $writersByLevelQuery = "SELECT 
+            // Only active writers count toward each level's total - a deactivated
+            // writer's last-known level is still in tbl_writer_performance, but
+            // they're not really "at" that level anymore for staffing purposes.
+            $writersByLevelQuery = "SELECT
             wl.level_number, wl.level_name, wl.icon_class, wl.icon_color,
-            COUNT(wp.writer_id) as writer_count,
-            AVG(wp.completion_rate) as avg_completion_rate,
-            AVG(wp.on_time_rate) as avg_on_time_rate
+            COUNT(w.id) as writer_count,
+            AVG(CASE WHEN w.id IS NOT NULL THEN wp.completion_rate END) as avg_completion_rate,
+            AVG(CASE WHEN w.id IS NOT NULL THEN wp.on_time_rate END) as avg_on_time_rate
             FROM tbl_writer_levels wl
             LEFT JOIN tbl_writer_performance wp ON wl.level_number = wp.current_level
+            LEFT JOIN tblwriters w ON w.id = wp.writer_id AND w.is_active = 1
             GROUP BY wl.level_number
             ORDER BY wl.level_number";
             $writersByLevel = mysqli_query($con, $writersByLevelQuery);
@@ -207,12 +256,16 @@ $levelsResult = mysqli_query($con, $levelsQuery);
             <div class="row g-3">
                 <?php while ($levelStats = mysqli_fetch_assoc($writersByLevel)): ?>
                     <div class="col-md-4 col-lg-3">
-                        <div class="card border-0 bg-body-tertiary h-100">
+                        <div class="card border-0 bg-body-tertiary h-100 level-stat-card<?php echo $levelStats['writer_count'] > 0 ? '' : ' opacity-75'; ?>"
+                             role="button" tabindex="0"
+                             data-level-number="<?php echo (int) $levelStats['level_number']; ?>"
+                             data-level-name="<?php echo htmlspecialchars($levelStats['level_name'], ENT_QUOTES); ?>"
+                             title="<?php echo $levelStats['writer_count'] > 0 ? 'Click to see writers at this level' : 'No active writers at this level'; ?>">
                             <div class="card-body text-center">
-                                <i class="<?php echo $levelStats['icon_class']; ?> fa-3x mb-3" style="color: <?php echo $levelStats['icon_color']; ?>;"></i>
-                                <h6 class="mb-2"><?php echo $levelStats['level_name']; ?></h6>
+                                <i class="<?php echo htmlspecialchars($levelStats['icon_class']); ?> fa-3x mb-3" style="color: <?php echo htmlspecialchars($levelStats['icon_color']); ?>;"></i>
+                                <h6 class="mb-2"><?php echo htmlspecialchars($levelStats['level_name']); ?></h6>
                                 <h4 class="text-primary mb-1"><?php echo $levelStats['writer_count']; ?></h4>
-                                <small class="text-muted">Writers</small>
+                                <small class="text-muted">Active Writers</small>
                                 <?php if ($levelStats['writer_count'] > 0): ?>
                                     <div class="mt-2">
                                         <small class="text-success d-block">Avg Completion: <?php echo round($levelStats['avg_completion_rate'], 1); ?>%</small>
@@ -308,7 +361,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6>Preview</h6>
-                                <i id="add_preview_icon" class="fas fa-star fa-3x mb-2" style="color: #ffc107;"></i>
+                                <span id="add_preview_icon_wrap" class="d-inline-block mb-2"><i id="add_preview_icon" class="fas fa-star fa-3x" style="color: #ffc107;"></i></span>
                                 <h5 id="add_preview_name">Level Name</h5>
                                 <p id="add_preview_description" class="text-muted mb-0">Description</p>
                             </div>
@@ -395,7 +448,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6>Preview</h6>
-                                <i id="preview_icon" class="fas fa-star fa-3x mb-2" style="color: #ffc107;"></i>
+                                <span id="preview_icon_wrap" class="d-inline-block mb-2"><i id="preview_icon" class="fas fa-star fa-3x" style="color: #ffc107;"></i></span>
                                 <h5 id="preview_name">Level Name</h5>
                                 <p id="preview_description" class="text-muted mb-0">Description</p>
                             </div>
@@ -410,6 +463,56 @@ $levelsResult = mysqli_query($con, $levelsQuery);
         </div>
     </div>
 
+    <!-- Delete Level Confirmation Modal -->
+    <div class="modal fade" id="deleteLevelModal" tabindex="-1" aria-labelledby="deleteLevelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="deleteLevelModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Delete Level</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST">
+<?= csrf_field() ?>
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="delete_level">
+                        <input type="hidden" name="level_id" id="delete_level_id">
+                        <p>Are you sure you want to delete <strong id="delete_level_name"></strong>? This can't be undone.</p>
+                        <p class="text-muted mb-0 fs-10">Levels with active writers currently assigned to them can't be deleted.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>Delete Level</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Writers at Level Modal -->
+    <div class="modal fade" id="levelWritersModal" tabindex="-1" aria-labelledby="levelWritersModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="levelWritersModalLabel">Writers</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="levelWritersLoading" class="text-center text-muted py-3">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading writers...
+                    </div>
+                    <ul id="levelWritersList" class="list-group list-group-flush d-none"></ul>
+                    <p id="levelWritersEmpty" class="text-muted text-center mb-0 d-none">No active writers at this level.</p>
+                    <p id="levelWritersError" class="text-danger text-center mb-0 d-none">Couldn't load writers. Please try again.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .level-stat-card { cursor: pointer; transition: box-shadow 0.16s ease, transform 0.16s ease; }
+        .level-stat-card:hover { box-shadow: 0 0.5rem 1.25rem rgba(0,0,0,0.08); transform: translateY(-2px); }
+    </style>
+
     <script>
         // Use event delegation for dynamically loaded content
         document.addEventListener('DOMContentLoaded', function() {
@@ -422,6 +525,28 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                     const levelData = JSON.parse(button.getAttribute('data-level'));
 
                     editLevel(levelData);
+                }
+
+                const statCard = e.target.closest('.level-stat-card');
+                if (statCard) {
+                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'));
+                }
+
+                const deleteBtn = e.target.closest('.delete-level-btn');
+                if (deleteBtn) {
+                    document.getElementById('delete_level_id').value = deleteBtn.getAttribute('data-level-id');
+                    document.getElementById('delete_level_name').textContent = deleteBtn.getAttribute('data-level-name');
+                    new bootstrap.Modal(document.getElementById('deleteLevelModal')).show();
+                }
+            });
+
+            // Same trigger via keyboard for the (non-button) clickable stat cards
+            document.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                const statCard = e.target.closest('.level-stat-card');
+                if (statCard) {
+                    e.preventDefault();
+                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'));
                 }
             });
 
@@ -480,6 +605,57 @@ $levelsResult = mysqli_query($con, $levelsQuery);
             }
         });
 
+        function showLevelWriters(levelNumber, levelName) {
+            const modalEl = document.getElementById('levelWritersModal');
+            const modal = new bootstrap.Modal(modalEl);
+            const loading = document.getElementById('levelWritersLoading');
+            const list = document.getElementById('levelWritersList');
+            const empty = document.getElementById('levelWritersEmpty');
+            const error = document.getElementById('levelWritersError');
+
+            document.getElementById('levelWritersModalLabel').textContent = levelName + ' - Active Writers';
+            loading.classList.remove('d-none');
+            list.classList.add('d-none');
+            empty.classList.add('d-none');
+            error.classList.add('d-none');
+            list.innerHTML = '';
+
+            modal.show();
+
+            fetch('level-writers-api?level_number=' + encodeURIComponent(levelNumber))
+                .then(response => {
+                    if (!response.ok) throw new Error('Request failed');
+                    return response.json();
+                })
+                .then(data => {
+                    loading.classList.add('d-none');
+                    const writers = data.writers || [];
+                    if (writers.length === 0) {
+                        empty.classList.remove('d-none');
+                        return;
+                    }
+                    writers.forEach(writer => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item d-flex align-items-center';
+
+                        const icon = document.createElement('i');
+                        icon.className = 'fas fa-user-circle text-info me-2';
+                        li.appendChild(icon);
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = writer.username || writer.email;
+                        li.appendChild(nameSpan);
+
+                        list.appendChild(li);
+                    });
+                    list.classList.remove('d-none');
+                })
+                .catch(() => {
+                    loading.classList.add('d-none');
+                    error.classList.remove('d-none');
+                });
+        }
+
         function editLevel(level) {
             try {
                 // Populate form fields
@@ -529,14 +705,23 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                     iconClass = 'fa-' + iconClass;
                 }
 
-                // Update preview elements
-                const previewIcon = document.getElementById('preview_icon');
+                // Update preview elements. FontAwesome's JS kit converts the
+                // <i> into an inline <svg> on page load, so just changing
+                // .className afterward has no visual effect (the shape is
+                // already baked into the SVG). Re-inserting a fresh <i> node
+                // instead lets FontAwesome's mutation observer pick it up
+                // and re-convert it to the right icon.
+                const previewIconWrap = document.getElementById('preview_icon_wrap');
                 const previewName = document.getElementById('preview_name');
                 const previewDescription = document.getElementById('preview_description');
 
-                if (previewIcon) {
-                    previewIcon.className = `fas ${iconClass} fa-3x mb-2`;
-                    previewIcon.style.color = iconColor;
+                if (previewIconWrap) {
+                    previewIconWrap.innerHTML = '';
+                    const freshIcon = document.createElement('i');
+                    freshIcon.id = 'preview_icon';
+                    freshIcon.className = `fas ${iconClass} fa-3x`;
+                    freshIcon.style.color = iconColor;
+                    previewIconWrap.appendChild(freshIcon);
                 }
 
                 if (previewName) {
@@ -567,14 +752,19 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                     iconClass = 'fa-' + iconClass;
                 }
 
-                // Update preview elements
-                const previewIcon = document.getElementById('add_preview_icon');
+                // Update preview elements - see the comment in updateEditPreview()
+                // for why this recreates the <i> instead of mutating its class.
+                const previewIconWrap = document.getElementById('add_preview_icon_wrap');
                 const previewName = document.getElementById('add_preview_name');
                 const previewDescription = document.getElementById('add_preview_description');
 
-                if (previewIcon) {
-                    previewIcon.className = `fas ${iconClass} fa-3x mb-2`;
-                    previewIcon.style.color = iconColor;
+                if (previewIconWrap) {
+                    previewIconWrap.innerHTML = '';
+                    const freshIcon = document.createElement('i');
+                    freshIcon.id = 'add_preview_icon';
+                    freshIcon.className = `fas ${iconClass} fa-3x`;
+                    freshIcon.style.color = iconColor;
+                    previewIconWrap.appendChild(freshIcon);
                 }
 
                 if (previewName) {
