@@ -14,7 +14,7 @@ if ($levelNumber <= 0) {
     exit;
 }
 
-$stmt = $con->prepare("SELECT w.username, w.email
+$stmt = $con->prepare("SELECT w.id, w.username, w.email
                         FROM tbl_writer_performance wp
                         JOIN tblwriters w ON w.id = wp.writer_id
                         WHERE wp.current_level = ? AND w.is_active = 1
@@ -25,7 +25,11 @@ $result = $stmt->get_result();
 
 $writers = [];
 while ($row = $result->fetch_assoc()) {
-    $writers[] = ['username' => $row['username'], 'email' => $row['email']];
+    $writers[] = [
+        'username' => $row['username'],
+        'email' => $row['email'],
+        'encoded_id' => encode_writer_id($row['id']),
+    ];
 }
 
 echo json_encode(['writers' => $writers]);

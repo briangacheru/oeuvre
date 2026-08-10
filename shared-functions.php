@@ -749,8 +749,20 @@ if (!function_exists('log_activity')) {
 
 if (!function_exists('get_current_version')) {
     function get_current_version($con) {
-        $result = mysqli_query($con, "SELECT * FROM tbl_changelog ORDER BY created_at DESC, id DESC LIMIT 1");
-        $row = $result ? mysqli_fetch_assoc($result) : null;
+        // Called from footer.php on every single page load (via
+        // getVersionNumber()/getVersionLastUpdated() in version-functions.php),
+        // so a missing/broken tbl_changelog here would take down the vendor
+        // <script> tags (bootstrap, FontAwesome) at the bottom of every admin
+        // page along with it - not just this feature. PHP 8.1+ defaults mysqli
+        // to throwing mysqli_sql_exception on a bad query instead of returning
+        // false, so `$result ? ... : null` alone doesn't actually guard
+        // against a missing table; it has to be caught too.
+        try {
+            $result = mysqli_query($con, "SELECT * FROM tbl_changelog ORDER BY created_at DESC, id DESC LIMIT 1");
+            $row = $result ? mysqli_fetch_assoc($result) : null;
+        } catch (\mysqli_sql_exception $e) {
+            $row = null;
+        }
         if (!$row) {
             // Table exists but is empty (or missing/migration not run yet) -
             // a safe, obviously-a-placeholder default rather than a fatal

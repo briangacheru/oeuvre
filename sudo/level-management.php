@@ -189,12 +189,13 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                         <th>Icon</th>
                         <th>Task Range</th>
                         <th>Description</th>
-                        <th>Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <?php while ($level = mysqli_fetch_assoc($levelsResult)): ?>
-                        <tr>
+                        <tr class="level-row" role="button" tabindex="0"
+                            data-level='<?php echo htmlspecialchars(json_encode($level)); ?>'
+                            title="Click to edit this level">
                             <td>
                                 <span class="badge bg-primary fs-6"><?php echo $level['level_number']; ?></span>
                             </td>
@@ -210,17 +211,6 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                             </td>
                             <td class="text-muted">
                                 <?php echo htmlspecialchars($level['level_description']); ?>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary edit-level-btn"
-                                        data-level='<?php echo htmlspecialchars(json_encode($level)); ?>'>
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger delete-level-btn"
-                                        data-level-id="<?php echo (int) $level['id']; ?>"
-                                        data-level-name="<?php echo htmlspecialchars($level['level_name'], ENT_QUOTES); ?>">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
                             </td>
                         </tr>
                     <?php endwhile; ?>
@@ -242,6 +232,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
             // they're not really "at" that level anymore for staffing purposes.
             $writersByLevelQuery = "SELECT
             wl.level_number, wl.level_name, wl.icon_class, wl.icon_color,
+            wl.min_completed_tasks, wl.max_completed_tasks,
             COUNT(w.id) as writer_count,
             AVG(CASE WHEN w.id IS NOT NULL THEN wp.completion_rate END) as avg_completion_rate,
             AVG(CASE WHEN w.id IS NOT NULL THEN wp.on_time_rate END) as avg_on_time_rate
@@ -260,6 +251,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                              role="button" tabindex="0"
                              data-level-number="<?php echo (int) $levelStats['level_number']; ?>"
                              data-level-name="<?php echo htmlspecialchars($levelStats['level_name'], ENT_QUOTES); ?>"
+                             data-level-range="<?php echo $levelStats['min_completed_tasks']; ?> - <?php echo $levelStats['max_completed_tasks'] ? $levelStats['max_completed_tasks'] : '&infin;'; ?> tasks"
                              title="<?php echo $levelStats['writer_count'] > 0 ? 'Click to see writers at this level' : 'No active writers at this level'; ?>">
                             <div class="card-body text-center">
                                 <i class="<?php echo htmlspecialchars($levelStats['icon_class']); ?> fa-3x mb-3" style="color: <?php echo htmlspecialchars($levelStats['icon_color']); ?>;"></i>
@@ -455,6 +447,9 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger delete-level-btn me-auto" id="edit_modal_delete_btn">
+                            <i class="fas fa-trash me-1"></i>Delete Level
+                        </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Update Level</button>
                     </div>
@@ -511,42 +506,57 @@ $levelsResult = mysqli_query($con, $levelsQuery);
     <style>
         .level-stat-card { cursor: pointer; transition: box-shadow 0.16s ease, transform 0.16s ease; }
         .level-stat-card:hover { box-shadow: 0 0.5rem 1.25rem rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .level-row { cursor: pointer; }
     </style>
 
     <script>
         // Use event delegation for dynamically loaded content
         document.addEventListener('DOMContentLoaded', function() {
-            // Handle edit button clicks using event delegation
+            // Click a level row to open it for editing
             document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('edit-level-btn') || e.target.closest('.edit-level-btn')) {
-                    e.preventDefault();
-
-                    const button = e.target.classList.contains('edit-level-btn') ? e.target : e.target.closest('.edit-level-btn');
-                    const levelData = JSON.parse(button.getAttribute('data-level'));
-
+                const levelRow = e.target.closest('.level-row');
+                if (levelRow) {
+                    const levelData = JSON.parse(levelRow.getAttribute('data-level'));
                     editLevel(levelData);
                 }
 
                 const statCard = e.target.closest('.level-stat-card');
                 if (statCard) {
-                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'));
+                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'), statCard.getAttribute('data-level-range'));
                 }
 
                 const deleteBtn = e.target.closest('.delete-level-btn');
                 if (deleteBtn) {
+                    // Triggered from the Edit modal's own footer - step out of
+                    // it before the confirmation modal takes over, so they
+                    // don't stack.
+                    const editModalEl = document.getElementById('editLevelModal');
+                    const openEditModal = bootstrap.Modal.getInstance(editModalEl);
+                    if (openEditModal) {
+                        openEditModal.hide();
+                    }
+
                     document.getElementById('delete_level_id').value = deleteBtn.getAttribute('data-level-id');
                     document.getElementById('delete_level_name').textContent = deleteBtn.getAttribute('data-level-name');
                     new bootstrap.Modal(document.getElementById('deleteLevelModal')).show();
                 }
             });
 
-            // Same trigger via keyboard for the (non-button) clickable stat cards
+            // Same trigger via keyboard for the (non-button) clickable rows/cards
             document.addEventListener('keydown', function(e) {
                 if (e.key !== 'Enter' && e.key !== ' ') return;
+
+                const levelRow = e.target.closest('.level-row');
+                if (levelRow) {
+                    e.preventDefault();
+                    editLevel(JSON.parse(levelRow.getAttribute('data-level')));
+                    return;
+                }
+
                 const statCard = e.target.closest('.level-stat-card');
                 if (statCard) {
                     e.preventDefault();
-                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'));
+                    showLevelWriters(statCard.getAttribute('data-level-number'), statCard.getAttribute('data-level-name'), statCard.getAttribute('data-level-range'));
                 }
             });
 
@@ -605,7 +615,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
             }
         });
 
-        function showLevelWriters(levelNumber, levelName) {
+        function showLevelWriters(levelNumber, levelName, levelRange) {
             const modalEl = document.getElementById('levelWritersModal');
             const modal = new bootstrap.Modal(modalEl);
             const loading = document.getElementById('levelWritersLoading');
@@ -613,7 +623,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
             const empty = document.getElementById('levelWritersEmpty');
             const error = document.getElementById('levelWritersError');
 
-            document.getElementById('levelWritersModalLabel').textContent = levelName + ' - Active Writers';
+            document.getElementById('levelWritersModalLabel').textContent = levelName + ' (' + levelRange + ') - Active Writers';
             loading.classList.remove('d-none');
             list.classList.add('d-none');
             empty.classList.add('d-none');
@@ -642,9 +652,17 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                         icon.className = 'fas fa-user-circle text-info me-2';
                         li.appendChild(icon);
 
-                        const nameSpan = document.createElement('span');
-                        nameSpan.textContent = writer.username || writer.email;
-                        li.appendChild(nameSpan);
+                        if (writer.encoded_id) {
+                            const link = document.createElement('a');
+                            link.href = 'writer?writerID=' + encodeURIComponent(writer.encoded_id);
+                            link.className = 'text-decoration-none stretched-link';
+                            link.textContent = writer.username || writer.email;
+                            li.appendChild(link);
+                        } else {
+                            const nameSpan = document.createElement('span');
+                            nameSpan.textContent = writer.username || writer.email;
+                            li.appendChild(nameSpan);
+                        }
 
                         list.appendChild(li);
                     });
@@ -661,6 +679,13 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                 // Populate form fields
                 document.getElementById('edit_level_id').value = level.id;
                 document.getElementById('edit_level_name').value = level.level_name || '';
+
+                // The footer's Delete button reuses the same delete-level-btn
+                // handler as everywhere else - just needs this level's id/name
+                // on it, refreshed every time a different row is opened.
+                const editModalDeleteBtn = document.getElementById('edit_modal_delete_btn');
+                editModalDeleteBtn.setAttribute('data-level-id', level.id);
+                editModalDeleteBtn.setAttribute('data-level-name', level.level_name || '');
 
                 // Handle icon class properly - get the actual icon name from database
                 let iconClass = level.icon_class || '';

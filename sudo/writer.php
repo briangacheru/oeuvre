@@ -370,15 +370,23 @@ if ($writerID) {
         <?php
         $wsCutoff = date('Y-m-d H:i:s', time() - 86400); // active within the last 24h
         $writerSessions = [];
-        $wsStmt = mysqli_prepare($con, "SELECT * FROM tblwriter_sessions
-                                        WHERE writer_email = ? AND last_activity >= ?
-                                        ORDER BY last_activity DESC");
-        if ($wsStmt) { // null if tblwriter_sessions doesn't exist yet
-            mysqli_stmt_bind_param($wsStmt, 'ss', $rowWriter['email'], $wsCutoff);
-            mysqli_stmt_execute($wsStmt);
-            $wsRes = mysqli_stmt_get_result($wsStmt);
-            while ($wsRow = mysqli_fetch_assoc($wsRes)) { $writerSessions[] = $wsRow; }
-            mysqli_stmt_close($wsStmt);
+        try {
+            // PHP 8.1+ mysqli defaults to throwing mysqli_sql_exception on a bad
+            // query (e.g. tblwriter_sessions not existing yet) rather than
+            // returning false/null, so a plain `if ($stmt)` check alone doesn't
+            // guard against a missing table - it has to be caught too.
+            $wsStmt = mysqli_prepare($con, "SELECT * FROM tblwriter_sessions
+                                            WHERE writer_email = ? AND last_activity >= ?
+                                            ORDER BY last_activity DESC");
+            if ($wsStmt) {
+                mysqli_stmt_bind_param($wsStmt, 'ss', $rowWriter['email'], $wsCutoff);
+                mysqli_stmt_execute($wsStmt);
+                $wsRes = mysqli_stmt_get_result($wsStmt);
+                while ($wsRow = mysqli_fetch_assoc($wsRes)) { $writerSessions[] = $wsRow; }
+                mysqli_stmt_close($wsStmt);
+            }
+        } catch (\mysqli_sql_exception $e) {
+            $writerSessions = [];
         }
         ?>
         <div class="row g-0">
@@ -464,15 +472,22 @@ if ($writerID) {
                                                ORDER BY id DESC
                                                LIMIT 8";
                         // Guarded like the Logged-in Devices query above - tbl_activity_log
-                        // is a recent addition and may not exist on every install yet.
+                        // is a recent addition and may not exist on every install yet. A plain
+                        // `if ($stmt)` isn't enough here: PHP 8.1+ defaults mysqli to throwing
+                        // mysqli_sql_exception on a bad query (missing table/column) instead of
+                        // returning false, so a missing table has to be caught, not just checked.
                         $recentActivity = [];
-                        $recentStmt = mysqli_prepare($con, $recentActivityQuery);
-                        if ($recentStmt) {
-                            mysqli_stmt_bind_param($recentStmt, 's', $rowWriter['email']);
-                            mysqli_stmt_execute($recentStmt);
-                            $recentRes = mysqli_stmt_get_result($recentStmt);
-                            while ($row = mysqli_fetch_assoc($recentRes)) { $recentActivity[] = $row; }
-                            mysqli_stmt_close($recentStmt);
+                        try {
+                            $recentStmt = mysqli_prepare($con, $recentActivityQuery);
+                            if ($recentStmt) {
+                                mysqli_stmt_bind_param($recentStmt, 's', $rowWriter['email']);
+                                mysqli_stmt_execute($recentStmt);
+                                $recentRes = mysqli_stmt_get_result($recentStmt);
+                                while ($row = mysqli_fetch_assoc($recentRes)) { $recentActivity[] = $row; }
+                                mysqli_stmt_close($recentStmt);
+                            }
+                        } catch (\mysqli_sql_exception $e) {
+                            $recentActivity = [];
                         }
 
                         $activityStyles = [
@@ -533,6 +548,8 @@ if ($writerID) {
 ?>
 
         <?php
-    $con->close();
+    // NOT $con->close() here - footer.php still needs $con (getVersionNumber()
+    // queries tbl_changelog). PHP closes the connection on its own at script
+    // end anyway, so this was never doing anything but breaking the footer.
     include "footer.php";
 ?>
