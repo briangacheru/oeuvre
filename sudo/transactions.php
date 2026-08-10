@@ -542,39 +542,11 @@ if (isset($_SESSION['alert'])) {
 $duplicateTransactions = $_SESSION['duplicate_transactions'] ?? [];
 unset($_SESSION['duplicate_transactions']);
 ?>
-    <div class="row mb-3">
-        <div class="col">
-            <div class="card shadow-none border ps-3">
-                <div class="row gx-0 flex-between-center">
-                    <div class="col-sm-auto d-flex align-items-center"><img class="ms-n2" src="../assets/img/illustrations/crm-bar-chart.png" alt="" width="90" />
-                        <div>
-                            <h4 class="text-primary fw-bold mb-0">Import <span class="text-info fw-medium">Transactions</span></h4>
-                        </div><img class="ms-n4 d-md-none d-lg-block" src="../assets/img/illustrations/crm-line-chart.png" alt="" width="150" />
-                    </div>
-                    <div class="col-sm-auto pt-lg-0">
-                        <form method="post" enctype="multipart/form-data" class="row flex-lg-column flex-xxl-row align-items-center align-items-lg-start align-items-xxl-center">
-<?= csrf_field() ?>
-                            <div class="card-body">
-                                <div class="mb-1">
-                                    <label for="transaction_file" class="form-label">Select CSV File</label>
-                                    <input type="file" class="form-control" id="transaction_file" name="csv_file" accept=".csv" required>
-                                    <div class="form-text">File must match the export format with columns: Category, Subcategory, Description, Amount, Cost, Tag, Date</div>
-                                </div>
-                            </div>
-                            <div class="card-footer">
-                                <button type="submit" name="import_csv" class="btn btn-primary">Import CSV</button>
-                                <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importHelpModal">
-                                    <i class="fas fa-question-circle me-1"></i> Import Help
-                                </a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Upload Statement (Equity / M-Pesa) -->
+    <!-- The old "Import Transactions" card (raw manual CSV upload) was removed
+         here - it served the same purpose as this one (getting transactions
+         into tblbudget from a file) and both ultimately POST to the same
+         import_csv handler above, so it was pure duplication. -->
     <div class="row mb-3">
         <div class="col">
             <div class="card shadow-none border">
@@ -1113,34 +1085,6 @@ unset($_SESSION['duplicate_transactions']);
                     </div>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- Help Modal -->
-    <div class="modal fade" id="importHelpModal" tabindex="-1" aria-labelledby="importHelpModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="importHelpModalLabel">Import File Format</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>The import file should be in CSV format with the following columns:</p>
-                    <ol>
-                        <li><strong>Category</strong> - Transaction category (Expense, Income, Savings)</li>
-                        <li><strong>Subcategory</strong> - Transaction subcategory</li>
-                        <li><strong>Description</strong> - Transaction description</li>
-                        <li><strong>Amount (Ksh)</strong> - Transaction amount</li>
-                        <li><strong>Cost (Ksh)</strong> - Transaction cost</li>
-                        <li><strong>Tag</strong> - Payment method (Mpesa, Cash, PayPal, Card, Airtel Money)</li>
-                        <li><strong>Date</strong> - Transaction date in format "MMM D, YYYY H:MM" (e.g., "May 10, 2025 15:30")</li>
-                    </ol>
-                    <p>You can download a template by exporting your current transactions.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -1840,7 +1784,17 @@ unset($_SESSION['duplicate_transactions']);
     <script>
         // ---- Possible-duplicates review modal (see $duplicateTransactions in the PHP above) ----
         (function () {
-            const DUPLICATE_TRANSACTIONS = <?= json_encode($duplicateTransactions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+            // $duplicateTransactions holds RAW, unsanitized text straight from the
+            // CSV/bank-statement row (see the $rawCategory/$rawDescription/etc.
+            // comment above) - bank/M-Pesa PDF extraction can leave invalid UTF-8
+            // byte sequences in there. Without JSON_INVALID_UTF8_SUBSTITUTE,
+            // json_encode() silently returns false on those, which rendered as
+            // `const DUPLICATE_TRANSACTIONS = ;` here - a JS syntax error that
+            // killed this whole script block, so the review modal never showed
+            // even though duplicates really had been found. The `?: '[]'`
+            // fallback is a second safety net in case encoding ever fails for
+            // some other reason.
+            const DUPLICATE_TRANSACTIONS = <?= json_encode($duplicateTransactions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]' ?>;
             if (!DUPLICATE_TRANSACTIONS.length) {
                 return;
             }
