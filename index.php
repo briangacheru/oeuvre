@@ -693,8 +693,8 @@ if ($rowWriter->is_verified == 1) {
         <?php } ?>
     </div>
 
-    <div class="row g-3 mt-1 mb-7">
-        <div class="col-lg-5">
+    <div class="row g-3 gx-lg-4 mt-1 mb-7">
+        <div class="col-lg-5 mb-3 mb-lg-0">
             <div class="itk-section-title">Status Snapshot</div>
             <div class="card itk-stat-card" style="cursor:default">
                 <div class="card-body">
@@ -852,6 +852,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var btnNew = document.getElementById('btnDashboardNew');
     var donutInstance = null;
 
+    function getComputedTextColor(cls) {
+        var span = document.createElement('span');
+        span.className = cls;
+        span.style.display = 'none';
+        document.body.appendChild(span);
+        var color = getComputedStyle(span).color;
+        document.body.removeChild(span);
+        return color;
+    }
+
     function renderDonut() {
         if (!window.echarts || donutInstance) return;
         var el = document.getElementById('dashboardNewDonut');
@@ -859,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
         donutInstance = echarts.init(el);
         donutInstance.setOption({
             tooltip: { trigger: 'item' },
-            legend: { bottom: 4, top: 'auto', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 10 } },
+            legend: { bottom: 4, top: 'auto', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 12, color: getComputedTextColor('text-800') } },
             series: [{
                 type: 'pie',
                 center: ['50%', '38%'],
