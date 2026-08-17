@@ -967,7 +967,7 @@ if ($q && ($r = mysqli_fetch_assoc($q))) { $adminRegStatus = (int) $r['regStatus
         <?php } ?>
     </div>
 
-    <div class="row g-3 mt-1 mb-5">
+    <div class="row g-3 mt-1 mb-6">
         <div class="col-lg-5">
             <div class="itk-section-title">Status Snapshot</div>
             <div class="card itk-stat-card" style="cursor:default">
