@@ -693,7 +693,7 @@ if ($rowWriter->is_verified == 1) {
         <?php } ?>
     </div>
 
-    <div class="row g-3 mt-1 mb-5">
+    <div class="row g-3 mt-1 mb-7">
         <div class="col-lg-5">
             <div class="itk-section-title">Status Snapshot</div>
             <div class="card itk-stat-card" style="cursor:default">
@@ -708,6 +708,36 @@ if ($rowWriter->is_verified == 1) {
             <div class="card itk-stat-card" style="cursor:default">
                 <div class="card-body">
                     <?php $hasActivityWriter = false; ?>
+                    <?php if ($newTasksCount > 0): $hasActivityWriter = true; ?>
+                    <a href="tasks-in-progress" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-success)">
+                        <div class="itk-icon bg-success-subtle text-success"><i class="fas fa-bolt"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $newTasksCount; ?> new task<?php echo ($newTasksCount > 1) ? 's' : ''; ?></strong> in progress</p>
+                        </div>
+                        <i class="fas fa-chevron-right fs-11 text-500"></i>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($unreadMessagesCount > 0): $hasActivityWriter = true; ?>
+                    <a href="chat" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-info)">
+                        <div class="itk-icon bg-info-subtle text-info"><i class="fas fa-comments"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $unreadMessagesCount; ?> new message<?php echo ($unreadMessagesCount > 1) ? 's' : ''; ?></strong> unread</p>
+                        </div>
+                        <i class="fas fa-chevron-right fs-11 text-500"></i>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($unreadCommentsCount > 0): $hasActivityWriter = true; ?>
+                    <a href="all-comments" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-info)">
+                        <div class="itk-icon bg-info-subtle text-info"><i class="fas fa-comment"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $unreadCommentsCount; ?> new comment<?php echo ($unreadCommentsCount > 1) ? 's' : ''; ?></strong> on your tasks</p>
+                        </div>
+                        <i class="fas fa-chevron-right fs-11 text-500"></i>
+                    </a>
+                    <?php endif; ?>
+
                     <?php if ($lateTasksCount >= 1): $hasActivityWriter = true; ?>
                     <a href="tasks-in-progress" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-warning)">
                         <div class="itk-icon bg-warning-subtle text-warning"><i class="fas fa-clock"></i></div>
