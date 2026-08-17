@@ -200,6 +200,13 @@ if (isset($_GET['del'])) {
                                         </thead>
                                         <tbody class="list" id="table-simple-pagination-body">
                                         <?php
+                                            $taskCommentCounts = [];
+                                            $commentCountsResult = mysqli_query($con, "SELECT task_id, COUNT(*) AS cnt FROM tbl_task_comments GROUP BY task_id");
+                                            if ($commentCountsResult) {
+                                                while ($ccRow = mysqli_fetch_assoc($commentCountsResult)) {
+                                                    $taskCommentCounts[$ccRow['task_id']] = (int) $ccRow['cnt'];
+                                                }
+                                            }
                                             $query=mysqli_query($con,"select * from tbltasks WHERE is_deleted = 0 AND (writer = 'Draft' OR status = 'Draft') ORDER BY id DESC");
                                             $cnt=1;
                                             while($row=mysqli_fetch_array($query))
@@ -266,7 +273,12 @@ if (isset($_GET['del'])) {
                                                     <input class="form-check-input" type="checkbox" id="simple-pagination-item-<?php echo $cnt; ?>" data-bulk-select-row="data-bulk-select-row" value="<?php echo $row['id']; ?>" name="taskIds[]"/>
                                                 </div>
                                             </td>
-                                            <td class="align-middle white-space-nowrap fw-semi-bold text-900"><?php echo $row["id"];?></td>
+                                            <td class="align-middle white-space-nowrap fw-semi-bold text-900">
+                                                <?php echo $row["id"];?>
+                                                <?php if (!empty($taskCommentCounts[$row['id']])): ?>
+                                                    <a href="view-task?task_id=<?php echo $encodedId; ?>#discussionBody" class="ms-1 text-info" data-bs-toggle="tooltip" data-bs-placement="top" title="<?php echo $taskCommentCounts[$row['id']]; ?> message<?php echo $taskCommentCounts[$row['id']] > 1 ? 's' : ''; ?> in discussion"><i class="fas fa-comment-dots"></i></a>
+                                                <?php endif; ?>
+                                            </td>
                                             <td>
                                                 <div class="d-flex align-items-center position-relative">
                                                     <div class="flex-1">
