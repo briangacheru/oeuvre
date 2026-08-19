@@ -1430,21 +1430,21 @@ function buildPaginationUrl($page) {
                     const data = JSON.parse(text);
                     if (data.success) {
                         // Show success message briefly
-                        showNotification('Status updated successfully!', 'success');
+                        showToast('Status updated successfully!', 'success');
                         // Optional: Update UI without full reload
                         updateTaskRowStatus(taskId, status);
                     } else {
-                        showNotification('Failed to update status: ' + (data.message || 'Unknown error'), 'error');
+                        showToast('Failed to update status: ' + (data.message || 'Unknown error'), 'error');
                     }
                 } catch (e) {
                     console.error('JSON Parse Error:', e);
                     console.error('Response text:', text);
-                    showNotification('Server response error. Check console for details.', 'error');
+                    showToast('Server response error. Check console for details.', 'error');
                 }
             })
             .catch(error => {
                 console.error('Fetch Error:', error);
-                showNotification('Network error: ' + error.message, 'error');
+                showToast('Network error: ' + error.message, 'error');
             });
     }
 
@@ -1485,7 +1485,7 @@ function buildPaginationUrl($page) {
         const selected = Array.from(document.querySelectorAll('.bulk-select:checked')).map(cb => cb.value);
 
         if (selected.length === 0) {
-            showNotification('Please select tasks first', 'warning');
+            showToast('Please select tasks first', 'warning');
             return;
         }
 
@@ -1518,22 +1518,22 @@ function buildPaginationUrl($page) {
                 try {
                     const data = JSON.parse(text);
                     if (data.success) {
-                        showNotification(`Successfully ${actionText}d ${selected.length} task(s)!`, 'success');
+                        showToast(`Successfully ${actionText}d ${selected.length} task(s)!`, 'success');
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
                     } else {
-                        showNotification('Failed to perform bulk action: ' + (data.message || 'Unknown error'), 'error');
+                        showToast('Failed to perform bulk action: ' + (data.message || 'Unknown error'), 'error');
                     }
                 } catch (e) {
                     console.error('JSON Parse Error:', e);
                     console.error('Response text:', text);
-                    showNotification('Server response error. Check console for details.', 'error');
+                    showToast('Server response error. Check console for details.', 'error');
                 }
             })
             .catch(error => {
                 console.error('Fetch Error:', error);
-                showNotification('Network error: ' + error.message, 'error');
+                showToast('Network error: ' + error.message, 'error');
             });
     }
 
@@ -1858,38 +1858,7 @@ function buildPaginationUrl($page) {
         }
     }
 
-    // Notification system
-    function showNotification(message, type = 'info') {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.custom-notification');
-        existingNotifications.forEach(notification => notification.remove());
-
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show custom-notification`;
-        notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    `;
-
-        notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-        document.body.appendChild(notification);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 5000);
-    }
+    // showToast() is provided by the shared assets/js/toast.js (loaded via footer.php)
 
     // Export functionality
     function confirmExport() {
@@ -1931,7 +1900,7 @@ function buildPaginationUrl($page) {
 
         // Show success notification
         setTimeout(() => {
-            showNotification('Export started! Your CSV file should download shortly.', 'success');
+            showToast('Export started! Your CSV file should download shortly.', 'success');
 
             // Reset button state
             exportBtn.innerHTML = originalText;
@@ -2121,7 +2090,7 @@ function buildPaginationUrl($page) {
                             label.classList.toggle('text-decoration-line-through', !!cb.checked);
                             label.classList.toggle('text-muted', !!cb.checked);
                         }
-                        showNotification('Failed to update subtask', 'error');
+                        showToast('Failed to update subtask', 'error');
                         return;
                     }
                     // Update parent row's subtask counter + expansion summary/bar
@@ -2138,7 +2107,7 @@ function buildPaginationUrl($page) {
                 })
                 .catch(() => {
                     cb.checked = !cb.checked;
-                    showNotification('Network error', 'error');
+                    showToast('Network error', 'error');
                 });
         });
 
@@ -2159,10 +2128,10 @@ function buildPaginationUrl($page) {
                 .then(r => r.json())
                 .then(d => {
                     if (d.success) {
-                        showNotification('Status updated', 'success');
+                        showToast('Status updated', 'success');
                         setTimeout(() => location.reload(), 350);
                     } else {
-                        showNotification(d.message || 'Failed', 'error');
+                        showToast(d.message || 'Failed', 'error');
                     }
                 });
         });
@@ -2219,8 +2188,8 @@ function buildPaginationUrl($page) {
             ids.forEach(id => fd.append('ids[]', id));
             fetch(window.location.href, { method: 'POST', body: fd })
                 .then(r => r.json())
-                .then(d => { if (!d.success) showNotification(d.message || 'Failed to save order', 'error'); })
-                .catch(() => showNotification('Network error saving order', 'error'));
+                .then(d => { if (!d.success) showToast(d.message || 'Failed to save order', 'error'); })
+                .catch(() => showToast('Network error saving order', 'error'));
         }
 
         function bucketToDate(bucket) {
@@ -2265,10 +2234,10 @@ function buildPaginationUrl($page) {
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) {
-                            showNotification('Rescheduled', 'success');
+                            showToast('Rescheduled', 'success');
                             setTimeout(() => location.reload(), 350);
                         } else {
-                            showNotification(d.message || 'Failed to reschedule', 'error');
+                            showToast(d.message || 'Failed to reschedule', 'error');
                         }
                     });
             });
@@ -2322,15 +2291,15 @@ function buildPaginationUrl($page) {
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) {
-                            showNotification('Task added', 'success');
+                            showToast('Task added', 'success');
                             setTimeout(() => location.reload(), 350);
                         } else {
-                            showNotification(d.message || 'Failed', 'error');
+                            showToast(d.message || 'Failed', 'error');
                             if (btn) { btn.disabled = false; btn.textContent = 'Add'; }
                         }
                     })
                     .catch(() => {
-                        showNotification('Network error', 'error');
+                        showToast('Network error', 'error');
                         if (btn) { btn.disabled = false; btn.textContent = 'Add'; }
                     });
             });
