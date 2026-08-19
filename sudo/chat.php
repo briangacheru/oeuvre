@@ -772,13 +772,13 @@ try {
 
             // Validation
             if (!messageContent && fileInput.files.length === 0) {
-                showMessage('Please enter a message or select a file', 'error');
+                showToast('Please enter a message or select a file', 'error');
                 messageInput.focus();
                 return false;
             }
 
             if (!receiverId) {
-                showMessage('Please select a conversation first', 'error');
+                showToast('Please select a conversation first', 'error');
                 return false;
             }
 
@@ -855,7 +855,7 @@ try {
                 })
                 .catch(error => {
                     console.error('Error sending message:', error);
-                    showMessage('Failed to send message: ' + error.message, 'error');
+                    showToast('Failed to send message: ' + error.message, 'error');
                 })
                 .finally(() => {
                     // Reset button
@@ -1245,7 +1245,7 @@ try {
             }
 
             if (file.size > MAX_CHAT_FILE_SIZE) {
-                showMessage('File size must be less than 50MB', 'error');
+                showToast('File size must be less than 50MB', 'error');
                 input.value = '';
                 hideFilePreview();
                 return;
@@ -1253,7 +1253,7 @@ try {
 
             const extension = file.name.split('.').pop().toLowerCase();
             if (!ALLOWED_CHAT_FILE_EXTENSIONS.includes(extension)) {
-                showMessage('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.', 'error');
+                showToast('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.', 'error');
                 input.value = '';
                 hideFilePreview();
                 return;
@@ -1477,29 +1477,7 @@ try {
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        function showMessage(message, type) {
-            const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
-            const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show mt-2" role="alert">
-            ${escapeHtml(message)}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-            // Remove existing alerts
-            document.querySelectorAll('.alert').forEach(alert => alert.remove());
-
-            // Add new alert
-            const form = document.querySelector('.chat-editor-area');
-            if (form) {
-                form.insertAdjacentHTML('afterend', alertHtml);
-
-                // Auto remove after 5 seconds
-                setTimeout(() => {
-                    document.querySelectorAll('.alert').forEach(alert => alert.remove());
-                }, 5000);
-            }
-        }
+        // showToast() is provided by the shared assets/js/toast.js (loaded via footer.php)
 
         // Contact search
         function setupContactSearch() {
