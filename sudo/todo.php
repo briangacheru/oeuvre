@@ -1669,7 +1669,7 @@ function buildPaginationUrl($page) {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to load task details');
+                showToast('Failed to load task details', 'danger');
             });
     }
 
