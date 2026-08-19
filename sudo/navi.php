@@ -1912,7 +1912,7 @@
                             if (permission === 'granted') {
                                 this.updateNotificationIndicator();
                             } else if (permission === 'denied') {
-                                alert('Notifications are blocked. Please enable them in your browser settings for this site.');
+                                showToast('Notifications are blocked. Please enable them in your browser settings for this site.', 'warning');
                             }
                             return permission;
                         }

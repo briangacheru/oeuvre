@@ -504,12 +504,12 @@ if ($row = mysqli_fetch_array($result)) {
                         // If the file was successfully deleted, remove the element
                         elementToRemove.remove();
                     } else {
-                        alert('Failed to delete the file. Please try again.');
+                        showToast('Failed to delete the file. Please try again.', 'danger');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
+                    showToast('An error occurred. Please try again.', 'danger');
                 });
         }
     }

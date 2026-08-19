@@ -1408,7 +1408,7 @@ unset($_SESSION['duplicate_transactions']);
         // Show confirmation modal
         function confirmBulkDelete() {
             if (selectedTransactions.size === 0) {
-                alert('Please select at least one transaction to delete.');
+                showToast('Please select at least one transaction to delete.', 'warning');
                 return;
             }
 
@@ -1459,7 +1459,7 @@ unset($_SESSION['duplicate_transactions']);
         // Execute bulk delete
         function executeBulkDelete() {
             if (!document.getElementById('confirmDeleteCheckbox').checked) {
-                alert('Please confirm that you want to delete these transactions.');
+                showToast('Please confirm that you want to delete these transactions.', 'warning');
                 return;
             }
 

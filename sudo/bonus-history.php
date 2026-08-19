@@ -506,7 +506,7 @@ $totalPages = ceil($totalCount / $limit);
             const checkedBoxes = document.querySelectorAll('.bonus-checkbox:checked');
 
             if (checkedBoxes.length === 0) {
-                alert('Please select at least one bonus to mark as paid.');
+                showToast('Please select at least one bonus to mark as paid.', 'warning');
                 return;
             }
 

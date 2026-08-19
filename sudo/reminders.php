@@ -6143,13 +6143,12 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                                 if (typeof showToast === 'function') showToast(data.message || 'Reminder added!', 'success');
                                 setTimeout(() => location.reload(), 400);
                             } else {
-                                if (typeof showToast === 'function') showToast(data.message || 'Failed', 'danger');
-                                else alert(data.message || 'Failed');
+                                showToast(data.message || 'Failed', 'danger');
                             }
                         })
                         .catch(err => {
                             console.error(err);
-                            if (typeof showToast === 'function') showToast('Network error', 'danger');
+                            showToast('Network error', 'danger');
                         });
                 });
             }
@@ -6245,16 +6244,15 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            if (typeof showToast === 'function') showToast(data.message || 'Reminder snoozed', 'success');
+                            showToast(data.message || 'Reminder snoozed', 'success');
                             setTimeout(() => location.reload(), 400);
                         } else {
-                            if (typeof showToast === 'function') showToast(data.message || 'Failed to snooze', 'danger');
-                            else alert(data.message || 'Failed to snooze');
+                            showToast(data.message || 'Failed to snooze', 'danger');
                         }
                     })
                     .catch(err => {
                         console.error('Snooze failed', err);
-                        if (typeof showToast === 'function') showToast('Network error', 'danger');
+                        showToast('Network error', 'danger');
                     });
             };
 
@@ -6287,18 +6285,17 @@ $unreadMessagesCount = count($unreadMessages); // Count the number of unread mes
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) {
-                                if (typeof showToast === 'function') showToast(data.message, 'success');
+                                showToast(data.message, 'success');
                                 setTimeout(() => location.reload(), 400);
                             } else {
-                                if (typeof showToast === 'function') showToast(data.message || 'Failed', 'danger');
-                                else alert(data.message || 'Failed');
+                                showToast(data.message || 'Failed', 'danger');
                                 bulkCompleteBtn.disabled = false;
                                 bulkCompleteBtn.innerHTML = originalHTML;
                             }
                         })
                         .catch(err => {
                             console.error(err);
-                            if (typeof showToast === 'function') showToast('Network error', 'danger');
+                            showToast('Network error', 'danger');
                             bulkCompleteBtn.disabled = false;
                             bulkCompleteBtn.innerHTML = originalHTML;
                         });

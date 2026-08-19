@@ -1417,10 +1417,10 @@ try {
                                 }
                                 editModal.hide();
                             } else {
-                                alert('Failed to edit message: ' + (data.message || 'Unknown error'));
+                                showToast('Failed to edit message: ' + (data.message || 'Unknown error'), 'danger');
                             }
                         })
-                        .catch(error => alert('Error editing message: ' + error.message));
+                        .catch(error => showToast('Error editing message: ' + error.message, 'danger'));
                 });
             }
 
@@ -1442,12 +1442,12 @@ try {
                                 const messageRow = pendingDeleteTrigger.closest('[data-message-id]');
                                 if (messageRow) messageRow.remove();
                             } else {
-                                alert('Failed to delete message: ' + (data.message || 'Unknown error'));
+                                showToast('Failed to delete message: ' + (data.message || 'Unknown error'), 'danger');
                             }
                         })
                         .catch(error => {
                             deleteModal.hide();
-                            alert('Error deleting message: ' + error.message);
+                            showToast('Error deleting message: ' + error.message, 'danger');
                         });
                 });
             }

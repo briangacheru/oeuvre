@@ -711,7 +711,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
 
             } catch (error) {
                 console.error('Error in editLevel function:', error);
-                alert('Error opening edit modal. Please try again.');
+                showToast('Error opening edit modal. Please try again.', 'danger');
             }
         }
 

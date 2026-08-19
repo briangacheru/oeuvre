@@ -749,13 +749,13 @@ if (isset($_SESSION['alert'])) {
                         if (data && data.status === 'success') {
                             window.location.reload();
                         } else {
-                            alert('Failed to publish task: ' + (data && data.message ? data.message : 'Unknown error'));
+                            showToast('Failed to publish task: ' + (data && data.message ? data.message : 'Unknown error'), 'danger');
                             publishBtn.disabled = false;
                             publishBtn.innerHTML = originalText;
                         }
                     })
                     .catch(function (error) {
-                        alert('Error publishing task: ' + error.message);
+                        showToast('Error publishing task: ' + error.message, 'danger');
                         publishBtn.disabled = false;
                         publishBtn.innerHTML = originalText;
                     });

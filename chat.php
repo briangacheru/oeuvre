@@ -397,10 +397,10 @@ usort($users, function($a, $b) {
                             }
                             editModal.hide();
                         } else {
-                            alert('Failed to edit message: ' + (data.message || 'Unknown error'));
+                            showToast('Failed to edit message: ' + (data.message || 'Unknown error'), 'danger');
                         }
                     })
-                    .catch(error => alert('Error editing message: ' + error.message));
+                    .catch(error => showToast('Error editing message: ' + error.message, 'danger'));
             });
         }
 
@@ -422,12 +422,12 @@ usort($users, function($a, $b) {
                             const messageRow = pendingDeleteTrigger.closest('[data-message-id]');
                             if (messageRow) messageRow.remove();
                         } else {
-                            alert('Failed to delete message: ' + (data.message || 'Unknown error'));
+                            showToast('Failed to delete message: ' + (data.message || 'Unknown error'), 'danger');
                         }
                     })
                     .catch(error => {
                         deleteModal.hide();
-                        alert('Error deleting message: ' + error.message);
+                        showToast('Error deleting message: ' + error.message, 'danger');
                     });
             });
         }
@@ -1007,12 +1007,12 @@ usort($users, function($a, $b) {
 
                     GLightbox(); // Re-initialize GLightbox for new content
                 } else {
-                    alert(data.message);
+                    showToast(data.message, 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error sending message:', error);
-                alert('An error occurred while sending the message.');
+                showToast('An error occurred while sending the message.', 'danger');
             })
             .finally(() => {
                 sendButton.innerHTML = originalButtonText;
@@ -1061,7 +1061,7 @@ usort($users, function($a, $b) {
         }
 
         if (file.size > MAX_CHAT_FILE_SIZE) {
-            alert('File size must be less than 50MB');
+            showToast('File size must be less than 50MB', 'warning');
             event.target.value = '';
             hideFilePreview();
             return;
@@ -1069,7 +1069,7 @@ usort($users, function($a, $b) {
 
         const extension = file.name.split('.').pop().toLowerCase();
         if (!ALLOWED_CHAT_FILE_EXTENSIONS.includes(extension)) {
-            alert('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.');
+            showToast('File type not allowed. Allowed: Word, Excel, PowerPoint, ZIP, PDF, and photos.', 'warning');
             event.target.value = '';
             hideFilePreview();
             return;

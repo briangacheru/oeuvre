@@ -384,7 +384,7 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
             const commentIds = Array.from(selectedCheckboxes).map(cb => cb.value);
 
             if (commentIds.length === 0) {
-                alert('Please select comments to mark as read.');
+                showToast('Please select comments to mark as read.', 'warning');
                 return;
             }
 
@@ -398,7 +398,7 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
             const commentIds = Array.from(allCheckboxes).map(cb => cb.value);
 
             if (commentIds.length === 0) {
-                alert('No unread comments on this page.');
+                showToast('No unread comments on this page.', 'warning');
                 return;
             }
 
@@ -442,16 +442,16 @@ while ($writer = mysqli_fetch_assoc($writersQuery)) {
                             location.reload();
                         } else {
                             // Show success message and reload
-                            alert(`Successfully marked ${data.count} comments as read.`);
-                            location.reload();
+                            showToast(`Successfully marked ${data.count} comments as read.`, 'success');
+                            setTimeout(() => location.reload(), 1000);
                         }
                     } else {
-                        alert('Error: ' + (data.message || data.error || 'Failed to mark comments as read.'));
+                        showToast('Error: ' + (data.message || data.error || 'Failed to mark comments as read.'), 'danger');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while marking comments as read.');
+                    showToast('An error occurred while marking comments as read.', 'danger');
                 });
         }
 

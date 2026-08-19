@@ -4748,7 +4748,7 @@ echo $_headHtml;
         }
 
         // Export functionality
-        alert('Export functionality for month: ' + formatMonthDisplay(selectedMonth));
+        showToast('Export functionality for month: ' + formatMonthDisplay(selectedMonth), 'info');
     }
 
     // Safe number formatting helper

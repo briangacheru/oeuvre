@@ -366,11 +366,11 @@ $msg = "";
                         // Update the data attribute to prevent future AJAX calls
                         linkElement.setAttribute('data-acknowledged', '1');
                     } else {
-                        alert('Failed to mark task as read: ' + (data.error || 'Unknown error'));
+                        showToast('Failed to mark task as read: ' + (data.error || 'Unknown error'), 'danger');
                     }
                 })
                 .catch(error => {
-                    alert('Error marking task as read: ' + error.message);
+                    showToast('Error marking task as read: ' + error.message, 'danger');
                 });
         }
 
@@ -424,11 +424,11 @@ $msg = "";
                         // Show success message (optional)
                         showToast('Task marked as unread!', 'success');
                     } else {
-                        alert('Failed to mark task as unread: ' + (data.error || 'Unknown error'));
+                        showToast('Failed to mark task as unread: ' + (data.error || 'Unknown error'), 'danger');
                     }
                 })
                 .catch(error => {
-                    alert('Error marking task as unread: ' + error.message);
+                    showToast('Error marking task as unread: ' + error.message, 'danger');
                 })
                 .finally(() => {
                     buttonElement.dataset.processing = 'false';
