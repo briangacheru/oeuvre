@@ -880,19 +880,41 @@ $adminRegStatus = 1;
 $q = mysqli_query($con, "SELECT regStatus FROM tblsettings WHERE id = 2");
 if ($q && ($r = mysqli_fetch_assoc($q))) { $adminRegStatus = (int) $r['regStatus']; }
 
-// Turnaround performance across completed tasks (all-time)
-$turnaround = ['completed_count' => 0, 'avg_days' => 0, 'on_time_rate' => 0];
-$turnQ = mysqli_query($con, "SELECT
-        COUNT(*) AS completed_count,
-        AVG(DATEDIFF(completed_on, create_date)) AS avg_days,
-        SUM(CASE WHEN completed_on <= due_date THEN 1 ELSE 0 END) AS on_time_count
-    FROM tbltasks
-    WHERE is_deleted = 0 AND status = 'Completed' AND completed_on IS NOT NULL AND create_date IS NOT NULL");
-if ($turnQ && ($r = mysqli_fetch_assoc($turnQ))) {
-    $turnaround['completed_count'] = (int) $r['completed_count'];
-    $turnaround['avg_days'] = $r['avg_days'] !== null ? round((float) $r['avg_days'], 1) : 0;
-    $turnaround['on_time_rate'] = $turnaround['completed_count'] > 0 ? round(((int) $r['on_time_count'] / $turnaround['completed_count']) * 100, 1) : 0;
+// Turnaround performance: current month vs previous month, among completed tasks
+if (!function_exists('computeTurnaroundMetrics')) {
+    function computeTurnaroundMetrics($con, $start, $end) {
+        $metrics = ['completed_count' => 0, 'avg_days' => 0, 'on_time_rate' => 0];
+        $stmt = mysqli_prepare($con, "SELECT
+                COUNT(*) AS completed_count,
+                AVG(DATEDIFF(completed_on, create_date)) AS avg_days,
+                SUM(CASE WHEN completed_on <= due_date THEN 1 ELSE 0 END) AS on_time_count
+            FROM tbltasks
+            WHERE is_deleted = 0 AND status = 'Completed' AND completed_on IS NOT NULL AND create_date IS NOT NULL
+            AND completed_on >= ? AND completed_on < ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $start, $end);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        if ($res && ($r = mysqli_fetch_assoc($res))) {
+            $metrics['completed_count'] = (int) $r['completed_count'];
+            $metrics['avg_days'] = $r['avg_days'] !== null ? round((float) $r['avg_days'], 1) : 0;
+            $metrics['on_time_rate'] = $metrics['completed_count'] > 0 ? round(((int) $r['on_time_count'] / $metrics['completed_count']) * 100, 1) : 0;
+        }
+        mysqli_stmt_close($stmt);
+        return $metrics;
+    }
 }
+
+$currentMonthStart = date('Y-m-01 00:00:00');
+$currentMonthEnd = date('Y-m-01 00:00:00', strtotime('+1 month'));
+$prevMonthStart = date('Y-m-01 00:00:00', strtotime('-1 month'));
+$prevMonthEnd = $currentMonthStart;
+
+$turnaroundCurrent = computeTurnaroundMetrics($con, $currentMonthStart, $currentMonthEnd);
+$turnaroundPrevious = computeTurnaroundMetrics($con, $prevMonthStart, $prevMonthEnd);
+$currentMonthLabel = date('M Y');
+$prevMonthLabel = date('M Y', strtotime('-1 month'));
+$avgDaysDelta = round($turnaroundCurrent['avg_days'] - $turnaroundPrevious['avg_days'], 1);
+$onTimeDelta = round($turnaroundCurrent['on_time_rate'] - $turnaroundPrevious['on_time_rate'], 1);
 
 // Top writers by completed task volume (all-time)
 $topWriters = [];
@@ -1245,22 +1267,45 @@ if ($leaderQ) {
         <div class="col-lg-4">
             <div class="card itk-stat-card h-100" style="cursor:default">
                 <div class="card-body">
-                    <h6 class="mb-3">Turnaround Performance</h6>
-                    <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="mb-0">Turnaround Performance</h6>
+                        <span class="fs-10 text-500"><?php echo $currentMonthLabel; ?> vs <?php echo $prevMonthLabel; ?></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 mb-2">
                         <div class="itk-icon bg-primary-subtle text-primary"><i class="fas fa-hourglass-half"></i></div>
                         <div>
                             <p class="text-600 fs-10 mb-0">Avg. completion time</p>
-                            <h5 class="mb-0 text-primary"><?php echo $turnaround['avg_days']; ?> day<?php echo $turnaround['avg_days'] == 1 ? '' : 's'; ?></h5>
+                            <h5 class="mb-0 text-primary">
+                                <?php echo $turnaroundCurrent['avg_days']; ?> day<?php echo $turnaroundCurrent['avg_days'] == 1 ? '' : 's'; ?>
+                                <?php if ($avgDaysDelta != 0): ?>
+                                    <?php $avgDaysBetter = $avgDaysDelta < 0; ?>
+                                    <span class="fs-10 fw-medium <?php echo $avgDaysBetter ? 'text-success' : 'text-danger'; ?>">
+                                        <i class="fas fa-arrow-<?php echo $avgDaysDelta < 0 ? 'down' : 'up'; ?>"></i> <?php echo abs($avgDaysDelta); ?>d
+                                    </span>
+                                <?php endif; ?>
+                            </h5>
                         </div>
                     </div>
                     <p class="text-600 fs-10 mb-1">On-time completion rate</p>
                     <div class="progress mb-2" style="height:8px">
-                        <div class="progress-bar bg-success" style="width:<?php echo $turnaround['on_time_rate']; ?>%"></div>
+                        <div class="progress-bar bg-success" style="width:<?php echo $turnaroundCurrent['on_time_rate']; ?>%"></div>
                     </div>
-                    <div class="d-flex justify-content-between fs-10 text-600">
-                        <span><?php echo $turnaround['on_time_rate']; ?>% on time</span>
-                        <span><?php echo $turnaround['completed_count']; ?> completed</span>
+                    <div class="d-flex justify-content-between fs-10 text-600 mb-2">
+                        <span><?php echo $turnaroundCurrent['on_time_rate']; ?>% on time</span>
+                        <span><?php echo $turnaroundCurrent['completed_count']; ?> completed</span>
                     </div>
+                    <?php if ($turnaroundPrevious['completed_count'] > 0): ?>
+                        <?php if ($onTimeDelta != 0): ?>
+                            <?php $onTimeBetter = $onTimeDelta > 0; ?>
+                            <p class="fs-10 mb-0 <?php echo $onTimeBetter ? 'text-success' : 'text-danger'; ?>">
+                                <i class="fas fa-arrow-<?php echo $onTimeDelta > 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($onTimeDelta); ?>pts vs last month (<?php echo $turnaroundPrevious['on_time_rate']; ?>%)
+                            </p>
+                        <?php else: ?>
+                            <p class="fs-10 mb-0 text-500">Same on-time rate as last month (<?php echo $turnaroundPrevious['on_time_rate']; ?>%)</p>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <p class="fs-10 mb-0 text-500">No completed tasks last month to compare</p>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
