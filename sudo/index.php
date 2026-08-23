@@ -879,6 +879,34 @@ if ($q && ($r = mysqli_fetch_assoc($q))) { $writerRegStatus = (int) $r['regStatu
 $adminRegStatus = 1;
 $q = mysqli_query($con, "SELECT regStatus FROM tblsettings WHERE id = 2");
 if ($q && ($r = mysqli_fetch_assoc($q))) { $adminRegStatus = (int) $r['regStatus']; }
+
+// Turnaround performance across completed tasks (all-time)
+$turnaround = ['completed_count' => 0, 'avg_days' => 0, 'on_time_rate' => 0];
+$turnQ = mysqli_query($con, "SELECT
+        COUNT(*) AS completed_count,
+        AVG(DATEDIFF(completed_on, create_date)) AS avg_days,
+        SUM(CASE WHEN completed_on <= due_date THEN 1 ELSE 0 END) AS on_time_count
+    FROM tbltasks
+    WHERE is_deleted = 0 AND status = 'Completed' AND completed_on IS NOT NULL AND create_date IS NOT NULL");
+if ($turnQ && ($r = mysqli_fetch_assoc($turnQ))) {
+    $turnaround['completed_count'] = (int) $r['completed_count'];
+    $turnaround['avg_days'] = $r['avg_days'] !== null ? round((float) $r['avg_days'], 1) : 0;
+    $turnaround['on_time_rate'] = $turnaround['completed_count'] > 0 ? round(((int) $r['on_time_count'] / $turnaround['completed_count']) * 100, 1) : 0;
+}
+
+// Top writers by completed task volume (all-time)
+$topWriters = [];
+$leaderQ = mysqli_query($con, "SELECT writer, COUNT(*) AS completed_count
+    FROM tbltasks
+    WHERE is_deleted = 0 AND status = 'Completed' AND writer IS NOT NULL AND writer NOT IN ('', 'Draft')
+    GROUP BY writer
+    ORDER BY completed_count DESC
+    LIMIT 5");
+if ($leaderQ) {
+    while ($r = mysqli_fetch_assoc($leaderQ)) {
+        $topWriters[] = $r;
+    }
+}
 ?>
 <div id="dashboardNewView" style="display:none">
     <style>
@@ -1178,6 +1206,86 @@ if ($q && ($r = mysqli_fetch_assoc($q))) { $adminRegStatus = (int) $r['regStatus
             </a>
         </div>
         <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if (adminCan($currentAdminRole, 'operate_tasks')): ?>
+    <div class="itk-section-title">Insights</div>
+    <div class="row g-3 mb-3">
+        <div class="col-lg-4">
+            <div class="card itk-stat-card h-100" style="cursor:default">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Recent Discussion</h6>
+                        <?php if ($unreadCommentsCount > 0): ?>
+                            <span class="badge rounded-pill bg-danger-subtle text-danger"><?php echo $unreadCommentsCount; ?> unread</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (empty($unreadComments)): ?>
+                        <div class="text-center text-500 py-4">
+                            <i class="fas fa-comments fs-4 mb-2"></i>
+                            <p class="mb-0 fs-9">No unread writer messages.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach (array_slice($unreadComments, 0, 4) as $c): ?>
+                            <a href="view-task?task_id=<?php echo encode_task_id($c['task_id']); ?>#discussionBody" class="d-flex align-items-start gap-2 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-info)">
+                                <div class="itk-icon bg-info-subtle text-info" style="width:2rem;height:2rem;font-size:.85rem;"><i class="fas fa-comment-dots"></i></div>
+                                <div class="flex-1 overflow-hidden">
+                                    <p class="mb-0 fs-9 fw-semi-bold text-800 text-truncate">Task #<?php echo (int) $c['task_id']; ?>: <?php echo htmlspecialchars($c['topic'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <p class="mb-0 fs-10 text-600 text-truncate"><?php echo htmlspecialchars($c['username'] ?? 'Writer', ENT_QUOTES, 'UTF-8'); ?>: <?php echo htmlspecialchars(substr(stripcslashes($c['comment']), 0, 60), ENT_QUOTES, 'UTF-8'); ?></p>
+                                </div>
+                                <span class="fs-10 text-500 text-nowrap"><?php echo $c['time_ago']; ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                        <a href="all-comments" class="fs-10 fw-medium text-info d-block text-end mt-1">View all comments<i class="fas fa-chevron-right ms-1 fs-11"></i></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card itk-stat-card h-100" style="cursor:default">
+                <div class="card-body">
+                    <h6 class="mb-3">Turnaround Performance</h6>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="itk-icon bg-primary-subtle text-primary"><i class="fas fa-hourglass-half"></i></div>
+                        <div>
+                            <p class="text-600 fs-10 mb-0">Avg. completion time</p>
+                            <h5 class="mb-0 text-primary"><?php echo $turnaround['avg_days']; ?> day<?php echo $turnaround['avg_days'] == 1 ? '' : 's'; ?></h5>
+                        </div>
+                    </div>
+                    <p class="text-600 fs-10 mb-1">On-time completion rate</p>
+                    <div class="progress mb-2" style="height:8px">
+                        <div class="progress-bar bg-success" style="width:<?php echo $turnaround['on_time_rate']; ?>%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between fs-10 text-600">
+                        <span><?php echo $turnaround['on_time_rate']; ?>% on time</span>
+                        <span><?php echo $turnaround['completed_count']; ?> completed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card itk-stat-card h-100" style="cursor:default">
+                <div class="card-body">
+                    <h6 class="mb-3">Top Writers</h6>
+                    <?php if (empty($topWriters)): ?>
+                        <div class="text-center text-500 py-4">
+                            <i class="fas fa-user-check fs-4 mb-2"></i>
+                            <p class="mb-0 fs-9">No completed tasks yet.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php $rankColors = ['warning', 'secondary', 'info', 'info', 'info']; ?>
+                        <?php foreach ($topWriters as $i => $w): ?>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge rounded-pill bg-<?php echo $rankColors[$i] ?? 'info'; ?>-subtle text-<?php echo $rankColors[$i] ?? 'info'; ?>" style="width:1.75rem;">#<?php echo $i + 1; ?></span>
+                                <span class="flex-1 fs-10 text-800 text-truncate"><?php echo htmlspecialchars($w['writer'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="fs-10 fw-semi-bold text-600"><?php echo (int) $w['completed_count']; ?> tasks</span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
     <?php endif; ?>
 </div>
