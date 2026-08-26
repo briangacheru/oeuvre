@@ -7,6 +7,7 @@ use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../email-template.php';
+require_once __DIR__ . '/../shared-functions.php';
 
 // Enhanced features configuration with hour-based thresholds
 $config = [
