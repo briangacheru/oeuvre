@@ -173,7 +173,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
             mysqli_stmt_close($stmt);
 
             $submitDetails = ($revisionCount > 0 ? "Resubmission #$revisionCount" : 'Submission') . " - Task #$taskId: $topic";
-            log_activity($con, 'writer', $writerKey, 'task_submit', $submitDetails);
+            log_activity($con, 'writer', $writerKey, 'task_submit', $submitDetails, $taskId);
         } else {
             throw new Exception('Database error: ' . safe_db_error(mysqli_error($con)));
         }
@@ -285,6 +285,10 @@ if (isset($_POST['action']) && $_POST['action'] == 'submitForm') {
                 For any questions, contact bryo4419@gmail.com";
 
                 $mail->send();
+
+                if (function_exists('send_push_to_admins')) {
+                    send_push_to_admins($con, 'Task Submitted', "Task #$taskId - $topic", '/sudo/view-task?task_id=' . $encodedId);
+                }
 
                 // Clean up temporary files
                 foreach ($tempFiles as $tempFile) {

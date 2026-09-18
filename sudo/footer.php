@@ -161,7 +161,7 @@
 <script src="../assets/js/theme.js"></script>
 <script src="../assets/js/myjs.js"></script>
 <script src="../assets/js/toast.js"></script>
-<script src='../assets/js/pdf-viewer.js'></script>
+<script src="../assets/js/push-notifications.js"></script>
 <script src="../vendors/dropzone/dropzone-min.js"></script>
 <script src="../vendors/inputmask/inputmask.min.js"></script>
 <script src="../vendors/textarea/textarea.js"></script>

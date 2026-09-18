@@ -310,36 +310,36 @@ echo $_headHtml;
 
     <div class="card shadow-none border mb-3">
         <div class='col-md-auto mt-3 mb-3 text-end'>
-            <span class="d-inline-flex align-items-center me-2" data-bs-toggle='tooltip' data-bs-placement='top' title='Converts chart & total figures. Individual accounts always show their own currency.'>
+            <span class="d-inline-flex align-items-center me-2 mb-2" data-bs-toggle='tooltip' data-bs-placement='top' title='Converts chart & total figures. Individual accounts always show their own currency.'>
                 <label for='displayCurrencySelect' class='fs-11 text-muted me-1 mb-0'><i class='fas fa-coins'></i></label>
                 <select id='displayCurrencySelect' class='form-select form-select-sm d-inline-block' style='width:auto;' onchange='changeDisplayCurrency(this.value)'>
                 </select>
             </span>
-            <button type='button' onclick='refreshData()' class='btn btn-sm btn-outline-success me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Refresh'>
+            <button type='button' onclick='refreshData()' class='btn btn-sm btn-outline-success me-2  mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Refresh'>
                 <i class='fas fa-sync-alt' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Refresh</span> <span class='spinner-border spinner-border-sm loading' role='status'></span>
             </button>
-            <button type='button' onclick='showExchangeRatesModal()' class='btn btn-sm btn-outline-warning me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Exchange Rates'>
+            <button type='button' onclick='showExchangeRatesModal()' class='btn btn-sm btn-outline-warning me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Exchange Rates'>
                 <i class='fas fa-coins' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Exchange Rates</span>
             </button>
-            <button type='button' onclick='showAddAccountModal()' class='btn btn-sm btn-outline-info me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Add Account'>
+            <button type='button' onclick='showAddAccountModal()' class='btn btn-sm btn-outline-info me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Add Account'>
                 <i class='fas fa-plus-circle' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Add Account</span>
             </button>
-            <button type='button' onclick='showUpdateBalanceModal()' class='btn btn-sm btn-outline-facebook me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Update Balances'>
+            <button type='button' onclick='showUpdateBalanceModal()' class='btn btn-sm btn-outline-facebook me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Update Balances'>
                 <i class='fas fa-hand-holding-usd' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Update Balances</span>
             </button>
-            <button type='button' onclick='showManageTypesModal()' class='btn btn-sm btn-outline-primary me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Manage Account Types'>
+            <button type='button' onclick='showManageTypesModal()' class='btn btn-sm btn-outline-primary me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Manage Account Types'>
                 <i class='fas fa-cogs' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Manage Types</span>
             </button>
-            <button type='button' onclick='showMonthViewer()' class='btn btn-sm btn-outline-google-plus me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='View by Month'>
+            <button type='button' onclick='showMonthViewer()' class='btn btn-sm btn-outline-google-plus me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='View by Month'>
                 <i class='far fa-calendar-alt' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>View by Month</span>
             </button>
-            <button type='button' onclick='exportData()' class='btn btn-sm btn-outline-secondary me-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Export'>
+            <button type='button' onclick='exportData()' class='btn btn-sm btn-outline-secondary me-2 mb-2' data-bs-toggle='tooltip' data-bs-placement='top' title='Export'>
                 <i class='fas fa-download' aria-hidden='true'></i>
                 <span class='d-none d-sm-inline-block d-xl-none d-xxl-inline-block ms-1'>Export</span>
             </button>
@@ -2809,39 +2809,6 @@ echo $_headHtml;
         }
     }
 
-    // Enhanced success notification with account details
-    function showAccountCreatedSuccess(accountName, initialBalance) {
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-white bg-success border-0';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-check-circle me-2"></i>
-                    <div>
-                        <strong>Account Created Successfully!</strong>
-                        <br><small>${accountName} • Initial Balance: ${formatCurrency(initialBalance)}</small>
-                    </div>
-                </div>
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-
-        // Add to the shared toast container (assets/js/toast.js)
-        getToastContainer().appendChild(toast);
-
-        // Show toast
-        const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
-        bsToast.show();
-
-        // Remove from DOM after hiding
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
-    }
-
     // Delete account
     async function deleteAccount(accountId) {
         // Find the account data
@@ -3014,19 +2981,6 @@ echo $_headHtml;
         const icon = iconClass || defaultIcons[type] || 'fas fa-wallet';
 
         return `<span class="badge" style="background-color: ${color}"><i class="${icon} me-1"></i>${type}</span>`;
-    }
-
-    function getProgressBarClass(type) {
-        const classes = {
-            'Checking': 'progress-bar-custom',
-            'Savings': 'bg-success',
-            'Investment': 'bg-warning',
-            'CD': 'bg-info',
-            'Digital': 'bg-secondary',
-            'Crypto': 'bg-dark',
-            'Credit': 'bg-danger'
-        };
-        return classes[type] || 'bg-primary';
     }
 
     function updateAccountCount(showing, total = null) {
@@ -3633,19 +3587,6 @@ echo $_headHtml;
         }
     }
 
-    function calculateDaysAgo(monthYear) {
-        const targetDate = new Date(monthYear + '-01');
-        const today = new Date();
-        const diffTime = Math.abs(today - targetDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
-    }
-
-    function isCurrentMonthData(monthYear) {
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        return monthYear === currentMonth;
-    }
-
     function isDataStale(monthYear) {
         const currentMonth = new Date().toISOString().slice(0, 7);
         return monthYear < currentMonth;
@@ -3883,20 +3824,6 @@ echo $_headHtml;
         } catch (error) {
             console.error('Error deactivating account type:', error);
             showToast('Failed to deactivate account type', 'danger');
-        }
-    }
-
-    function calculateGrowthPercentage(accountId, currentBalance) {
-        const newBalanceInput = document.getElementById(`balance_${accountId}`);
-        const growthAmountInput = document.getElementById(`growth_${accountId}`);
-
-        const newBalance = parseFloat(newBalanceInput.value) || 0;
-        const growthAmount = parseFloat(growthAmountInput.value) || 0;
-
-        // Auto-calculate growth amount if balance changed
-        if (newBalance !== currentBalance && growthAmount === 0) {
-            const calculatedGrowth = newBalance - currentBalance;
-            growthAmountInput.value = calculatedGrowth.toFixed(2);
         }
     }
 
@@ -4749,12 +4676,6 @@ echo $_headHtml;
 
         // Export functionality
         showToast('Export functionality for month: ' + formatMonthDisplay(selectedMonth), 'info');
-    }
-
-    // Safe number formatting helper
-    function safeToFixed(value, decimals = 2) {
-        const num = parseFloat(value);
-        return isNaN(num) ? '0.00' : num.toFixed(decimals);
     }
 
     // View account details

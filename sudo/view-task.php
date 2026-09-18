@@ -1820,6 +1820,191 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 }
             }
             ?>
+            <!-- Extension Request -->
+            <?php
+            $viewTaskExtensionRequest = null;
+            try {
+                $vteStmt = mysqli_prepare($con, "SELECT * FROM tbl_task_extension_requests WHERE task_id = ? ORDER BY created_at DESC LIMIT 1");
+                mysqli_stmt_bind_param($vteStmt, 'i', $taskId);
+                mysqli_stmt_execute($vteStmt);
+                $viewTaskExtensionRequest = mysqli_stmt_get_result($vteStmt)->fetch_assoc();
+                mysqli_stmt_close($vteStmt);
+            } catch (\mysqli_sql_exception $e) {
+                // migration pending
+            }
+            ?>
+            <?php if ($viewTaskExtensionRequest): ?>
+            <?php
+                $vteStatus = $viewTaskExtensionRequest['status'];
+                $vteBadgeClass = $vteStatus === 'pending' ? 'badge-subtle-warning' : ($vteStatus === 'approved' ? 'badge-subtle-success' : 'badge-subtle-danger');
+            ?>
+            <div class="row">
+                <div class="col-md-12 mb-3" id="extensionRequestBody">
+                    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#extensionRequestCollapse">
+                            <i class="fas fa-calendar-plus me-2 text-warning"></i>
+                            <h6 class="mb-0">Extension Request</h6>
+                            <span class="badge rounded-pill <?php echo $vteBadgeClass; ?> ms-2"><?php echo ucfirst($vteStatus); ?></span>
+                            <i class="fas fa-chevron-down ms-auto text-secondary"></i>
+                        </div>
+                        <div class="collapse <?php echo $vteStatus === 'pending' ? 'show' : ''; ?>" id="extensionRequestCollapse">
+                            <div class="card-body py-3 fs-9">
+                                <div class="row g-3 mb-2">
+                                    <div class="col-sm-6">
+                                        <small class="text-muted d-block">Current due date</small>
+                                        <strong><?php echo date('d M Y, g:i A', strtotime($viewTaskExtensionRequest['current_due_date'])); ?></strong>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <small class="text-muted d-block">Requested due date</small>
+                                        <strong class="text-warning"><?php echo date('d M Y, g:i A', strtotime($viewTaskExtensionRequest['requested_due_date'])); ?></strong>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Reason</small>
+                                    <?php echo nl2br(htmlspecialchars($viewTaskExtensionRequest['reason'], ENT_QUOTES, 'UTF-8')); ?>
+                                </div>
+                                <small class="text-muted">Requested <?php echo date('d M Y, g:i A', strtotime($viewTaskExtensionRequest['created_at'])); ?></small>
+
+                                <?php if ($vteStatus === 'pending'): ?>
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="vteResolve(<?php echo (int) $viewTaskExtensionRequest['id']; ?>, 'approve')"><i class="fas fa-check me-1"></i>Approve</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="vteResolve(<?php echo (int) $viewTaskExtensionRequest['id']; ?>, 'deny')"><i class="fas fa-times me-1"></i>Deny</button>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="mt-2 fs-9">
+                                        <small class="text-muted">Resolved by <?php echo htmlspecialchars($viewTaskExtensionRequest['resolved_by'] ?? '', ENT_QUOTES, 'UTF-8'); ?> on <?php echo $viewTaskExtensionRequest['resolved_at'] ? date('d M Y, g:i A', strtotime($viewTaskExtensionRequest['resolved_at'])) : ''; ?></small>
+                                        <?php if (!empty($viewTaskExtensionRequest['admin_response'])): ?>
+                                            <div class="text-muted mt-1"><em><?php echo htmlspecialchars($viewTaskExtensionRequest['admin_response'], ENT_QUOTES, 'UTF-8'); ?></em></div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($vteStatus === 'pending'): ?>
+            <div class="modal fade" id="vteResolveModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form id="vteResolveForm">
+                            <input type="hidden" name="request_id" id="vteRequestId">
+                            <input type="hidden" name="decision" id="vteDecision">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="vteResolveModalTitle">Resolve Request</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-2">
+                                    <label class="form-label fs-9">Note to writer (optional)</label>
+                                    <textarea class="form-control" name="admin_response" rows="2" maxlength="500"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="vteConfirmResolveBtn">Confirm</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <script>
+                let vteModal;
+                document.addEventListener('DOMContentLoaded', function () {
+                    vteModal = new bootstrap.Modal(document.getElementById('vteResolveModal'));
+                });
+
+                function vteResolve(requestId, decision) {
+                    document.getElementById('vteRequestId').value = requestId;
+                    document.getElementById('vteDecision').value = decision;
+                    document.getElementById('vteResolveModalTitle').textContent = decision === 'approve' ? 'Approve Extension Request' : 'Deny Extension Request';
+                    document.getElementById('vteConfirmResolveBtn').className = 'btn ' + (decision === 'approve' ? 'btn-success' : 'btn-danger');
+                    vteModal.show();
+                }
+
+                document.getElementById('vteResolveForm').addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('vteConfirmResolveBtn');
+                    btn.disabled = true;
+                    const formData = new FormData(this);
+                    formData.append('csrf_token', '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, "UTF-8"); ?>');
+
+                    fetch('resolve-task-extension', { method: 'POST', body: formData })
+                        .then(r => r.json())
+                        .then(data => {
+                            showToast(data.message, data.success ? 'success' : 'error');
+                            if (data.success) {
+                                vteModal.hide();
+                                setTimeout(() => location.reload(), 1000);
+                            } else {
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(() => { showToast('Something went wrong.', 'error'); btn.disabled = false; });
+                });
+            </script>
+            <?php endif; ?>
+            <?php endif; ?>
+
+            <!-- Task Activity Timeline -->
+            <?php $activityTimeline = get_task_activity_timeline($con, $taskId, 20); ?>
+            <?php if (!empty($activityTimeline)): ?>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#activityTimelineBody">
+                            <i class="fas fa-history me-2 text-primary"></i>
+                            <h6 class="mb-0">Activity Timeline</h6>
+                            <span class="badge badge-subtle-secondary rounded-pill ms-2"><?php echo count($activityTimeline); ?></span>
+                            <i class="fas fa-chevron-down ms-auto text-secondary"></i>
+                        </div>
+                        <div class="collapse" id="activityTimelineBody">
+                            <div class="card-body py-3">
+                                <ul class="list-unstyled mb-0 fs-9">
+                                    <?php
+                                    $activityIcons = [
+                                        'task_created' => ['fa-plus-circle', 'text-primary'],
+                                        'task_view' => ['fa-eye', 'text-secondary'],
+                                        'task_submit' => ['fa-paper-plane', 'text-info'],
+                                        'task_accept' => ['fa-check-circle', 'text-success'],
+                                        'task_decline' => ['fa-times-circle', 'text-danger'],
+                                        'task_completed' => ['fa-check-double', 'text-success'],
+                                        'task_paid' => ['fa-money-bill-wave', 'text-success'],
+                                        'task_unpaid' => ['fa-money-bill-wave', 'text-warning'],
+                                        'writer_reassigned' => ['fa-user-edit', 'text-warning'],
+                                        'extension_requested' => ['fa-calendar-plus', 'text-warning'],
+                                        'extension_approved' => ['fa-calendar-check', 'text-success'],
+                                        'extension_denied' => ['fa-calendar-times', 'text-danger'],
+                                    ];
+                                    foreach ($activityTimeline as $event):
+                                        [$icon, $color] = $activityIcons[$event['action']] ?? ['fa-circle', 'text-secondary'];
+                                    ?>
+                                        <?php $eventDetails = format_activity_log_details($event['details'], $taskId, $taskTopic); ?>
+                                        <li class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+                                            <div class="d-flex align-items-start">
+                                                <i class="fas <?php echo $icon; ?> <?php echo $color; ?> me-2 mt-1"></i>
+                                                <div>
+                                                    <div>
+                                                        <strong><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $event['action'])), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                        <span class="text-muted"> by <?php echo htmlspecialchars($event['email'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                                    </div>
+                                                    <?php if ($eventDetails !== ''): ?>
+                                                        <div class="text-muted"><?php echo htmlspecialchars($eventDetails, ENT_QUOTES, 'UTF-8'); ?></div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted text-nowrap ms-4"><?php echo date('d M Y, g:i A', strtotime($event['created_at'])); ?></small>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <!-- Task Discussion Card -->
             <div class='row'>
                 <div class='col-md-12 col-xxl-12 mb-3'>
@@ -2118,6 +2303,15 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                                     $formatted_comment = preg_replace(
                                                                         '/(https?:\/\/[^\s]+)/',
                                                                         '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size: 10px;"></i></a>',
+                                                                        $formatted_comment
+                                                                    );
+
+                                                                    // Highlight @mentions (cosmetic only - see
+                                                                    // parse_and_notify_mentions() in shared-functions.php
+                                                                    // for the actual notification logic).
+                                                                    $formatted_comment = preg_replace(
+                                                                        '/@([A-Za-z0-9_.\-]{2,50})/',
+                                                                        '<span class="fw-semibold text-primary">@$1</span>',
                                                                         $formatted_comment
                                                                     );
 
@@ -3042,7 +3236,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                                             <div class="comment-text" style="font-size:14px;">
                                                                 <?php
                                                                 $wv_fmt = nl2br(htmlspecialchars(stripcslashes($wv_c['comment'])));
-                                                                echo preg_replace('/(https?:\/\/[^\s]+)/', '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>', $wv_fmt);
+                                                                $wv_fmt = preg_replace('/(https?:\/\/[^\s]+)/', '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>', $wv_fmt);
+                                                                echo preg_replace('/@([A-Za-z0-9_.\-]{2,50})/', '<span class="fw-semibold text-primary">@$1</span>', $wv_fmt);
                                                                 ?>
                                                             </div>
                                                             <?php if (!empty($wv_c['file_url'])): ?>
@@ -4796,6 +4991,15 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size: 10px;"></i></a>'
             );
 
+            // Highlight @mentions (server-side parsing/notification in
+            // parse_and_notify_mentions() - shared-functions.php - is the
+            // source of truth for who actually gets notified; this is
+            // purely cosmetic so a mention reads clearly in the thread).
+            formatted = formatted.replace(
+                /@([A-Za-z0-9_.\-]{2,50})/g,
+                '<span class="fw-semibold text-primary">@$1</span>'
+            );
+
             return formatted;
         }
 
@@ -5226,37 +5430,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         }
     </script>
     <script>
-        function copyTaskUrl() {
-            const taskUrl = window.location.href;
-
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(taskUrl).then(function() {
-                    showToast('Task link copied to clipboard!', 'success');
-                }).catch(function(err) {
-                    fallbackCopyToClipboard(taskUrl);
-                });
-            } else {
-                fallbackCopyToClipboard(taskUrl);
-            }
-        }
-
-        function fallbackCopyToClipboard(text) {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-9999px';
-            document.body.appendChild(textArea);
-            textArea.select();
-
-            try {
-                document.execCommand('copy');
-                showToast('Task link copied to clipboard!', 'success');
-            } catch (err) {
-                showToast('Failed to copy link. Please copy manually: ' + text, 'warning');
-            }
-
-            document.body.removeChild(textArea);
-        }
 
         function copyTaskShareLink(taskId, taskTopic) {
             fetch('../share/generate-share-link?task_id=' + taskId)
@@ -5352,6 +5525,9 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         })();
     </script>
 <?php echo getShareLinkJavaScript(); ?>
+
+    <script>window.iTaskerTaskId = <?php echo (int) $taskId; ?>;</script>
+    <script src="../assets/js/comment-reactions.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/comment-reactions.js') ?: time(); ?>"></script>
 
 <?php
 include "footer.php";

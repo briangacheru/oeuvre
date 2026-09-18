@@ -853,14 +853,6 @@ function renderTaskRow($todo) {
 </div>
 <!-- /Task List -->
 
-<?php
-// Kept for backward compat with anything that may still reference it
-function buildPaginationUrl($page) {
-    $params = $_GET;
-    $params['page'] = $page;
-    return '?' . http_build_query($params);
-}
-?>
 
 
 <!-- Rest of the modals and forms remain the same -->
@@ -1287,14 +1279,6 @@ function buildPaginationUrl($page) {
     setInterval(updateTime, 1000);
     updateTime();
 
-    // Tasks per page change function
-    function changeTasksPerPage(value) {
-        const url = new URL(window.location);
-        url.searchParams.set('per_page', value);
-        url.searchParams.delete('page'); // Reset to first page
-        window.location.href = url.toString();
-    }
-
     // Auto-save functionality
     let autoSaveTimer;
     function autoSave() {
@@ -1406,48 +1390,6 @@ function buildPaginationUrl($page) {
         container.appendChild(subtaskDiv);
     }
 
-    // Status update
-    function updateStatus(taskId, status) {
-        // Create FormData for proper POST request
-        const formData = new FormData();
-        formData.append('action', 'update_status');
-        formData.append('id', taskId);
-        formData.append('status', status);
-
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData
-        })
-            .then(response => {
-                // Check if response is ok
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text(); // Get as text first to debug
-            })
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        // Show success message briefly
-                        showToast('Status updated successfully!', 'success');
-                        // Optional: Update UI without full reload
-                        updateTaskRowStatus(taskId, status);
-                    } else {
-                        showToast('Failed to update status: ' + (data.message || 'Unknown error'), 'error');
-                    }
-                } catch (e) {
-                    console.error('JSON Parse Error:', e);
-                    console.error('Response text:', text);
-                    showToast('Server response error. Check console for details.', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Fetch Error:', error);
-                showToast('Network error: ' + error.message, 'error');
-            });
-    }
-
     // Bulk selection — old #selectAll checkbox removed in redesign; guard for null
     document.getElementById('selectAll')?.addEventListener('change', function() {
         const checkboxes = document.querySelectorAll('.bulk-select');
@@ -1542,135 +1484,6 @@ function buildPaginationUrl($page) {
         const selectAll = document.getElementById('selectAll');
         if (selectAll) selectAll.checked = false;
         updateBulkActions();
-    }
-
-    // Load task details for view modal
-    function loadTaskDetails(taskId) {
-        fetch(`get-task-details.php?id=${taskId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const task = data.task;
-
-                    // Set title
-                    document.getElementById('viewTaskTitle').textContent = task.title;
-
-                    // Set description
-                    const descriptionElement = document.getElementById('viewTaskDescription');
-                    descriptionElement.style.whiteSpace = 'pre-line';
-                    descriptionElement.textContent = task.description || 'No description provided';
-
-                    // Set priority and status
-                    const priorityBadge = document.getElementById('viewTaskPriority');
-                    priorityBadge.textContent = task.priority.toUpperCase();
-                    priorityBadge.className = `rounded-pill badge-subtle-${getPriorityColor(task.priority)}`;
-
-                    const statusBadge = document.getElementById('viewTaskStatus');
-                    statusBadge.textContent = task.status.replace('_', ' ').toUpperCase();
-                    statusBadge.className = `rounded-pill badge-subtle-${getStatusColor(task.status)}`;
-
-                    // Set due date
-                    const dueDateElement = document.getElementById('viewTaskDueDate');
-                    if (task.due_date) {
-                        const dueDate = new Date(task.due_date);
-                        const today = new Date();
-                        const isOverdue = dueDate < today && task.status !== 'completed';
-                        const isDueToday = dueDate.toDateString() === today.toDateString();
-
-                        let dateClass = '';
-                        let dateIcon = '';
-                        if (isOverdue) {
-                            dateClass = 'text-danger';
-                            dateIcon = '<i class="fas fa-exclamation-triangle me-1"></i>';
-                        } else if (isDueToday) {
-                            dateClass = 'text-warning';
-                            dateIcon = '<i class="fas fa-clock me-1"></i>';
-                        } else {
-                            dateClass = 'text-muted';
-                            dateIcon = '<i class="fas fa-calendar me-1"></i>';
-                        }
-
-                        dueDateElement.innerHTML = `<span class="${dateClass}">${dateIcon}${dueDate.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        })}</span>`;
-                    } else {
-                        dueDateElement.innerHTML = '<span class="text-muted">No due date set</span>';
-                    }
-
-                    // Set category
-                    const categoryElement = document.getElementById('viewTaskCategory');
-                    if (task.category_name) {
-                        categoryElement.innerHTML = `<span class="badge" style="background-color: ${task.category_color || '#6c757d'}">${task.category_name}</span>`;
-                    } else {
-                        categoryElement.innerHTML = '<span class="text-muted">No category assigned</span>';
-                    }
-
-                    // Load subtasks
-                    const subtasksContainer = document.getElementById('viewTaskSubtasks');
-                    if (data.subtasks && data.subtasks.length > 0) {
-                        const completedCount = data.subtasks.filter(s => s.completed).length;
-                        const totalCount = data.subtasks.length;
-                        const progressPercent = Math.round((completedCount / totalCount) * 100);
-
-                        let subtasksHTML = `
-                    <div class="mb-2">
-                        <small class="text-muted">${completedCount}/${totalCount} completed (${progressPercent}%)</small>
-                        <div class="progress" style="height: 4px;">
-                            <div class="progress-bar" style="width: ${progressPercent}%"></div>
-                        </div>
-                    </div>
-                `;
-
-                        subtasksHTML += data.subtasks.map(subtask =>
-                            `<div class="form-check mb-1">
-                        <input class="form-check-input" type="checkbox" ${subtask.completed ? 'checked' : ''} disabled>
-                        <label class="form-check-label ${subtask.completed ? 'text-decoration-line-through text-muted' : ''}">
-                            ${subtask.title}
-                        </label>
-                    </div>`
-                        ).join('');
-
-                        subtasksContainer.innerHTML = subtasksHTML;
-                    } else {
-                        subtasksContainer.innerHTML = '<p class="text-muted mb-0">No subtasks added</p>';
-                    }
-
-
-                    // Load attachments
-                    const attachmentsContainer = document.getElementById('viewTaskAttachments');
-                    if (data.attachments && data.attachments.length > 0) {
-                        attachmentsContainer.innerHTML = data.attachments.map(attachment =>
-                            `<div class="d-flex align-items-center mb-1">
-                        <a href="${attachment.file_path}"  class="text-decoration-none me-3" data-gallery="attachment-bg">
-                            <div class="bg-attachment">
-                                <div class="bg-holder rounded" style="background-image:url(${attachment.file_path});"></div><!--/.bg-holder-->
-                            </div>
-                        </a>
-                        <div class="flex-1 fs-11">
-                            <h6 class="mb-1"> <a class="text-decoration-none" href="${attachment.file_path}" data-gallery="attachment-title">${attachment.filename}</a></h6>
-                            <p class="mb-0">(${formatFileSize(attachment.file_size || 0)})</p>
-                        </div>
-                    </div>`
-                        ).join('');
-                    } else {
-                        attachmentsContainer.innerHTML = '<p class="text-muted mb-0">No attachments</p>';
-                    }
-
-                    // Set timeline
-                    document.getElementById('viewTaskCreated').textContent = formatDateTime(task.created_at);
-                    document.getElementById('viewTaskCompleted').textContent = task.completed_at ? formatDateTime(task.completed_at) : 'Not completed yet';
-
-                    // Store task ID for potential editing
-                    document.getElementById('viewTaskModal').setAttribute('data-task-id', taskId);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Failed to load task details', 'danger');
-            });
     }
 
     // Helper function to format file size
@@ -1837,26 +1650,6 @@ function buildPaginationUrl($page) {
             }
         });
     });
-
-    // Real-time search (if not using form submission)
-    function setupRealTimeSearch() {
-        const searchInput = document.querySelector('input[name="search"]');
-        if (searchInput) {
-            let searchTimer;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimer);
-                searchTimer = setTimeout(() => {
-                    const searchTerm = this.value.toLowerCase();
-                    document.querySelectorAll('.todo-list-item').forEach(item => {
-                        const title = item.querySelector('.text-700').textContent.toLowerCase();
-                        const description = item.querySelector('.text-600').textContent.toLowerCase();
-                        const matches = title.includes(searchTerm) || description.includes(searchTerm);
-                        item.style.display = matches ? 'flex' : 'none';
-                    });
-                }, 300);
-            });
-        }
-    }
 
     // showToast() is provided by the shared assets/js/toast.js (loaded via footer.php)
 

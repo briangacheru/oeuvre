@@ -288,6 +288,54 @@ if ($query->rowCount() > 0) {
                             </li>
                             <?php endif; ?>
                             <?php
+                            // Deadline extension request status, grouped by status, across all
+                            // writers - only for tasks still In Progress. Once the task is
+                            // Submitted or Completed the extension (whatever its outcome) is
+                            // no longer actionable/relevant, so it drops off the dashboard
+                            // alert here even though it still shows in sudo/extension-requests.php's
+                            // own history.
+                            $extensionCounts = ['pending' => 0, 'approved' => 0, 'denied' => 0];
+                            try {
+                                $extCountResult = mysqli_query($con, "SELECT r.status, COUNT(*) as cnt FROM tbl_task_extension_requests r
+                                    INNER JOIN tbltasks t ON t.id = r.task_id
+                                    WHERE t.status = 'In Progress'
+                                    GROUP BY r.status");
+                                if ($extCountResult) {
+                                    while ($extRow = mysqli_fetch_assoc($extCountResult)) {
+                                        $extensionCounts[$extRow['status']] = (int) $extRow['cnt'];
+                                    }
+                                }
+                            } catch (\mysqli_sql_exception $e) {
+                                // migration pending - no extension request data yet
+                            }
+                            ?>
+                            <?php if ($extensionCounts['pending'] > 0): ?>
+                            <li class="list-group-item mb-0 rounded-0 py-3 px-x1 list-group-item-warning border-x-0 border-top-0">
+                                <div class="row flex-between-center">
+                                    <div class="col">
+                                        <div class="d-flex">
+                                            <div class="fas fa-circle mt-1 fs-11"></div>
+                                            <p class="fs-10 ps-2 mb-0"><strong><?php echo $extensionCounts['pending']; ?> extension request<?php echo $extensionCounts['pending'] > 1 ? 's' : ''; ?></strong> awaiting review</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto d-flex align-items-center"><a class="fs-10 fw-medium text-warning-emphasis" href="extension-requests">Review requests<i class="fas fa-chevron-right ms-1 fs-11"></i></a></div>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php if ($extensionCounts['approved'] > 0 || $extensionCounts['denied'] > 0): ?>
+                            <li class="list-group-item mb-0 rounded-0 py-3 px-x1 list-group-item-success text-700 border-x-0 border-top-0">
+                                <div class="row flex-between-center">
+                                    <div class="col">
+                                        <div class="d-flex">
+                                            <div class="fas fa-circle mt-1 fs-11"></div>
+                                            <p class="fs-10 ps-2 mb-0"><strong><?php echo $extensionCounts['approved']; ?> approved</strong>, <strong><?php echo $extensionCounts['denied']; ?> denied</strong> extension request<?php echo ($extensionCounts['approved'] + $extensionCounts['denied']) > 1 ? 's' : ''; ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto d-flex align-items-center"><a class="fs-10 fw-medium" href="extension-requests">View history<i class="fas fa-chevron-right ms-1 fs-11"></i></a></div>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php
                             $allUnpaid = "";
                             $query = "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND status = 'Completed'";
                             $result = mysqli_query($con, $query);
@@ -1077,6 +1125,26 @@ if ($leaderQ) {
                         <div class="itk-icon bg-success-subtle text-success"><i class="fas fa-paper-plane"></i></div>
                         <div class="flex-1">
                             <p class="mb-0 fs-9 text-800"><strong><?php echo $allSubmitted; ?> tasks</strong> need to be completed</p>
+                        </div>
+                        <i class="fas fa-chevron-right fs-11 text-500"></i>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($extensionCounts['pending'] > 0): $hasActivity = true; ?>
+                    <a href="extension-requests" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-warning)">
+                        <div class="itk-icon bg-warning-subtle text-warning"><i class="fas fa-calendar-plus"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $extensionCounts['pending']; ?> extension request<?php echo $extensionCounts['pending'] > 1 ? 's' : ''; ?></strong> awaiting review</p>
+                        </div>
+                        <i class="fas fa-chevron-right fs-11 text-500"></i>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($extensionCounts['approved'] > 0 || $extensionCounts['denied'] > 0): $hasActivity = true; ?>
+                    <a href="extension-requests" class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item text-decoration-none" style="border-color:var(--falcon-success)">
+                        <div class="itk-icon bg-success-subtle text-success"><i class="fas fa-calendar-check"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $extensionCounts['approved']; ?> approved</strong>, <strong><?php echo $extensionCounts['denied']; ?> denied</strong> extension request<?php echo ($extensionCounts['approved'] + $extensionCounts['denied']) > 1 ? 's' : ''; ?></p>
                         </div>
                         <i class="fas fa-chevron-right fs-11 text-500"></i>
                     </a>

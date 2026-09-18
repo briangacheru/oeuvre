@@ -11,7 +11,14 @@ if (!isset($_SESSION['odmsaid']) || empty($_SESSION['odmsaid'])) {
 }
 
 function sidebarCount($con, $sql) {
-    $result = mysqli_query($con, $sql);
+    // Guards against a not-yet-run migration the same way
+    // get_current_version() does in shared-functions.php - PHP 8.1+ mysqli
+    // throws on a bad query rather than returning false.
+    try {
+        $result = mysqli_query($con, $sql);
+    } catch (\mysqli_sql_exception $e) {
+        return 0;
+    }
     if (!$result) {
         return 0;
     }
@@ -32,6 +39,7 @@ $counts = [
     'favorite' => sidebarCount($con, "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_favorite = 1"),
     'unpaid' => sidebarCount($con, "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND is_paid = 0 AND status = 'Completed'"),
     'paid' => sidebarCount($con, "SELECT COUNT(*) as taskCount FROM tbltasks WHERE is_deleted = 0 AND status = 'Completed' AND is_paid = 1"),
+    'extension_requests' => sidebarCount($con, "SELECT COUNT(*) as taskCount FROM tbl_task_extension_requests WHERE status = 'pending'"),
 ];
 
 // Unread messages count - matches head.php's $unreadMessagesCount computation exactly

@@ -18,6 +18,78 @@ if ($rowWriter->is_verified == 1) {
     <title>Dashboard | iTasker</title>
 <?php include "navi.php";?>
 
+<?php
+// New-writer onboarding checklist. Adapted to signals this app actually
+// tracks rather than the generic "verify email" step - this app has admins
+// approve/verify writers (is_verified), not a self-service email-confirm
+// flow, and terms acceptance is already a required checkbox at
+// registration (register.php) so there's nothing later to "complete"
+// there. Hidden entirely once every step is done, so returning writers
+// never see it again.
+$onboardingSteps = [];
+$onboardingSteps[] = [
+    'label' => 'Complete your profile',
+    'done' => !empty(trim($rowWriter->phone ?? '')),
+    'url' => 'settings',
+];
+$onboardingSteps[] = [
+    'label' => 'Upload a profile photo',
+    'done' => !empty($rowWriter->Photo) && $rowWriter->Photo !== 'avatar.png',
+    'url' => 'settings',
+];
+try {
+    $availStmt = mysqli_prepare($con, "SELECT availability_updated_at FROM tblwriters WHERE email = ?");
+    mysqli_stmt_bind_param($availStmt, 's', $aid);
+    mysqli_stmt_execute($availStmt);
+    $availRow = mysqli_stmt_get_result($availStmt)->fetch_assoc();
+    $onboardingSteps[] = [
+        'label' => 'Set your availability status',
+        'done' => !empty($availRow['availability_updated_at'] ?? null),
+        'url' => '#', // set from the account menu in the top-right, not a dedicated page
+    ];
+} catch (\mysqli_sql_exception $e) {
+    // availability_status column not added yet - migration pending; skip
+    // this step rather than showing a permanently-incomplete checklist.
+}
+$firstTaskStmt = mysqli_prepare($con, "SELECT COUNT(*) as cnt FROM tbltasks WHERE email = ? AND acknowledged = 1");
+mysqli_stmt_bind_param($firstTaskStmt, 's', $aid);
+mysqli_stmt_execute($firstTaskStmt);
+$firstTaskCount = (int) (mysqli_stmt_get_result($firstTaskStmt)->fetch_assoc()['cnt'] ?? 0);
+$onboardingSteps[] = [
+    'label' => 'Accept your first task',
+    'done' => $firstTaskCount > 0,
+    'url' => 'all-tasks',
+];
+
+$onboardingDoneCount = count(array_filter($onboardingSteps, fn($s) => $s['done']));
+$onboardingTotal = count($onboardingSteps);
+$onboardingPct = $onboardingTotal > 0 ? round(($onboardingDoneCount / $onboardingTotal) * 100) : 100;
+?>
+<?php if ($onboardingPct < 100): ?>
+<div class="card shadow-sm border-0 mb-3" style="border-radius: 15px;">
+    <div class="card-body d-flex align-items-center flex-wrap gap-3">
+        <svg width="64" height="64" viewBox="0 0 64 64" class="flex-shrink-0">
+            <circle cx="32" cy="32" r="28" fill="none" stroke="var(--falcon-border-color, #e3e6ed)" stroke-width="6"></circle>
+            <circle cx="32" cy="32" r="28" fill="none" stroke="#0073e6" stroke-width="6"
+                stroke-dasharray="<?php echo round(2 * M_PI * 28); ?>"
+                stroke-dashoffset="<?php echo round(2 * M_PI * 28 * (1 - $onboardingPct / 100)); ?>"
+                stroke-linecap="round" transform="rotate(-90 32 32)"></circle>
+            <text x="32" y="37" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor"><?php echo $onboardingPct; ?>%</text>
+        </svg>
+        <div class="flex-1">
+            <h6 class="mb-1">Get set up on iTasker</h6>
+            <div class="d-flex flex-wrap gap-3">
+                <?php foreach ($onboardingSteps as $step): ?>
+                    <a href="<?php echo htmlspecialchars($step['url'], ENT_QUOTES, 'UTF-8'); ?>" class="text-decoration-none fs-10 <?php echo $step['done'] ? 'text-success' : 'text-secondary'; ?>">
+                        <i class="fas <?php echo $step['done'] ? 'fa-check-circle' : 'fa-circle'; ?> me-1"></i><?php echo htmlspecialchars($step['label'], ENT_QUOTES, 'UTF-8'); ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="d-flex justify-content-end mb-2">
     <div class="btn-group btn-group-sm shadow-sm" role="group" aria-label="Dashboard view toggle" id="dashboardViewToggle">
         <button type="button" class="btn btn-outline-primary" id="btnDashboardOld"><i class="fas fa-th-large me-1"></i>Classic View</button>
@@ -275,6 +347,65 @@ if ($rowWriter->is_verified == 1) {
                                         </div>
                                     </div>
                                     <div class="col-auto d-flex align-items-center"><a class="fs-10 fw-medium" href="submitted-tasks">View tasks<i class="fas fa-chevron-right ms-1 fs-11"></i></a></div>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php
+                            // Deadline extension request status, grouped by status, for this
+                            // writer - only for tasks still In Progress. Once the task is
+                            // Submitted or Completed the extension (whatever its outcome) is
+                            // no longer actionable/relevant, so it drops off the dashboard
+                            // alert here even though it still shows in the request's own
+                            // history. See request-task-extension.php / view-task.php.
+                            $extensionCounts = ['pending' => 0, 'approved' => 0, 'denied' => 0];
+                            try {
+                                $extCountStmt = mysqli_prepare($con, "SELECT r.status, COUNT(*) as cnt FROM tbl_task_extension_requests r
+                                    INNER JOIN tbltasks t ON t.id = r.task_id
+                                    WHERE r.writer_email = ? AND t.status = 'In Progress'
+                                    GROUP BY r.status");
+                                mysqli_stmt_bind_param($extCountStmt, 's', $aid);
+                                mysqli_stmt_execute($extCountStmt);
+                                $extCountResult = mysqli_stmt_get_result($extCountStmt);
+                                while ($extRow = mysqli_fetch_assoc($extCountResult)) {
+                                    $extensionCounts[$extRow['status']] = (int) $extRow['cnt'];
+                                }
+                            } catch (\mysqli_sql_exception $e) {
+                                // migration pending - no extension request data yet
+                            }
+                            ?>
+                            <?php if ($extensionCounts['pending'] > 0): ?>
+                            <li class="list-group-item mb-0 rounded-0 py-3 px-x1 list-group-item-primary text-700 border-x-0 border-top-0">
+                                <div class="row flex-between-center">
+                                    <div class="col">
+                                        <div class="d-flex">
+                                            <div class="fas fa-circle mt-1 fs-11 text-warning"></div>
+                                            <p class="fs-10 ps-2 mb-0 text-900"> <strong><?php echo $extensionCounts['pending']; ?> extension request<?php echo $extensionCounts['pending'] > 1 ? 's' : ''; ?></strong> awaiting admin review</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php if ($extensionCounts['approved'] > 0): ?>
+                            <li class="list-group-item mb-0 rounded-0 py-3 px-x1 list-group-item-primary text-700 border-x-0 border-top-0">
+                                <div class="row flex-between-center">
+                                    <div class="col">
+                                        <div class="d-flex">
+                                            <div class="fas fa-circle mt-1 fs-11 text-success"></div>
+                                            <p class="fs-10 ps-2 mb-0 text-900"> <strong><?php echo $extensionCounts['approved']; ?> extension request<?php echo $extensionCounts['approved'] > 1 ? 's' : ''; ?></strong> approved</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php if ($extensionCounts['denied'] > 0): ?>
+                            <li class="list-group-item mb-0 rounded-0 py-3 px-x1 list-group-item-primary text-700 border-x-0 border-top-0">
+                                <div class="row flex-between-center">
+                                    <div class="col">
+                                        <div class="d-flex">
+                                            <div class="fas fa-circle mt-1 fs-11 text-danger"></div>
+                                            <p class="fs-10 ps-2 mb-0 text-900"> <strong><?php echo $extensionCounts['denied']; ?> extension request<?php echo $extensionCounts['denied'] > 1 ? 's' : ''; ?></strong> denied</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </li>
                             <?php endif; ?>
@@ -766,6 +897,33 @@ if ($rowWriter->is_verified == 1) {
                         </div>
                         <i class="fas fa-chevron-right fs-11 text-500"></i>
                     </a>
+                    <?php endif; ?>
+
+                    <?php if ($extensionCounts['pending'] > 0): $hasActivityWriter = true; ?>
+                    <div class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item" style="border-color:var(--falcon-warning)">
+                        <div class="itk-icon bg-warning-subtle text-warning"><i class="fas fa-calendar-plus"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $extensionCounts['pending']; ?> extension request<?php echo $extensionCounts['pending'] > 1 ? 's' : ''; ?></strong> awaiting admin review</p>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($extensionCounts['approved'] > 0): $hasActivityWriter = true; ?>
+                    <div class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item" style="border-color:var(--falcon-success)">
+                        <div class="itk-icon bg-success-subtle text-success"><i class="fas fa-calendar-check"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $extensionCounts['approved']; ?> extension request<?php echo $extensionCounts['approved'] > 1 ? 's' : ''; ?></strong> approved</p>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($extensionCounts['denied'] > 0): $hasActivityWriter = true; ?>
+                    <div class="d-flex align-items-center gap-3 p-2 mb-1 itk-activity-item" style="border-color:var(--falcon-danger)">
+                        <div class="itk-icon bg-danger-subtle text-danger"><i class="fas fa-calendar-times"></i></div>
+                        <div class="flex-1">
+                            <p class="mb-0 fs-9 text-800"><strong><?php echo $extensionCounts['denied']; ?> extension request<?php echo $extensionCounts['denied'] > 1 ? 's' : ''; ?></strong> denied</p>
+                        </div>
+                    </div>
                     <?php endif; ?>
 
                     <?php if (!$hasActivityWriter): ?>

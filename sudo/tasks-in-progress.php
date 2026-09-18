@@ -242,6 +242,20 @@ if (isset($_SESSION['alert'])) {
                                                     $taskCommentCounts[$ccRow['task_id']] = (int) $ccRow['cnt'];
                                                 }
                                             }
+                                            // Latest extension request per task (if any) - shown as a badge in the
+                                            // Status column. See sudo/extension-requests.php.
+                                            $taskExtensionStatus = [];
+                                            try {
+                                                $extStatusResult = mysqli_query($con, "SELECT task_id, status FROM tbl_task_extension_requests
+                                                    WHERE id IN (SELECT MAX(id) FROM tbl_task_extension_requests GROUP BY task_id)");
+                                                if ($extStatusResult) {
+                                                    while ($extRow = mysqli_fetch_assoc($extStatusResult)) {
+                                                        $taskExtensionStatus[$extRow['task_id']] = $extRow['status'];
+                                                    }
+                                                }
+                                            } catch (\mysqli_sql_exception $e) {
+                                                // migration pending - no extension request data yet
+                                            }
                                             $query=mysqli_query($con,"select * from tbltasks WHERE is_deleted = 0 AND status = 'In Progress' ORDER BY due_date ASC");
                                             $cnt=1;
                                             while($row=mysqli_fetch_array($query))
@@ -339,6 +353,14 @@ if (isset($_SESSION['alert'])) {
                                                         <?php endif; ?>
                                                         <?php if ($is_confirmed != 0): ?>
                                                             <?php echo $confirmation; ?>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($taskExtensionStatus[$row['id']])): ?>
+                                                            <?php $extStatus = $taskExtensionStatus[$row['id']]; ?>
+                                                            <a href="<?php echo $extStatus === 'pending' ? 'extension-requests' : ('view-task?task_id=' . $encodedId . '#extensionRequestBody'); ?>" class="d-block mt-1 text-decoration-none">
+                                                                <span class="badge rounded-pill <?php echo $extStatus === 'pending' ? 'badge-subtle-warning' : ($extStatus === 'approved' ? 'badge-subtle-success' : 'badge-subtle-danger'); ?>">
+                                                                    <i class="fas fa-calendar-plus me-1" data-fa-transform="shrink-2"></i>Extension <?php echo ucfirst($extStatus); ?>
+                                                                </span>
+                                                            </a>
                                                         <?php endif; ?>
                                                     </td>
                                                     <td class="align-middle white-space-nowrap text-900">

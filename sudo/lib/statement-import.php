@@ -1,6 +1,6 @@
 <?php
-// Parsers that turn Equity Bank and Safaricom M-Pesa statement exports
-// (CSV or PDF) into rows shaped like tblbudget's CSV-import format
+// Parsers that turn Equity Bank, Safaricom M-Pesa, and I&M Bank statement
+// exports (CSV or PDF) into rows shaped like tblbudget's CSV-import format
 // (Category, Subcategory, Description, Amount, Cost, Tag, Date), plus
 // best-effort classification and cross-statement internal-transfer
 // detection. Built and verified against real sample statements — see
@@ -384,6 +384,195 @@ final class StatementImport
             }
         }
         return 'Other';
+    }
+
+    /**
+     * @param string $text  Decrypted PDF text (via smalot/pdfparser, after
+     *   PdfRc4Decryptor's AES/cross-reference-stream path — see pdf-rc4.php).
+     *
+     * I&M's PDF table narrative cells routinely wrap across multiple
+     * lines, and (confirmed against two real samples — see
+     * memory/oeuvre-statement-import.md) those extra lines are NOT
+     * emitted inline after the row's own date/amount/balance line — they
+     * follow as their own separate text lines, immediately after the row
+     * they belong to and before the next row starts. So every line that
+     * isn't itself a row/header/Total line is simply appended to the
+     * MOST RECENTLY SEEN row. Direction (deposit/withdrawal) isn't in the
+     * text at all for a blank column — I&M omits empty cells rather than
+     * leaving a placeholder — so it's inferred from the running balance
+     * instead, same technique as parseEquityPdf()'s PDF fallback.
+     */
+    public static function parseImBankPdf(string $text, string $sourceLabel): array
+    {
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+        $entries = []; // ['skip'=>bool, 'date'=>Y-m-d H:i:s, 'amount'=>?float, 'balance'=>float, 'narrative'=>string]
+        $inTable = false;
+        $tableEnded = false;
+        $lastIdx = null;
+
+        foreach ($lines as $line) {
+            $line = trim($line, "\r\n");
+            if (trim($line) === '') {
+                continue;
+            }
+            if (preg_match('/^Tran\s*Date/i', $line)) {
+                $inTable = true;
+                continue;
+            }
+            if (!$inTable) {
+                continue;
+            }
+            if (preg_match('/^Total\b/i', $line)) {
+                $tableEnded = true;
+                continue;
+            }
+            if ($tableEnded) {
+                // Everything from here on is footer/letterhead text, not
+                // narrative — collect nothing further.
+                if (preg_match('/^(Balance as of|Cleared Balance|Unclear Balance|Lien Amount|Effective Avail)/i', $line)) {
+                    break;
+                }
+                continue;
+            }
+
+            if (preg_match(
+                '/^(\d{2}-\d{2}-\d{2})(?:\s+\d{2}-\d{2}-\d{2})?\t([\d,]+\.\d{2})(?:\s+([\d,]+\.\d{2}))?\s*(Cr|Dr)(.*)$/',
+                $line,
+                $m
+            )) {
+                $date = self::parseImDate($m[1]);
+                if ($date === null) {
+                    continue;
+                }
+                $narrative = trim($m[5]);
+                if ($m[3] === '') {
+                    // Only one figure on the line — that's the running
+                    // balance with no transaction amount (the opening
+                    // "B/F" balance row). Track the balance for the
+                    // running-balance direction check below, but it isn't
+                    // itself a transaction to import.
+                    $entries[] = ['skip' => true, 'date' => $date, 'amount' => null, 'balance' => self::parseAmount($m[2]), 'narrative' => $narrative];
+                } else {
+                    $entries[] = ['skip' => false, 'date' => $date, 'amount' => self::parseAmount($m[2]), 'balance' => self::parseAmount($m[3]), 'narrative' => $narrative];
+                }
+                $lastIdx = array_key_last($entries);
+                continue;
+            }
+
+            // A narrative continuation line for whichever row we most
+            // recently saw (see the docblock above) — dropped if a
+            // continuation line somehow precedes any row at all.
+            if ($lastIdx !== null) {
+                $entries[$lastIdx]['narrative'] = trim($entries[$lastIdx]['narrative'] . ' ' . $line);
+            }
+        }
+
+        $rows = [];
+        $prevBalance = null;
+        $seq = 0;
+        foreach ($entries as $entry) {
+            $balance = $entry['balance'];
+            if ($entry['skip']) {
+                $prevBalance = $balance;
+                continue;
+            }
+            $credit = 0.0;
+            $debit = 0.0;
+            $warning = null;
+            if ($prevBalance === null) {
+                $debit = $entry['amount'];
+                $warning = 'Direction (income/expense) could not be confirmed for the first row of this PDF — please check it.';
+            } elseif ($balance > $prevBalance) {
+                $credit = $entry['amount'];
+            } else {
+                $debit = $entry['amount'];
+            }
+            $prevBalance = $balance;
+
+            $row = self::buildImBankRow(trim($entry['narrative']) !== '' ? trim($entry['narrative']) : 'Other', $entry['date'], $credit, $debit, $sourceLabel, $sourceLabel . '-' . (++$seq));
+            if ($warning !== null) {
+                $row['warning'] = $warning;
+            }
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    private static function buildImBankRow(string $narrative, string $date, float $credit, float $debit, string $sourceLabel, string $syntheticKey): array
+    {
+        [$description, $tag] = self::classifyImNarrative($narrative);
+        $category = $credit > 0 ? 'Income' : 'Expense';
+        $amount = $credit > 0 ? $credit : $debit;
+
+        return [
+            'category' => $category,
+            // subcategory holds the RAW statement narrative text, same
+            // convention as buildEquityRow()/buildMpesaRow() — see the
+            // comment there for why (sudo/functions.php's budget-breakdown
+            // parsing depends on the raw text being preserved here).
+            'subcategory' => $narrative,
+            'description' => $description,
+            'amount' => round($amount, 2),
+            'cost' => 0.0,
+            'tag' => $tag,
+            'date' => $date,
+            'is_internal_transfer' => false,
+            'source' => $sourceLabel,
+            'transfer_key' => $syntheticKey,
+            'transfer_amount' => $credit > 0 ? $credit : -$debit,
+        ];
+    }
+
+    private static function classifyImNarrative(string $narrative): array
+    {
+        // [description, tag]. The first several rules are verified against
+        // two real I&M statements (see memory/oeuvre-statement-import.md);
+        // the rest below them are best-guess patterns for common Kenyan
+        // bank narrative language not yet seen in a real sample.
+        $rules = [
+            ['/^MMP\/Mpesa/i', ['M-Pesa Transfer', 'Mpesa']],
+            // A bank->M-Pesa payment TO a phone number is narrated as
+            // "<phone>/MPESA Payment to <phone>" — distinct from the
+            // "MMP/Mpesa" prefix used for INCOMING M-Pesa-funded credits.
+            ['/\/MPESA Payment\b/i', ['M-Pesa Transfer', 'Mpesa']],
+            // POS/card purchases (PesaPal gateway, supermarket/fuel-station
+            // self-service tills, etc.) all end in a "<TERMINAL><time>PRCR<code>"
+            // reference — a far more reliable signal than matching specific
+            // merchant names, which vary per transaction.
+            ['/PRCR\d+\s*$/i', ['Card Purchase', 'Card']],
+            ['/Personal Transfer/i', ['Personal Transfer', 'Card']],
+            ['/^(From|To)\s/i', ['Account Transfer', 'Card']],
+            ['/^RTGS/i', ['RTGS Transfer', 'Card']],
+            ['/^PESALINK/i', ['PesaLink Transfer', 'Card']],
+            ['/^EFT/i', ['EFT Transfer', 'Card']],
+            ['/^SWIFT/i', ['Inward SWIFT Transfer', 'Card']],
+            ['/^CHEQUE/i', ['Cheque', 'Card']],
+            ['/^STANDING ORDER/i', ['Standing Order', 'Card']],
+            ['/^SALARY/i', ['Salary', 'Card']],
+            ['/^(CHARGE|COMMISSION|LEDGER FEE|EXCISE)/i', ['Bank Charge', 'Card']],
+            ['/^WITHDRAWAL/i', ['Cash Withdrawal', 'Card']],
+            ['/^DEPOSIT/i', ['Cash Deposit', 'Card']],
+        ];
+        foreach ($rules as [$pattern, $result]) {
+            if (preg_match($pattern, $narrative)) {
+                return $result;
+            }
+        }
+        return ['Other', 'Card'];
+    }
+
+    private static function parseImDate(string $ddmmyy): ?string
+    {
+        if (!preg_match('/^(\d{2})-(\d{2})-(\d{2})$/', trim($ddmmyy), $m)) {
+            return null;
+        }
+        [, $d, $mo, $y] = $m;
+        $y = '20' . $y;
+        if (!checkdate((int) $mo, (int) $d, (int) $y)) {
+            return null;
+        }
+        return sprintf('%04d-%02d-%02d 00:00:00', $y, $mo, $d);
     }
 
     /**

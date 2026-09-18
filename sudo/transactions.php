@@ -1530,6 +1530,7 @@ unset($_SESSION['duplicate_transactions']);
                             <option value="equity_csv">Equity (CSV)</option>
                             <option value="equity_pdf">Equity (PDF)</option>
                             <option value="mpesa_pdf">M-Pesa (PDF)</option>
+                            <option value="im_bank_pdf">I&amp;M Bank (PDF)</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -1548,10 +1549,18 @@ unset($_SESSION['duplicate_transactions']);
                 const fileInput = row.querySelector('.statement-file-input');
                 const passwordCol = row.querySelector('.statement-password-col');
 
+                const passwordInput = row.querySelector('.statement-password-input');
                 function syncType() {
                     const isPdf = typeSelect.value.endsWith('_pdf');
                     fileInput.accept = isPdf ? '.pdf' : '.csv';
                     passwordCol.classList.toggle('d-none', !isPdf);
+                    // I&M Bank statement exports always use the same fixed
+                    // password — pre-fill it so the admin doesn't have to
+                    // look it up each time, but leave it editable in case
+                    // that ever changes.
+                    if (typeSelect.value === 'im_bank_pdf' && !passwordInput.value) {
+                        passwordInput.value = '946281';
+                    }
                 }
                 typeSelect.addEventListener('change', syncType);
                 syncType();

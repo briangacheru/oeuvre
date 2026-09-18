@@ -4,6 +4,7 @@
 <?php include "navi.php";
 require_once "currency_helper.php";
 require_once __DIR__ . '/../storage-helper.php';
+require_once __DIR__ . '/backup-functions.php';
 
 $error_message = ''; // Initialize an empty error message variable
 
@@ -337,6 +338,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['storageProviderSubmit
 
 $currentStorageProvider = get_storage_provider($con);
 
+// Handle "Backup Now" — an on-demand run of the same dump the daily cron
+// (cron/backup_database.php) does, sharing its logic via backup-functions.php.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['backupNowSubmit'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to create database backups.";
+    } elseif (!check_rate_limit($con, 'db_backup_manual', $aid, 3, 3600)) {
+        $error_message = rate_limit_message($con, 'db_backup_manual', $aid, 3600, 'manual backups');
+    } else {
+        $backupResult = run_database_backup($con);
+        if ($backupResult['success']) {
+            $message = "Backup created: {$backupResult['file']} (" . format_backup_size($backupResult['size'])
+                . ", {$backupResult['tables']} tables, {$backupResult['rows']} rows, {$backupResult['elapsed']}s).";
+            log_activity($con, 'admin', $aid, 'db_backup_created', "{$backupResult['file']} (manual)");
+        } else {
+            $error_message = "Backup failed: " . $backupResult['error'];
+            log_activity($con, 'admin', $aid, 'db_backup_failed', $backupResult['error']);
+        }
+    }
+}
+
+// Handle backup deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['deleteBackupSubmit'])) {
+    if (!adminCan($currentAdminRole, 'manage_settings')) {
+        $error_message = "You don't have permission to delete database backups.";
+    } else {
+        $backupFilename = $_POST['backup_filename'] ?? '';
+        if (!is_valid_backup_filename($backupFilename)) {
+            $error_message = "Invalid backup filename.";
+        } else {
+            $backupPath = db_backup_dir() . '/' . $backupFilename;
+            if (is_file($backupPath) && unlink($backupPath)) {
+                $message = "Backup deleted: $backupFilename.";
+                log_activity($con, 'admin', $aid, 'db_backup_deleted', $backupFilename);
+            } else {
+                $error_message = "Could not delete backup: $backupFilename.";
+            }
+        }
+    }
+}
+
+$databaseBackups = adminCan($currentAdminRole, 'manage_settings') ? list_database_backups() : [];
+$dbBackupRetentionDays = db_backup_retention_days();
+
 // Fetch current notification
 $query = mysqli_query($con, "SELECT * FROM tblsettings WHERE id = 3");
 $row = mysqli_fetch_assoc($query);
@@ -579,6 +623,71 @@ $currentNotification = $row['description'];
                                 Save Storage Setting
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0 text-info">Database Backups</h5>
+                    </div>
+                    <div class="card-body bg-body-tertiary">
+                        <p class="text-muted fs-10 mb-3">
+                            Full dumps of every table (schema + data), gzip-compressed. A backup runs
+                            automatically once a day via cron, and backups older than
+                            <strong><?php echo (int) $dbBackupRetentionDays; ?> days</strong> are deleted
+                            automatically. You can also trigger one right now.
+                        </p>
+                        <form method="post" class="mb-3">
+<?= csrf_field() ?>
+                            <button class="btn btn-outline-primary w-100" type="submit" name="backupNowSubmit">
+                                <i class="fas fa-database me-1"></i> Backup Now
+                            </button>
+                        </form>
+
+                        <?php if (empty($databaseBackups)): ?>
+                            <p class="text-muted fs-10 mb-0">No backups yet.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-10 mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>File</th>
+                                            <th>Size</th>
+                                            <th>Created</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($databaseBackups as $backup): ?>
+                                            <tr>
+                                                <td class="text-break"><?php echo htmlspecialchars($backup['filename'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-nowrap"><?php echo format_backup_size($backup['size']); ?></td>
+                                                <td class="text-nowrap"><?php echo date('Y-m-d H:i', $backup['mtime']); ?></td>
+                                                <td class="text-end text-nowrap">
+                                                    <a class="btn btn-sm btn-outline-secondary"
+                                                       href="download-backup?file=<?php echo urlencode($backup['filename']); ?>">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                    <form method="post" class="d-inline">
+<?= csrf_field() ?>
+                                                        <input type="hidden" name="backup_filename" value="<?php echo htmlspecialchars($backup['filename'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <button class="btn btn-sm btn-outline-danger" type="submit" name="deleteBackupSubmit"
+                                                                onclick="return confirm('Delete this backup? This cannot be undone.');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="alert alert-secondary mt-3 mb-0 fs-10">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Restore with: <code>gunzip -c &lt;file&gt; | mysql -u USER -p DBNAME</code>
+                        </div>
                     </div>
                 </div>
                 <?php

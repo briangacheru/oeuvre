@@ -99,40 +99,4 @@ function shareTask(taskId, platform) {
 JAVASCRIPT;
 }
 
-/**
- * HTML for share button
- * Add this to your task view page where you want the share button
- */
-function getShareButtonHTML($taskId, $taskTopic) {
-    $escapedTopic = htmlspecialchars($taskTopic);
-    return <<<HTML
-<div class="dropdown">
-    <button class="btn btn-primary dropdown-toggle" type="button" id="shareDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fas fa-share-alt me-2"></i>Share Task
-    </button>
-    <ul class="dropdown-menu" aria-labelledby="shareDropdown">
-        <li>
-            <a class="dropdown-item" href="#" onclick="copyShareLink($taskId); return false;">
-                <i class="fas fa-link me-2"></i>Copy Link
-            </a>
-        </li>
-        <li>
-            <a class="dropdown-item" href="#" onclick="shareTask($taskId, 'email'); return false;">
-                <i class="fas fa-envelope me-2"></i>Email
-            </a>
-        </li>
-        <li>
-            <a class="dropdown-item" href="#" onclick="shareTask($taskId, 'whatsapp'); return false;">
-                <i class="fab fa-whatsapp me-2"></i>WhatsApp
-            </a>
-        </li>
-        <li>
-            <a class="dropdown-item" href="#" onclick="shareTask($taskId, 'twitter'); return false;">
-                <i class="fab fa-twitter me-2"></i>Twitter
-            </a>
-        </li>
-    </ul>
-</div>
-HTML;
-}
 ?>

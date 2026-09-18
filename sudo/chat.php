@@ -1528,8 +1528,33 @@ try {
                 });
             }
 
-            // Start polling for new messages
-            setInterval(pollMessages, 3000);
+            // Start polling for new messages - chat-stream.php (SSE) triggers
+            // immediate pollMessages() calls when something changed; the
+            // interval below is a slowed-down fallback. See ../chat.php for
+            // the same pattern on the writer side.
+            let chatLastSeenMaxId = 0;
+            if (typeof EventSource !== 'undefined') {
+                let chatStream;
+                const connectChatStream = function () {
+                    chatStream = new EventSource('chat-stream?last_id=' + chatLastSeenMaxId);
+                    chatStream.addEventListener('new-message', function (e) {
+                        try { chatLastSeenMaxId = JSON.parse(e.data).max_id || chatLastSeenMaxId; } catch (err) {}
+                        pollMessages();
+                    });
+                    chatStream.addEventListener('reconnect', function () {
+                        chatStream.close();
+                        setTimeout(connectChatStream, 500);
+                    });
+                    chatStream.onerror = function () {
+                        chatStream.close();
+                        setTimeout(connectChatStream, 3000);
+                    };
+                };
+                connectChatStream();
+                setInterval(pollMessages, 20000);
+            } else {
+                setInterval(pollMessages, 3000);
+            }
 
             // Show default content initially
             const defaultContent = document.getElementById('default-content');

@@ -29,39 +29,6 @@ function username_exists($username)
         return false;
     }
 }
-function get_name($email) {
-    global $con;
-
-    $sql = "SELECT username FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["username"];
-}
-function get_email($email) {
-    global $con;
-
-    $sql = "SELECT email FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["email"];
-}
-function get_picture($email) {
-    global $con;
-
-    $sql = "SELECT Photo FROM tbladmin WHERE email = '$email'";
-
-    $result = $con->query($sql);
-
-    $row = $result->fetch_assoc();
-
-    return $row["Photo"];
-}
 
 
 
@@ -165,15 +132,6 @@ function sanitize($data) {
 
 function formatDateTime($date, $time) {
     return date('M j, Y g:i A', strtotime($date . ' ' . $time));
-}
-
-function getPriorityBadge($priority) {
-    $badges = [
-        'low' => 'badge-success',
-        'medium' => 'badge-warning',
-        'high' => 'badge-danger'
-    ];
-    return $badges[$priority] ?? 'badge-secondary';
 }
 
 // Strips the trailing ref/date/card-suffix noise banks append to card

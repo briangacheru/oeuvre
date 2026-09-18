@@ -1,5 +1,8 @@
 {
-    "name": "",
+    "name": "iTasker",
+    "short_name": "iTasker",
+    "start_url": "/",
+    "scope": "/",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
@@ -12,7 +15,7 @@
             "type": "image/png"
         }
     ],
-    "theme_color": "#ffffff",
+    "theme_color": "#0073e6",
     "background_color": "#ffffff",
     "display": "standalone"
 }

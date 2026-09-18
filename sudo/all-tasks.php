@@ -238,7 +238,7 @@ if (isset($_GET['del'])) {
                                             </td>
                                             <td class="align-middle white-space-nowrap text-900">
                                                 <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo htmlspecialchars($row["account"], ENT_QUOTES, 'UTF-8'); ?></h6>
-                                                <p class="fw-semi-bold mb-0 text-500"><?php echo $row["writer"];?></p>
+                                                <p class="fw-semi-bold mb-0 text-500" data-inline-edit="writer" data-task-id="<?php echo $row['id']; ?>" data-current-email="<?php echo htmlspecialchars($row['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row["writer"], ENT_QUOTES, 'UTF-8'); ?> <i class="fas fa-pen fs-11 text-secondary ms-1"></i></p>
                                                 </td>
                                             <td class="align-middle white-space-nowrap product">
                                                 <p class="fs-11 mb-0">
@@ -246,10 +246,11 @@ if (isset($_GET['del'])) {
                                                         ? date("d M Y, g:i A", strtotime($row['submitted_on']))
                                                         : '—'; ?>
                                                 </p>
-                                                <p class="fs-11 mb-0"><?php  echo date("d M Y, g:i A", strtotime($row['due_date']));?></p>
+                                                <p class="fs-11 mb-0" data-inline-edit="due_date" data-task-id="<?php echo $row['id']; ?>" data-current-iso="<?php echo date('Y-m-d\TH:i', strtotime($row['due_date'])); ?>"><?php echo date("d M Y, g:i A", strtotime($row['due_date']));?> <i class="fas fa-pen fs-11 text-secondary ms-1"></i></p>
                                             </td>
                                             <td class="align-middle amount">
                                                 <h6 class="mb-0"><?php echo number_format($totalprice,2); ?></h6>
+                                                <p class="fs-11 mb-0 text-500" data-inline-edit="cpp" data-task-id="<?php echo $row['id']; ?>" data-current-value="<?php echo htmlspecialchars($row['cpp'], ENT_QUOTES, 'UTF-8'); ?>">CPP: <?php echo htmlspecialchars($row['cpp'], ENT_QUOTES, 'UTF-8'); ?> <i class="fas fa-pen fs-11 text-secondary ms-1"></i></p>
                                                 <p class="fs-11 mb-0"><?php echo $statusBadgePay;?></p>
                                             </td>
                                             <td class="align-middle white-space-nowrap text-end position-relative">
@@ -691,6 +692,20 @@ if (isset($_GET['del'])) {
             });
         });
     </script>
+
+    <script id="writerOptionsData" type="application/json">
+        <?php
+        $inlineWriterOptions = [];
+        $writerOptsResult = mysqli_query($con, "SELECT username, email FROM tblwriters WHERE is_deleted = 0 AND is_verified = 1 ORDER BY username ASC");
+        if ($writerOptsResult) {
+            while ($w = mysqli_fetch_assoc($writerOptsResult)) {
+                $inlineWriterOptions[] = ['username' => $w['username'], 'email' => $w['email']];
+            }
+        }
+        echo json_encode($inlineWriterOptions);
+        ?>
+    </script>
+    <script src="../assets/js/inline-task-edit.js"></script>
 
 <?php
 include "footer.php";

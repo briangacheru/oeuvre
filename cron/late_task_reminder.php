@@ -23,21 +23,6 @@ $config = [
     ]
 ];
 
-// Function to calculate hours late
-function calculateHoursLate($dueDate) {
-    $due = new DateTime($dueDate);
-    $now = new DateTime();
-
-    if ($due >= $now) {
-        return 0; // Not late
-    }
-
-    $interval = $now->diff($due);
-    $hoursLate = ($interval->days * 24) + $interval->h + ($interval->i / 60);
-
-    return round($hoursLate, 1);
-}
-
 // Function to determine alert level based on hours late
 function getAlertLevel($hoursLate, $config) {
     if ($hoursLate <= 3) {

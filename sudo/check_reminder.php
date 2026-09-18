@@ -1,4 +1,16 @@
 <?php
+// Live JSON endpoint (polled by urgent_reminders.js / reminders.php). It used
+// to run with no session check at all, so anyone could pull the admin's
+// upcoming reminders. Gate it behind the admin session like the other
+// sudo/ AJAX endpoints.
+require_once __DIR__ . '/session-name.php';
+session_start();
+if (empty($_SESSION['odmsaid'])) {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
 date_default_timezone_set('Africa/Nairobi');
 require_once 'dbcon.php';
 header('Content-Type: application/json');

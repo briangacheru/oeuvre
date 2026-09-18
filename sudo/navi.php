@@ -18,6 +18,7 @@
 <script src="../assets/js/adminsessiontimeout.js"></script>
 <script src="../assets/js/admin-task-notification.js"></script>
 <script src="../assets/js/topbar-search.js"></script>
+<script src="../assets/js/command-palette.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/command-palette.js') ?: time(); ?>"></script>
 
 
 
@@ -809,6 +810,7 @@
 
 </head>
 <body>
+<input type="hidden" name="csrf_token" id="globalCsrfToken" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 
 <!-- ===============================================-->
 <!--    Main Content-->
@@ -970,6 +972,23 @@
                                             } else {
                                                 echo "0"; // Display "No Data" if count is 0
                                             }
+                                        }
+                                        ?></span>
+                                </div>
+                            </a>
+                            <!-- parent pages--><a class="nav-link" href="extension-requests" role="button">
+                                <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-plus"></span></span><span class="nav-link-text ps-1">Extension Requests</span>
+                                    <span class="badge rounded-pill ms-2 badge-subtle-warning" id="sidebar-badge-extension-requests"><?php
+                                        // Migration may not have run yet (tbl_task_extension_requests) -
+                                        // PHP 8.1+ mysqli throws on a bad query rather than returning
+                                        // false, so this must be caught, not just null-checked (see
+                                        // get_current_version() in shared-functions.php for the same pattern).
+                                        try {
+                                            $result = mysqli_query($con, "SELECT COUNT(*) as taskCount FROM tbl_task_extension_requests WHERE status = 'pending'");
+                                            $row = $result ? mysqli_fetch_assoc($result) : null;
+                                            echo $row ? (int) $row['taskCount'] : "0";
+                                        } catch (\mysqli_sql_exception $e) {
+                                            echo "0";
                                         }
                                         ?></span>
                                 </div>
@@ -1269,6 +1288,7 @@
                             <form class="position-relative" data-bs-toggle="search" data-bs-display="static">
                                 <input class="form-control search-input fuzzy-search" type="search" placeholder="Search tasks, writers, files, payments & more..." aria-label="Search" />
                                 <span class="fas fa-search search-box-icon"></span>
+                                <span class="badge bg-body-secondary text-secondary position-absolute top-50 translate-middle-y" style="right: 10px; font-size: 10px;" title="Press Ctrl+K / Cmd+K anywhere to open the command palette">Ctrl+K</span>
 
                             </form>
                             <div class="btn-close-falcon-container position-absolute end-0 top-50 translate-middle shadow-none" data-bs-dismiss="search">
@@ -1768,6 +1788,9 @@
                                 <!-- Account Management Section -->
                                 <a class="dropdown-item" href="profile">
                                     <i class="fas fa-user me-2"></i>Profile &amp; account
+                                </a>
+                                <a class="dropdown-item" href="#" id="pushOptInBtn">
+                                    <i class="fas fa-bell me-2"></i>Enable Push Notifications
                                 </a>
                                 <a class="dropdown-item" href="settings">
                                     <i class="fas fa-cog me-2"></i>Settings
@@ -2300,7 +2323,8 @@
                     favorite: 'sidebar-badge-favorite',
                     unpaid: 'sidebar-badge-unpaid',
                     paid: 'sidebar-badge-paid',
-                    unread_messages: 'sidebar-badge-unread-messages'
+                    unread_messages: 'sidebar-badge-unread-messages',
+                    extension_requests: 'sidebar-badge-extension-requests'
                 };
 
                 function updateSidebarBadges() {

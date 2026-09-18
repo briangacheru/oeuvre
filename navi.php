@@ -156,6 +156,7 @@
 </script>
 </head>
 <body>
+<input type="hidden" name="csrf_token" id="globalCsrfToken" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 
 <!-- ===============================================-->
 <!--    Main Content-->
@@ -873,8 +874,32 @@
                                 <a class="dropdown-item fw-bold text-warning" href="#"><span><?php echo htmlspecialchars($row->username, ENT_QUOTES, 'UTF-8'); ?></span></a>
 
                                 <div class="dropdown-divider"></div>
+                                <div class="px-3 py-1">
+                                    <small class="text-muted d-block mb-1">Availability</small>
+                                    <?php
+                                    // Shown to admins picking a writer on sudo/create-task.php. See
+                                    // update-availability.php and
+                                    // db-migrations/2026_09_15_add_interactive_features.sql.
+                                    $availOptions = [
+                                        'available' => ['label' => 'Available', 'color' => 'success'],
+                                        'busy' => ['label' => 'Busy', 'color' => 'warning'],
+                                        'away' => ['label' => 'Away', 'color' => 'secondary'],
+                                    ];
+                                    $currentAvail = $row->availability_status ?? 'available';
+                                    if (!isset($availOptions[$currentAvail])) { $currentAvail = 'available'; }
+                                    ?>
+                                    <div class="btn-group btn-group-sm w-100" role="group" id="availabilityToggleGroup">
+                                        <?php foreach ($availOptions as $key => $opt): ?>
+                                            <button type="button" class="btn btn-outline-<?php echo $opt['color']; ?> availability-btn <?php echo $currentAvail === $key ? 'active' : ''; ?>" data-status="<?php echo $key; ?>">
+                                                <?php echo $opt['label']; ?>
+                                            </button>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="profile">Profile &amp; account</a>
 
+                                <a class="dropdown-item" href="#" id="pushOptInBtn"><i class="fas fa-bell me-1"></i>Enable Push Notifications</a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="settings">Settings</a>
                                 <a class="dropdown-item" href="logout?logout=1">Logout</a>
@@ -1342,6 +1367,33 @@
                     // Track user activity
                     ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
                         document.addEventListener(event, setUserActive, true);
+                    });
+                });
+            </script>
+
+            <script>
+                document.querySelectorAll('#availabilityToggleGroup .availability-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        const status = this.dataset.status;
+                        const group = this.closest('#availabilityToggleGroup');
+
+                        const formData = new FormData();
+                        formData.append('status', status);
+                        formData.append('csrf_token', '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, "UTF-8"); ?>');
+
+                        fetch('update-availability', { method: 'POST', body: formData })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    group.querySelectorAll('.availability-btn').forEach(b => b.classList.remove('active'));
+                                    this.classList.add('active');
+                                    if (typeof showToast === 'function') showToast('Availability set to ' + status + '.', 'success');
+                                } else if (typeof showToast === 'function') {
+                                    showToast(data.message || 'Could not update availability.', 'error');
+                                }
+                            })
+                            .catch(() => {});
                     });
                 });
             </script>

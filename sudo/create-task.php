@@ -97,10 +97,24 @@
                             <select class="form-select js-choice" name="writer" id="writerSelect" required="required" data-options='{"removeItemButton":true,"placeholder":true}' >
                                 <option selected disabled value="">Select Writer</option>
                                 <?php
-                                // Assuming $con is your database connection
-                                $query = mysqli_query($con, "SELECT id, username, email FROM tblwriters WHERE is_deleted = 0 AND is_verified=1 ORDER BY id ASC");
+                                // Availability status (available/busy/away) is appended to the
+                                // label so it shows without any changes to the Choices.js init -
+                                // see [[oeuvre-storage-provider-toggle]]-style "don't touch shared
+                                // JS" caution. Falls back gracefully if the migration hasn't run
+                                // yet (SELECT * would 500; this only selects the one new column).
+                                $hasAvailabilityColumn = true;
+                                try {
+                                    $writerQuery = "SELECT id, username, email, availability_status FROM tblwriters WHERE is_deleted = 0 AND is_verified=1 ORDER BY id ASC";
+                                    $query = mysqli_query($con, $writerQuery);
+                                } catch (\mysqli_sql_exception $e) {
+                                    $hasAvailabilityColumn = false;
+                                    $query = mysqli_query($con, "SELECT id, username, email FROM tblwriters WHERE is_deleted = 0 AND is_verified=1 ORDER BY id ASC");
+                                }
+                                $availabilityDots = ['available' => '🟢', 'busy' => '🟡', 'away' => '⚪'];
                                 while ($row = mysqli_fetch_assoc($query)) {
-                                    echo "<option value='" . $row['username'] . "|" . $row['email'] . "'>" . $row['username'] . "</option>";
+                                    $dot = $hasAvailabilityColumn ? ($availabilityDots[$row['availability_status'] ?? 'available'] ?? '🟢') . ' ' : '';
+                                    $statusLabel = $hasAvailabilityColumn ? ' (' . ucfirst($row['availability_status'] ?? 'available') . ')' : '';
+                                    echo "<option value='" . htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8') . "|" . htmlspecialchars($row['email'], ENT_QUOTES, 'UTF-8') . "'>" . $dot . htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8') . $statusLabel . "</option>";
                                 }
                                 ?>
                             </select>

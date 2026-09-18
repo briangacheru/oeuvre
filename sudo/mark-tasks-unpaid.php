@@ -18,24 +18,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {
         // Prepare a string of comma-separated task IDs for the SQL query
         $idsString = implode(',', array_map('intval', $taskIds));
 
-        // SQL query to update tasks status
-        // NOW() reflects the DB server's own timezone, not PHP's Africa/Nairobi
-        // setting (see check-login.php), so the timestamp is computed here instead.
-        $paidOn = date('Y-m-d H:i:s');
-        $sql = "UPDATE tbltasks SET is_paid = 1, paid_on = '$paidOn' WHERE id IN ($idsString) AND status = 'Completed' AND is_paid = 0";
+        // SQL query to reverse payment on tasks
+        $sql = "UPDATE tbltasks SET is_paid = 0, paid_on = NULL, payment_method = NULL, transaction_code = NULL WHERE id IN ($idsString) AND status = 'Completed' AND is_paid = 1";
 
         if (mysqli_query($con, $sql)) {
             // Check if any rows were updated
             if (mysqli_affected_rows($con) > 0) {
+                if (function_exists('log_activity')) {
+                    foreach ($taskIds as $unpaidTaskId) {
+                        log_activity($con, 'admin', $aid, 'task_unpaid', "Task #" . (int) $unpaidTaskId . ": marked as unpaid", (int) $unpaidTaskId);
+                    }
+                }
                 $_SESSION['alert'] = '<div class="alert alert-success border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-success me-3 icon-item"><span class="fas fa-check-circle text-white fs-6"></span></div>
-                                        <p class="mb-0 flex-1">Tasks paid successfully!</p>
+                                        <p class="mb-0 flex-1">Tasks marked as unpaid successfully!</p>
                                         <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
                                       </div>';
             } else {
                 $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                                         <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
-                                        <p class="mb-0 flex-1">No tasks were updated. Please ensure you are selecting unpaid tasks only!</p>
+                                        <p class="mb-0 flex-1">No tasks were updated. Please ensure you are selecting paid tasks only!</p>
                                         <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
                                       </div>';
             }
@@ -55,7 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {
     }
 } else {
     $_SESSION['alert'] = '<div class="alert alert-danger border-0 d-flex align-items-center" role="alert">
-                                      <div class="bg-danger me-3 icon-item"><span the "fas fa-times-circle text-white fs-6"></span></div>
+                                      <div class="bg-danger me-3 icon-item"><span class="fas fa-times-circle text-white fs-6"></span></div>
                                       <p class="mb-0 flex-1">No tasks were selected!</p>
                                       <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
                                   </div>';

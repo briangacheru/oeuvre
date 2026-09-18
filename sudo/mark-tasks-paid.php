@@ -76,6 +76,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['taskIds'])) {
             $submittedCount = count($taskIds);
 
             if ($paidCount > 0) {
+                if (function_exists('log_activity')) {
+                    foreach ($taskIds as $paidTaskId) {
+                        log_activity($con, 'admin', $aid, 'task_paid', "Task #" . (int) $paidTaskId . ": marked as paid" . ($paymentMethod ? " via $paymentMethod" : ''), (int) $paidTaskId);
+                    }
+                }
                 $taskWord = ($paidCount === 1) ? 'task' : 'tasks';
                 $message = '<strong>' . $paidCount . '</strong> ' . $taskWord . ' paid successfully!';
 

@@ -59,7 +59,7 @@ if (isset($_GET['task_id'])) {
         exit();
     }
 
-    log_activity($con, 'writer', $aid, 'task_view', "Task #$taskId: " . ($taskRowCheck['topic'] ?? ''));
+    log_activity($con, 'writer', $aid, 'task_view', "Task #$taskId: " . ($taskRowCheck['topic'] ?? ''), $taskId);
 } else {
     $_SESSION['alert'] = '<div class="alert alert-warning border-0 d-flex align-items-center" role="alert">
                             <div class="bg-warning me-3 icon-item"><span class="fas fa-exclamation-circle text-white fs-6"></span></div>
@@ -384,10 +384,116 @@ if (isset($_GET['message'])) {
                                     <i class="fas fa-sync-alt me-1"></i> Resubmit Task
                                 </a>
                             <?php endif; ?>
+                            <?php
+                            // Deadline extension request - only offered while the writer still
+                            // holds an active, non-final task. See request-task-extension.php
+                            // and db-migrations/2026_09_15_add_interactive_features.sql.
+                            $extensionRequest = null;
+                            if (in_array($taskStatus, ['In Progress', 'In Revision'])) {
+                                $extStmt = mysqli_prepare($con, "SELECT * FROM tbl_task_extension_requests WHERE task_id = ? ORDER BY created_at DESC LIMIT 1");
+                                if ($extStmt) {
+                                    mysqli_stmt_bind_param($extStmt, 'i', $taskId);
+                                    mysqli_stmt_execute($extStmt);
+                                    $extensionRequest = mysqli_stmt_get_result($extStmt)->fetch_assoc();
+                                    mysqli_stmt_close($extStmt);
+                                }
+                            }
+                            ?>
+                            <?php if (in_array($taskStatus, ['In Progress', 'In Revision'])): ?>
+                                <?php if ($extensionRequest && $extensionRequest['status'] == 'pending'): ?>
+                                    <button class="btn btn-outline-secondary btn-sm fs-10" disabled>
+                                        <i class="fas fa-clock me-1"></i> Extension Pending
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-outline-warning btn-sm fs-10" data-bs-toggle="modal" data-bs-target="#requestExtensionModal">
+                                        <i class="fas fa-calendar-plus me-1"></i> Request Extension
+                                    </button>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         </div>
+                    </div>
+                    <?php if ($extensionRequest && $extensionRequest['status'] != 'pending'): ?>
+                        <div class="col-12 mt-2">
+                            <?php if ($extensionRequest['status'] == 'approved'): ?>
+                                <div class="alert alert-success fs-10 py-2 px-3 mb-0">
+                                    <i class="fas fa-check-circle me-1"></i> Your extension request was approved - new due date
+                                    <strong><?php echo date('d M Y, g:i A', strtotime($extensionRequest['requested_due_date'])); ?></strong>.
+                                </div>
+                            <?php elseif ($extensionRequest['status'] == 'denied'): ?>
+                                <div class="alert alert-danger fs-10 py-2 px-3 mb-0">
+                                    <i class="fas fa-times-circle me-1"></i> Your extension request was denied.
+                                    <?php if (!empty($extensionRequest['admin_response'])): ?>
+                                        <em><?php echo htmlspecialchars($extensionRequest['admin_response'], ENT_QUOTES, 'UTF-8'); ?></em>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <?php if (in_array($taskStatus, ['In Progress', 'In Revision']) && !($extensionRequest && $extensionRequest['status'] == 'pending')): ?>
+            <div class="modal fade" id="requestExtensionModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form id="requestExtensionForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-calendar-plus me-2 text-warning"></i>Request Deadline Extension</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="fs-9 text-secondary">Current due date: <strong><?php echo date('d M Y, g:i A', strtotime($taskDueDate)); ?></strong></p>
+                                <div class="mb-3">
+                                    <label class="form-label fs-9" for="requestedDueDate">New requested due date</label>
+                                    <input type="datetime-local" class="form-control" id="requestedDueDate" name="requested_due_date" required>
+                                </div>
+                                <div class="mb-1">
+                                    <label class="form-label fs-9" for="extensionReason">Reason</label>
+                                    <textarea class="form-control" id="extensionReason" name="reason" rows="3" maxlength="500" placeholder="Why do you need more time?" required></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-warning" id="submitExtensionBtn">
+                                    <i class="fas fa-paper-plane me-1"></i> Send Request
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
+            <script>
+            document.getElementById('requestExtensionForm')?.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const btn = document.getElementById('submitExtensionBtn');
+                btn.disabled = true;
+                const original = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Sending...';
+
+                const formData = new FormData(this);
+                formData.append('task_id', '<?php echo (int) $taskId; ?>');
+                formData.append('csrf_token', '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, "UTF-8"); ?>');
+
+                fetch('request-task-extension', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        showToast(data.message, data.success ? 'success' : 'error');
+                        if (data.success) {
+                            bootstrap.Modal.getInstance(document.getElementById('requestExtensionModal')).hide();
+                            setTimeout(() => location.reload(), 1200);
+                        } else {
+                            btn.disabled = false;
+                            btn.innerHTML = original;
+                        }
+                    })
+                    .catch(() => {
+                        showToast('Something went wrong. Please try again.', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                    });
+            });
+            </script>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -1222,6 +1328,64 @@ foreach ($comments as $comment) {
 }
 ?>
 
+    <!-- Task Activity Timeline -->
+    <?php $activityTimeline = get_task_activity_timeline($con, $taskId, 20, ['task_view']); ?>
+    <?php if (!empty($activityTimeline)): ?>
+    <div class="row">
+        <div class="col-md-12 mb-3">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#activityTimelineBody">
+                    <i class="fas fa-history me-2 text-primary"></i>
+                    <h6 class="mb-0">Activity Timeline</h6>
+                    <span class="badge badge-subtle-secondary rounded-pill ms-2"><?php echo count($activityTimeline); ?></span>
+                    <i class="fas fa-chevron-down ms-auto text-secondary"></i>
+                </div>
+                <div class="collapse" id="activityTimelineBody">
+                    <div class="card-body py-3">
+                        <ul class="list-unstyled mb-0 fs-9">
+                            <?php
+                            $activityIcons = [
+                                'task_created' => ['fa-plus-circle', 'text-primary'],
+                                'task_view' => ['fa-eye', 'text-secondary'],
+                                'task_submit' => ['fa-paper-plane', 'text-info'],
+                                'task_accept' => ['fa-check-circle', 'text-success'],
+                                'task_decline' => ['fa-times-circle', 'text-danger'],
+                                'task_completed' => ['fa-check-double', 'text-success'],
+                                'task_paid' => ['fa-money-bill-wave', 'text-success'],
+                                'task_unpaid' => ['fa-money-bill-wave', 'text-warning'],
+                                'writer_reassigned' => ['fa-user-edit', 'text-warning'],
+                                'extension_requested' => ['fa-calendar-plus', 'text-warning'],
+                                'extension_approved' => ['fa-calendar-check', 'text-success'],
+                                'extension_denied' => ['fa-calendar-times', 'text-danger'],
+                            ];
+                            foreach ($activityTimeline as $event):
+                                [$icon, $color] = $activityIcons[$event['action']] ?? ['fa-circle', 'text-secondary'];
+                            ?>
+                                <?php $eventDetails = format_activity_log_details($event['details'], $taskId, $taskTopic); ?>
+                                <li class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas <?php echo $icon; ?> <?php echo $color; ?> me-2 mt-1"></i>
+                                        <div>
+                                            <div>
+                                                <strong><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $event['action'])), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                <span class="text-muted"> by <?php echo htmlspecialchars($event['email'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                            </div>
+                                            <?php if ($eventDetails !== ''): ?>
+                                                <div class="text-muted"><?php echo htmlspecialchars($eventDetails, ENT_QUOTES, 'UTF-8'); ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted text-nowrap ms-4"><?php echo date('d M Y, g:i A', strtotime($event['created_at'])); ?></small>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Task Discussion Card -->
 <?php $hasMessages = !empty($comments); ?>
     <div class='row'>
@@ -1517,6 +1681,15 @@ foreach ($comments as $comment) {
                                                         $formatted_comment = preg_replace(
                                                             '/(https?:\/\/[^\s]+)/',
                                                             '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size: 10px;"></i></a>',
+                                                            $formatted_comment
+                                                        );
+
+                                                        // Highlight @mentions (cosmetic only - see
+                                                        // parse_and_notify_mentions() in shared-functions.php
+                                                        // for the actual notification logic).
+                                                        $formatted_comment = preg_replace(
+                                                            '/@([A-Za-z0-9_.\-]{2,50})/',
+                                                            '<span class="fw-semibold text-primary">@$1</span>',
                                                             $formatted_comment
                                                         );
 
@@ -3149,6 +3322,15 @@ foreach ($comments as $comment) {
                 '<a href="$1" target="_blank" class="text-decoration-none fw-medium">$1 <i class="fas fa-external-link-alt" style="font-size: 10px;"></i></a>'
             );
 
+            // Highlight @mentions (server-side parsing/notification in
+            // parse_and_notify_mentions() - shared-functions.php - is the
+            // source of truth for who actually gets notified; this is
+            // purely cosmetic so a mention reads clearly in the thread).
+            formatted = formatted.replace(
+                /@([A-Za-z0-9_.\-]{2,50})/g,
+                '<span class="fw-semibold text-primary">@$1</span>'
+            );
+
             return formatted;
         }
 
@@ -3522,6 +3704,9 @@ foreach ($comments as $comment) {
             </div>
         </div>
     </div>
+
+    <script>window.iTaskerTaskId = <?php echo (int) $taskId; ?>;</script>
+    <script src="assets/js/comment-reactions.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/comment-reactions.js') ?: time(); ?>"></script>
 
 <?php
 include "footer.php";

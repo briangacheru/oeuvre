@@ -1006,17 +1006,6 @@ if (isset($_SESSION['alert'])) {
             });
         }
 
-        // Helper function to set field values across browsers
-        function setFieldValue(fieldId, value) {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.removeAttribute('readonly');
-                field.value = value;
-                field.setAttribute('readonly', 'readonly');
-                field.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
-
     </script>
 <?php
 include "footer.php";

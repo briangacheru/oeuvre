@@ -405,48 +405,6 @@ function sendDueReminderEmail($reminder) {
     return sendEmail($email_config['to_email'], $subject, $htmlBody);
 }
 
-// New function to get snooze statistics for analytics
-function getSnoozeAnalytics($days = 30) {
-    global $dbh;
-
-    $since = date('Y-m-d', strtotime("-{$days} days"));
-
-    $query = "
-        SELECT 
-            COUNT(*) as total_snoozes,
-            AVG(snooze_duration_minutes) as avg_duration,
-            MAX(snooze_duration_minutes) as max_duration,
-            MIN(snooze_duration_minutes) as min_duration,
-            COUNT(DISTINCT reminder_id) as unique_reminders_snoozed
-        FROM snooze_history 
-        WHERE snooze_time >= ?
-    ";
-
-    $stmt = $dbh->prepare($query);
-    $stmt->execute([$since]);
-    $stats = $stmt->fetch();
-
-    // Get most common snooze durations
-    $durationQuery = "
-        SELECT snooze_duration_minutes, COUNT(*) as count
-        FROM snooze_history 
-        WHERE snooze_time >= ?
-        GROUP BY snooze_duration_minutes 
-        ORDER BY count DESC 
-        LIMIT 5
-    ";
-
-    $stmt = $dbh->prepare($durationQuery);
-    $stmt->execute([$since]);
-    $commonDurations = $stmt->fetchAll();
-
-    return [
-        'stats' => $stats,
-        'common_durations' => $commonDurations,
-        'period_days' => $days
-    ];
-}
-
 // Due reminder notification - simplified without recurring reminders
 function checkAndSendDueReminders() {
     // Check if due reminders are enabled

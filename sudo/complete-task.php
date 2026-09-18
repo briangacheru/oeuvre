@@ -15,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("si", $completedOn, $taskId);
 
     if ($stmt->execute()) {
+        if (function_exists('log_activity')) {
+            log_activity($con, 'admin', $_SESSION['odmsaid'] ?? '', 'task_completed', "Task #$taskId: marked as completed", $taskId);
+        }
         $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert">
                                 Task completed successfully.
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

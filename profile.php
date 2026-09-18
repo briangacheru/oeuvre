@@ -248,6 +248,55 @@ if ($query->rowCount() > 0) {
                     </div>
                 </div>
 
+                <?php
+                // Bonus progress meter - admin-toggled from sudo/bonus-settings.php
+                // (tbl_feature_flags: 'writer_bonus_progress_meter'). See
+                // calculate_monthly_bonus_projection() in shared-functions.php.
+                if (is_feature_enabled($con, 'writer_bonus_progress_meter')) {
+                    $bonusProjection = calculate_monthly_bonus_projection($con, $aid, (int) date('n'), (int) date('Y'));
+                    $perfectMonthProgress = $bonusProjection['on_track_for_perfect_month'] ? 100 : 0;
+                }
+                ?>
+                <?php if (is_feature_enabled($con, 'writer_bonus_progress_meter')): ?>
+                <div class="card border-0 bg-body-quaternary mt-3">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-coins fa-2x me-3 text-warning"></i>
+                            <div class="flex-1">
+                                <h6 class="mb-0">This Month's Bonus</h6>
+                                <small class="text-muted"><?php echo date('F Y'); ?> - <?php echo $bonusProjection['total_completed']; ?> task(s) counted so far</small>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-baseline mb-2">
+                            <small class="text-muted">Guaranteed so far</small>
+                            <strong class="text-success">Ksh. <?php echo number_format($bonusProjection['guaranteed_bonus'], 2); ?></strong>
+                        </div>
+
+                        <?php if ($bonusProjection['perfect_month_bonus_amount'] > 0): ?>
+                            <div class="mb-1">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Perfect Month bonus (<?php echo rtrim(rtrim(number_format($bonusProjection['perfect_month_percentage'], 1), '0'), '.'); ?>%, zero late tasks)</small>
+                                    <small class="fw-semibold <?php echo $bonusProjection['on_track_for_perfect_month'] ? 'text-success' : 'text-danger'; ?>">
+                                        Ksh. <?php echo number_format($bonusProjection['perfect_month_bonus_amount'], 2); ?>
+                                    </small>
+                                </div>
+                                <div class="progress mt-1" style="height: 8px;">
+                                    <div class="progress-bar bg-<?php echo $bonusProjection['on_track_for_perfect_month'] ? 'success' : 'danger'; ?>" role="progressbar" style="width: <?php echo $perfectMonthProgress; ?>%;"></div>
+                                </div>
+                                <small class="<?php echo $bonusProjection['on_track_for_perfect_month'] ? 'text-success' : 'text-danger'; ?>">
+                                    <?php if ($bonusProjection['on_track_for_perfect_month']): ?>
+                                        <i class="fas fa-check-circle me-1"></i>On track - keep every task on time through month-end to unlock this.
+                                    <?php else: ?>
+                                        <i class="fas fa-times-circle me-1"></i><?php echo $bonusProjection['late_completions']; ?> late task(s) this month - Perfect Month bonus is out of reach for <?php echo date('F'); ?>.
+                                    <?php endif; ?>
+                                </small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Task & earnings stats -->
                 <div class="pf-stats mt-4">
                     <div class="pf-stat">

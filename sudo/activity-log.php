@@ -28,12 +28,25 @@ if ($result) {
 // viewed, task submitted/resubmitted). Capped to the most recent 500
 // events so this page stays fast as the table grows.
 $activity = [];
-$result = mysqli_query($con, "
-    SELECT id, actor_type, email, action, details, created_at
-    FROM tbl_activity_log
-    ORDER BY id DESC
-    LIMIT 500
-");
+// task_id (added by db-migrations/2026_09_15_add_interactive_features.sql)
+// lets each row link back to its task - guarded the same way every other
+// consumer of that column is, since this page is reached without it if the
+// migration hasn't run yet.
+try {
+    $result = mysqli_query($con, "
+        SELECT id, actor_type, email, action, details, created_at, task_id
+        FROM tbl_activity_log
+        ORDER BY id DESC
+        LIMIT 500
+    ");
+} catch (\mysqli_sql_exception $e) {
+    $result = mysqli_query($con, "
+        SELECT id, actor_type, email, action, details, created_at
+        FROM tbl_activity_log
+        ORDER BY id DESC
+        LIMIT 500
+    ");
+}
 if ($result) {
     while ($row = mysqli_fetch_assoc($result)) {
         $activity[] = $row;
@@ -48,6 +61,23 @@ $actionBadgeClass = [
     'task_decline' => 'badge-subtle-danger',
     'task_submit'  => 'badge-subtle-primary',
     'page_view'    => 'badge-subtle-warning',
+    'db_backup_created'    => 'badge-subtle-success',
+    'db_backup_failed'     => 'badge-subtle-danger',
+    'db_backup_deleted'    => 'badge-subtle-danger',
+    'db_backup_downloaded' => 'badge-subtle-info',
+    'db_backup_pruned'     => 'badge-subtle-secondary',
+    // Task lifecycle + payments + extension requests (2026-09-15 batch -
+    // see [[oeuvre-interactive-features-batch]]). Same action strings the
+    // per-task Activity Timeline on view-task.php/sudo/view-task.php uses.
+    'task_created'         => 'badge-subtle-primary',
+    'task_inline_edit'     => 'badge-subtle-secondary',
+    'task_completed'       => 'badge-subtle-success',
+    'task_paid'            => 'badge-subtle-success',
+    'task_unpaid'          => 'badge-subtle-warning',
+    'writer_reassigned'    => 'badge-subtle-warning',
+    'extension_requested'  => 'badge-subtle-warning',
+    'extension_approved'   => 'badge-subtle-success',
+    'extension_denied'     => 'badge-subtle-danger',
 ];
 $actionLabel = [
     'login'        => 'Login',
@@ -57,6 +87,20 @@ $actionLabel = [
     'task_decline' => 'Task Declined',
     'task_submit'  => 'Task Submitted',
     'page_view'    => 'Page Viewed',
+    'db_backup_created'    => 'DB Backup Created',
+    'db_backup_failed'     => 'DB Backup Failed',
+    'db_backup_deleted'    => 'DB Backup Deleted',
+    'db_backup_downloaded' => 'DB Backup Downloaded',
+    'db_backup_pruned'     => 'DB Backups Pruned',
+    'task_created'         => 'Task Created',
+    'task_inline_edit'     => 'Task Edited Inline',
+    'task_completed'       => 'Task Completed',
+    'task_paid'            => 'Task Paid',
+    'task_unpaid'          => 'Task Unpaid',
+    'writer_reassigned'    => 'Writer Reassigned',
+    'extension_requested'  => 'Extension Requested',
+    'extension_approved'   => 'Extension Approved',
+    'extension_denied'     => 'Extension Denied',
 ];
 ?>
 
@@ -202,8 +246,9 @@ if (isset($_SESSION['alert'])) {
         <div class="card mb-3">
             <div class="card-header">
                 <h5 class="mb-0">Writer Activity</h5>
-                <p class="text-600 fs-10 mb-0">Most recent 500 events - logins, logouts, tasks viewed, and
-                    submissions/resubmissions.</p>
+                <p class="text-600 fs-10 mb-0">Most recent 500 events - logins, logouts, task views/submissions,
+                    payments, writer reassignments, and deadline extension requests. Rows tied to a specific task
+                    link to it in the Task column.</p>
             </div>
             <div class="card-body pt-0">
                 <div class="table-responsive">
@@ -218,6 +263,7 @@ if (isset($_SESSION['alert'])) {
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Time</th>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Email</th>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Action</th>
+                                <th class="text-900 no-sort pe-1 align-middle white-space-nowrap">Task</th>
                                 <th class="text-900 sort pe-1 align-middle white-space-nowrap">Details</th>
                             </tr>
                         </thead>
@@ -235,6 +281,11 @@ if (isset($_SESSION['alert'])) {
                                         <span class="badge rounded-pill <?php echo $actionBadgeClass[$a['action']] ?? 'badge-subtle-secondary'; ?>">
                                             <?php echo htmlspecialchars($actionLabel[$a['action']] ?? ucfirst($a['action']), ENT_QUOTES, 'UTF-8'); ?>
                                         </span>
+                                    </td>
+                                    <td class="align-middle white-space-nowrap">
+                                        <?php if (!empty($a['task_id'])): ?>
+                                            <a href="view-task?task_id=<?php echo encode_task_id($a['task_id']); ?>">#<?php echo (int) $a['task_id']; ?></a>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="align-middle white-space-nowrap"><?php echo htmlspecialchars($a['details'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                                 </tr>

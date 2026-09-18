@@ -117,7 +117,7 @@ if (isset($_GET['task_id']) && isset($_GET['action'])) {
         // Record the writer-interface action so it shows up in the writer's
         // recent activity (admin's sudo/writer.php reads from this same log).
         $activityAction = $action == 'accept' ? 'task_accept' : 'task_decline';
-        log_activity($con, 'writer', $_SESSION['sessionWriter'] ?? $writerEmail, $activityAction, "Task #$taskId: $topic");
+        log_activity($con, 'writer', $_SESSION['sessionWriter'] ?? $writerEmail, $activityAction, "Task #$taskId: $topic", $taskId);
 
         $status = $action == 'accept' ? 'accepted' : 'declined';
         $_SESSION['alert'] = '<div class="alert alert-success border-0 d-flex align-items-center" role="alert">

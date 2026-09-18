@@ -21,6 +21,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             }
         }
         $successMessage = "Bonus settings updated successfully!";
+    } elseif ($_POST['action'] == 'toggle_progress_meter') {
+        $enabled = isset($_POST['enabled']) && $_POST['enabled'] === '1';
+        try {
+            if (set_feature_enabled($con, 'writer_bonus_progress_meter', $enabled, $aid)) {
+                $successMessage = 'Writer bonus progress meter turned ' . ($enabled ? 'on' : 'off') . '.';
+            } else {
+                $errorMessage = 'Failed to update the toggle.';
+            }
+        } catch (\mysqli_sql_exception $e) {
+            $errorMessage = 'The tbl_feature_flags table does not exist yet - run db-migrations/2026_09_15_add_interactive_features.sql first.';
+        }
     } elseif ($_POST['action'] == 'calculate_monthly_bonuses') {
         $month = intval($_POST['month']);
         $year = intval($_POST['year']);
@@ -215,6 +226,31 @@ while ($row = mysqli_fetch_assoc($settingsResult)) {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
+<?php if (isset($errorMessage)): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
+    <!-- Writer-facing bonus progress meter toggle -->
+    <div class="card mb-3">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <h6 class="mb-1"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Writer Bonus Progress Meter</h6>
+                <p class="mb-0 text-muted fs-9">Shows each writer a live "this month's bonus" card on their profile page, including progress toward the Perfect Month bonus. Off by default.</p>
+            </div>
+            <form method="POST" id="toggleProgressMeterForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="toggle_progress_meter">
+                <input type="hidden" name="enabled" id="progressMeterEnabledInput" value="<?php echo is_feature_enabled($con, 'writer_bonus_progress_meter') ? '0' : '1'; ?>">
+                <button type="submit" class="btn <?php echo is_feature_enabled($con, 'writer_bonus_progress_meter') ? 'btn-success' : 'btn-outline-secondary'; ?>">
+                    <i class="fas fa-power-off me-1"></i>
+                    <?php echo is_feature_enabled($con, 'writer_bonus_progress_meter') ? 'On - click to turn off' : 'Off - click to turn on'; ?>
+                </button>
+            </form>
+        </div>
+    </div>
 
     <!-- Bonus Settings Configuration -->
     <div class="card mb-3">

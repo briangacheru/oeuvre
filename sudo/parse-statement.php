@@ -22,7 +22,7 @@ function sendJsonResponse($data)
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_FILES = 6;
-const ALLOWED_SOURCE_TYPES = ['equity_csv', 'equity_pdf', 'mpesa_pdf'];
+const ALLOWED_SOURCE_TYPES = ['equity_csv', 'equity_pdf', 'mpesa_pdf', 'im_bank_pdf'];
 
 if (!isset($_FILES['files']) || empty($_FILES['files']['name'][0])) {
     sendJsonResponse(['success' => false, 'error' => 'No files were uploaded.']);
@@ -75,6 +75,9 @@ for ($i = 0; $i < $fileCount; $i++) {
         } elseif ($sourceType === 'equity_pdf') {
             $text = StatementImport::extractPdfText($tmpPath, $password);
             $rows = StatementImport::parseEquityPdf($text, $name);
+        } elseif ($sourceType === 'im_bank_pdf') {
+            $text = StatementImport::extractPdfText($tmpPath, $password !== '' ? $password : '946281');
+            $rows = StatementImport::parseImBankPdf($text, $name);
         } else { // mpesa_pdf
             $text = StatementImport::extractPdfText($tmpPath, $password);
             $rows = StatementImport::parseMpesaPdf($text, $name);

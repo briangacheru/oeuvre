@@ -107,6 +107,10 @@ try {
     $task_id = mysqli_insert_id($con);
     $encodedId = encode_task_id($task_id);
 
+    if (function_exists('log_activity')) {
+        log_activity($con, 'admin', $_SESSION['odmsaid'] ?? '', 'task_created', "Task #$task_id: $topic - assigned to $writerName", $task_id);
+    }
+
     // Handle file uploads - Insert into tbl_task_files table
     $uploadedFiles = [];
     if (isset($_POST['uploadedFiles']) && !empty($_POST['uploadedFiles'])) {
@@ -260,6 +264,10 @@ try {
 
             $mail->send();
             $emailSent = true;
+
+            if (function_exists('send_push_notification')) {
+                send_push_notification($con, 'writer', $writerEmail, 'New Task Assigned', $topic, '/view-task?task_id=' . $encodedId);
+            }
 
             // Best-effort: mark this task as having received its first
             // assignment email, so a later edit in update-task.php knows to

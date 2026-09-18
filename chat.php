@@ -1144,7 +1144,37 @@ usort($users, function($a, $b) {
         }
 
         pollMessages(); // Start polling messages
-        setInterval(pollMessages, 3000); // Poll every 3 seconds
+
+        // chat-stream.php (Server-Sent Events) tells us WHEN something
+        // changed so pollMessages() (unchanged below) can run right away
+        // instead of waiting for the next tick - messages feel instant
+        // without touching how they're fetched or rendered. The interval
+        // stays on as a fallback (slowed down, since SSE is now doing the
+        // real-time work) in case EventSource isn't supported or the
+        // stream drops and doesn't reconnect for some reason.
+        let chatLastSeenMaxId = 0;
+        if (typeof EventSource !== 'undefined') {
+            let chatStream;
+            const connectChatStream = function () {
+                chatStream = new EventSource('chat-stream?last_id=' + chatLastSeenMaxId);
+                chatStream.addEventListener('new-message', function (e) {
+                    try { chatLastSeenMaxId = JSON.parse(e.data).max_id || chatLastSeenMaxId; } catch (err) {}
+                    pollMessages();
+                });
+                chatStream.addEventListener('reconnect', function () {
+                    chatStream.close();
+                    setTimeout(connectChatStream, 500);
+                });
+                chatStream.onerror = function () {
+                    chatStream.close();
+                    setTimeout(connectChatStream, 3000);
+                };
+            };
+            connectChatStream();
+            setInterval(pollMessages, 20000); // fallback only
+        } else {
+            setInterval(pollMessages, 3000);
+        }
 
         // Show the default content when the page loads
         document.getElementById('default-content').classList.add('active');

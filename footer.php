@@ -168,6 +168,7 @@ if (!function_exists('getVersionNumber')) {
 <script src="assets/js/task-notification.js"></script>
 <script src="assets/js/topbar-search.js"></script>
 <script src="assets/js/toast.js"></script>
+<script src="assets/js/push-notifications.js"></script>
 <script src="vendors/tinymce/tinymce.min.js"></script>
 <script src="vendors/dropzone/dropzone-min.js"></script>
 <script src="vendors/inputmask/inputmask.min.js"></script>

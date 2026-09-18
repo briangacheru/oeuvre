@@ -38,3 +38,6 @@
 # feature — real financial data, never commit
 /statement-samples/*
 !/statement-samples/.gitkeep
+
+# IDE project files
+.idea/

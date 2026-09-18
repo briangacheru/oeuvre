@@ -74,6 +74,9 @@ $affectedRows = mysqli_stmt_affected_rows($updateStmt);
 mysqli_stmt_close($updateStmt);
 
 if ($updated && $affectedRows > 0) {
+    if (function_exists('log_activity')) {
+        log_activity($con, 'admin', $_SESSION['odmsaid'], 'writer_reassigned', "Task #$taskId: reassigned to $writer", $taskId);
+    }
     echo json_encode([
         'success' => true,
         'message' => 'Writer updated successfully to ' . htmlspecialchars($writer) . '.'

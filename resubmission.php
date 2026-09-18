@@ -550,6 +550,7 @@ if (isset($_SESSION['alert'])) {
                     Accepted: Word, Excel, PowerPoint, PDF, ZIP, and photos (JPG, PNG, GIF, WEBP, HEIC, BMP, TIFF) — max 50MB per file.
                 </div>
                 <input type="hidden" name="uploadedFiles" id="uploadedFiles" value="">
+                <div id="pageCheckPanel" class="alert d-none mt-3 mb-0 py-2 px-3 fs-9"></div>
             </div>
         </div>
         <!-- Writer Comments Section -->
@@ -628,6 +629,62 @@ if (isset($_SESSION['alert'])) {
             // Initially hide submit button
             submitTaskButton.classList.add('d-none');
 
+            // Pre-submission page-count checker (check-file-stats.php). Keyed by
+            // filename so removing a file in Dropzone drops its words from the
+            // running total shown in #pageCheckPanel.
+            const docxWordCounts = new Map();
+            const pageCheckPanel = document.getElementById('pageCheckPanel');
+            const targetPages = <?php echo (float) $taskPages; ?>;
+
+            function checkDocxWordCount(fileUrl, fileName) {
+                if (!/\.docx$/i.test(fileName)) return;
+
+                const formData = new FormData();
+                formData.append('task_id', '<?php echo (int) $taskId; ?>');
+                formData.append('file_url', fileUrl);
+                formData.append('file_name', fileName);
+                formData.append('csrf_token', csrfToken);
+
+                fetch('check-file-stats', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.supported && typeof data.word_count === 'number') {
+                            docxWordCounts.set(fileName, data.word_count);
+                        }
+                        renderPageCheckPanel();
+                    })
+                    .catch(() => {});
+            }
+
+            function renderPageCheckPanel() {
+                if (docxWordCounts.size === 0) {
+                    pageCheckPanel.classList.add('d-none');
+                    return;
+                }
+                const totalWords = Array.from(docxWordCounts.values()).reduce((a, b) => a + b, 0);
+                const estimatedPages = Math.round((totalWords / 300) * 10) / 10;
+                let cls = 'alert-info', icon = 'fa-info-circle', msg = '';
+
+                if (targetPages > 0) {
+                    const diffPct = Math.round(((estimatedPages - targetPages) / targetPages) * 100);
+                    if (Math.abs(diffPct) <= 10) {
+                        cls = 'alert-success'; icon = 'fa-check-circle';
+                        msg = `Looks on target: ~${totalWords} words, ~${estimatedPages} pages (task requires ${targetPages}).`;
+                    } else if (diffPct < -10) {
+                        cls = 'alert-warning'; icon = 'fa-exclamation-triangle';
+                        msg = `This looks short: ~${totalWords} words, ~${estimatedPages} pages against a ${targetPages}-page requirement.`;
+                    } else {
+                        cls = 'alert-warning'; icon = 'fa-exclamation-triangle';
+                        msg = `This looks long: ~${totalWords} words, ~${estimatedPages} pages against a ${targetPages}-page requirement.`;
+                    }
+                } else {
+                    msg = `~${totalWords} words, ~${estimatedPages} estimated pages.`;
+                }
+
+                pageCheckPanel.className = `alert ${cls} mt-3 mb-0 py-2 px-3 fs-9`;
+                pageCheckPanel.innerHTML = `<i class="fas ${icon} me-1"></i>${msg} <span class="text-muted">(estimate only, based on 300 words/page)</span>`;
+            }
+
             const dropzone = new Dropzone('#dropArea', {
                 url: 'upload_update',
                 paramName: 'file',
@@ -657,6 +714,7 @@ if (isset($_SESSION['alert'])) {
                             });
                             updateUploadedFilesInput();
                             toggleSubmitButton();
+                            checkDocxWordCount(data.fileUrl, data.originalName || file.name);
                         } else {
                             this.emit('error', file, data.message || 'Upload failed');
                         }
@@ -670,6 +728,8 @@ if (isset($_SESSION['alert'])) {
                             updateUploadedFilesInput();
                             toggleSubmitButton();
                         }
+                        docxWordCounts.delete(file.name);
+                        renderPageCheckPanel();
                     });
                 }
             });
@@ -861,29 +921,6 @@ if (isset($_SESSION['alert'])) {
 
             function updateUploadedFilesInput() {
                 document.getElementById('uploadedFiles').value = JSON.stringify(uploadedFilePaths);
-            }
-
-            async function handleServerResponse(response) {
-                // Get the raw text response
-                const responseText = await response.text();
-                console.log("Raw server response:", responseText);
-
-                // Extract the JSON part from the response
-                // This regex looks for a JSON object at the end of the string
-                const jsonMatch = responseText.match(/(\{.*\})$/s);
-
-                if (jsonMatch && jsonMatch[1]) {
-                    try {
-                        return JSON.parse(jsonMatch[1]);
-                    } catch (parseError) {
-                        console.error("JSON parse error:", parseError);
-                        console.error("Attempted to parse:", jsonMatch[1]);
-                        throw new Error("Failed to parse server response");
-                    }
-                } else {
-                    console.error("Could not find valid JSON in response");
-                    throw new Error("Invalid server response format");
-                }
             }
 
             function displayBootstrapAlert(message, type) {

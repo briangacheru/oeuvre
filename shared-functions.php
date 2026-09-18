@@ -732,11 +732,81 @@ if (!function_exists('rate_limit_message')) {
 // section of sudo/activity-log.php actually reads from.
 
 if (!function_exists('log_activity')) {
-    function log_activity($con, $actorType, $email, $action, $details = null) {
+    // $taskId is optional (added for the task activity timeline on
+    // view-task.php - see db-migrations/2026_09_15_add_interactive_features.sql
+    // and get_task_activity_timeline() below) so every existing call site
+    // that predates it keeps working unchanged, just without a task_id.
+    function log_activity($con, $actorType, $email, $action, $details = null, $taskId = null) {
         $now = date('Y-m-d H:i:s');
-        $stmt = $con->prepare("INSERT INTO tbl_activity_log (actor_type, email, action, details, created_at) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param('sssss', $actorType, $email, $action, $details, $now);
-        $stmt->execute();
+        try {
+            if ($taskId !== null) {
+                $stmt = $con->prepare("INSERT INTO tbl_activity_log (actor_type, email, action, details, created_at, task_id) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssssi', $actorType, $email, $action, $details, $now, $taskId);
+            } else {
+                $stmt = $con->prepare("INSERT INTO tbl_activity_log (actor_type, email, action, details, created_at) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssss', $actorType, $email, $action, $details, $now);
+            }
+            $stmt->execute();
+        } catch (\mysqli_sql_exception $e) {
+            // task_id column not added yet (migration pending) - fall back
+            // to the pre-timeline insert so logging itself still works.
+            if ($taskId !== null) {
+                $stmt = $con->prepare("INSERT INTO tbl_activity_log (actor_type, email, action, details, created_at) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssss', $actorType, $email, $action, $details, $now);
+                $stmt->execute();
+            }
+        }
+    }
+}
+
+// ---- Task activity timeline (view-task.php / sudo/view-task.php) ----
+if (!function_exists('get_task_activity_timeline')) {
+    // $excludeActions lets a caller drop noisy/uninteresting event types -
+    // e.g. view-task.php (writer) hides 'task_view' since every open of the
+    // page would otherwise log itself into its own timeline.
+    function get_task_activity_timeline($con, $taskId, $limit = 30, $excludeActions = []) {
+        $limit = (int) $limit;
+        try {
+            $where = "task_id = ?";
+            $types = 'i';
+            $params = [$taskId];
+            if (!empty($excludeActions)) {
+                $placeholders = implode(',', array_fill(0, count($excludeActions), '?'));
+                $where .= " AND action NOT IN ($placeholders)";
+                $types .= str_repeat('s', count($excludeActions));
+                $params = array_merge($params, $excludeActions);
+            }
+            $stmt = $con->prepare("SELECT * FROM tbl_activity_log WHERE $where ORDER BY created_at DESC LIMIT $limit");
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (\mysqli_sql_exception $e) {
+            return []; // task_id column not added yet - migration pending
+        }
+    }
+}
+
+// Every log_activity() call on a task writes details in the shape
+// "Task #<id>: <rest>" (or, for a resubmission, "Resubmission #N - Task
+// #<id>: <rest>") - useful context for a shared admin log, but redundant on
+// view-task.php/sudo/view-task.php's own activity timeline, which already
+// shows this exact task's id and topic elsewhere on the page. Strips both
+// out rather than hardcoding a per-action format, so it keeps working as
+// new action types get logged.
+if (!function_exists('format_activity_log_details')) {
+    function format_activity_log_details($details, $taskId, $topic = '') {
+        if (empty($details)) {
+            return '';
+        }
+        $text = str_replace("Task #$taskId: ", '', $details);
+        if (!empty($topic)) {
+            $text = str_replace($topic, '', $text);
+        }
+        // Clean up whatever separator is left dangling at either end once
+        // the topic/task-id chunk in the middle of the string is gone (e.g.
+        // "Resubmission #2 - " or " - assigned to Jane").
+        $text = trim($text, " -\t\n\r\0\x0B");
+        return $text;
     }
 }
 
@@ -970,5 +1040,404 @@ if (!function_exists('remember_device')) {
         $stmt->close();
 
         setcookie($cookieName, $token, time() + $days * 86400, '/', '', true, true);
+    }
+}
+
+// ---- Outbound mail (shared SMTP sender) ----
+// Every existing send site (sudo/submit-task.php, submission_upload.php, ...)
+// hand-rolls this same PHPMailer/SMTP boilerplate inline. This helper exists
+// so newer features (extension requests, mention notifications, etc.) don't
+// add yet another copy of it - it does not touch or replace the existing
+// call sites. Uses fully-qualified class names (no `use` import) since this
+// file is included well after its own top and from both interfaces.
+if (!function_exists('send_app_mail')) {
+    /**
+     * @param string      $toEmail
+     * @param string      $toName
+     * @param string      $subject
+     * @param string      $htmlBody   Full HTML, e.g. the output of render_email_html().
+     * @param string|null $bccEmail   Optional BCC address (e.g. env('ADMIN_EMAIL')).
+     * @param string|null $bccName
+     * @return bool true on success, false on failure (check error_log for detail).
+     */
+    function send_app_mail($toEmail, $toName, $subject, $htmlBody, $bccEmail = null, $bccName = null) {
+        require_once __DIR__ . '/vendor/autoload.php';
+
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host = env('SMTP_HOST');
+            $mail->SMTPAuth = true;
+            $mail->Username = env('SMTP_USER');
+            $mail->Password = env('SMTP_PASS');
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = (int) env('SMTP_PORT', 587);
+
+            $mail->setFrom(env('MAIL_FROM_ADDRESS'), 'iTasker');
+            $mail->addAddress($toEmail, $toName);
+            if ($bccEmail) {
+                $mail->addBCC($bccEmail, $bccName ?: 'iTasker Admin');
+            }
+            $mail->addCustomHeader('X-Mailer', 'iTasker v1.0');
+
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $htmlBody;
+
+            $mail->send();
+            return true;
+        } catch (\Exception $e) {
+            error_log('send_app_mail failed to ' . $toEmail . ': ' . ($mail->ErrorInfo ?: $e->getMessage()));
+            return false;
+        }
+    }
+}
+
+// ---- Remote file download (cURL) ----
+// A named, reusable twin of the download loop submission_upload.php defines
+// inline as an unguarded global function - that one can't be reused from
+// elsewhere in the same request without a redeclare fatal, so new call
+// sites (the pre-submission word/page checker) use this instead.
+if (!function_exists('download_remote_file')) {
+    function download_remote_file($url, $localPath) {
+        $ch = curl_init(str_replace(' ', '%20', $url));
+        $fp = fopen($localPath, 'wb');
+        if ($fp === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        $success = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($success === false || $httpCode >= 400) {
+            $success = false;
+        }
+        curl_close($ch);
+        fclose($fp);
+        if (!$success) {
+            @unlink($localPath);
+        }
+        return $success;
+    }
+}
+
+// ---- Web Push (browser/installed-app notifications) ----
+// Sends to every subscription a writer/admin has saved (they can have more
+// than one - phone + desktop). Uses minishlink/web-push (composer.json) and
+// the VAPID_* keys in .env. A dead/expired subscription (410/404 from the
+// push service) is pruned automatically. See push-sw.js,
+// assets/js/push-notifications.js, save-push-subscription.php.
+if (!function_exists('send_push_notification')) {
+    function send_push_notification($con, $userType, $userEmail, $title, $body, $url = '/') {
+        $vapidPublic = env('VAPID_PUBLIC_KEY');
+        $vapidPrivate = env('VAPID_PRIVATE_KEY');
+        if (empty($vapidPublic) || empty($vapidPrivate)) {
+            return; // not configured - silently a no-op, same as an admin who hasn't set SMTP
+        }
+
+        try {
+            $stmt = $con->prepare("SELECT endpoint, p256dh, auth FROM tbl_push_subscriptions WHERE user_type = ? AND user_email = ?");
+            $stmt->bind_param('ss', $userType, $userEmail);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $subs = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        } catch (\mysqli_sql_exception $e) {
+            return; // migration not run yet
+        }
+
+        if (empty($subs)) {
+            return;
+        }
+
+        require_once __DIR__ . '/vendor/autoload.php';
+
+        try {
+            $webPush = new \Minishlink\WebPush\WebPush([
+                'VAPID' => [
+                    'subject' => env('VAPID_SUBJECT', 'mailto:' . env('ADMIN_EMAIL', 'admin@example.com')),
+                    'publicKey' => $vapidPublic,
+                    'privateKey' => $vapidPrivate,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            error_log('send_push_notification: could not init WebPush - ' . $e->getMessage());
+            return;
+        }
+
+        $payload = json_encode(['title' => $title, 'body' => $body, 'url' => $url]);
+
+        foreach ($subs as $sub) {
+            $webPush->queueNotification(
+                \Minishlink\WebPush\Subscription::create([
+                    'endpoint' => $sub['endpoint'],
+                    'publicKey' => $sub['p256dh'],
+                    'authToken' => $sub['auth'],
+                ]),
+                $payload
+            );
+        }
+
+        foreach ($webPush->flush() as $report) {
+            if (!$report->isSuccess() && $report->isSubscriptionExpired()) {
+                $endpoint = $report->getRequest()->getUri()->__toString();
+                $hash = hash('sha256', $endpoint);
+                $del = $con->prepare("DELETE FROM tbl_push_subscriptions WHERE endpoint_hash = ?");
+                $del->bind_param('s', $hash);
+                $del->execute();
+                $del->close();
+            }
+        }
+    }
+}
+
+// ---- @mentions in task discussion comments ----
+// Extracts @username tokens from a comment, matches them against
+// tblwriters/tbladmin usernames, notifies each matched user (email + push,
+// skipping the commenter themselves), and returns a comma-separated list
+// of the matched usernames for storage in tbl_task_comments.mentions. See
+// db-migrations/2026_09_15_add_interactive_features.sql.
+if (!function_exists('parse_and_notify_mentions')) {
+    function parse_and_notify_mentions($con, $comment, $taskId, $commenterUsername, $commenterType) {
+        if (!preg_match_all('/@([A-Za-z0-9_.\-]{2,50})/', $comment, $matches)) {
+            return null;
+        }
+        $candidates = array_unique($matches[1]);
+        if (empty($candidates)) {
+            return null;
+        }
+
+        $matched = [];
+        $encodedId = function_exists('encode_task_id') ? encode_task_id($taskId) : $taskId;
+
+        foreach ($candidates as $name) {
+            if (strcasecmp($name, $commenterUsername) === 0) {
+                continue; // don't notify yourself
+            }
+
+            // Check writers first, then admins.
+            $stmt = $con->prepare("SELECT username, email FROM tblwriters WHERE username = ? AND is_deleted = 0 LIMIT 1");
+            $stmt->bind_param('s', $name);
+            $stmt->execute();
+            $target = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            $targetType = 'writer';
+
+            if (!$target) {
+                $stmt = $con->prepare("SELECT username, email FROM tbladmin WHERE username = ? LIMIT 1");
+                $stmt->bind_param('s', $name);
+                $stmt->execute();
+                $target = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                $targetType = 'admin';
+            }
+
+            if (!$target) {
+                continue;
+            }
+
+            $matched[] = $target['username'];
+
+            $url = $targetType === 'admin'
+                ? '/sudo/view-task?task_id=' . $encodedId
+                : '/view-task?task_id=' . $encodedId;
+            $title = 'You were mentioned';
+            $body = htmlspecialchars($commenterUsername, ENT_QUOTES, 'UTF-8') . " mentioned you on task #$taskId";
+
+            if (function_exists('send_push_notification')) {
+                send_push_notification($con, $targetType, $target['email'], $title, $body, $url);
+            }
+            if (function_exists('send_app_mail') && function_exists('render_email_html')) {
+                $emailHtml = render_email_html($title, "<p>$body</p>", 'View Task', rtrim(env('APP_URL'), '/') . $url);
+                send_app_mail($target['email'], $target['username'], "$title - Task #$taskId", $emailHtml);
+            }
+        }
+
+        return empty($matched) ? null : implode(',', array_unique($matched));
+    }
+}
+
+// ---- Reactions on task discussion comments ----
+// Toggle: reacting again with the same emoji removes it. Returns the full
+// updated reaction summary for that comment so the client can re-render
+// without a second request.
+if (!function_exists('toggle_comment_reaction')) {
+    function toggle_comment_reaction($con, $commentId, $userType, $userEmail, $emoji) {
+        $existing = $con->prepare("SELECT id FROM tbl_comment_reactions WHERE comment_id = ? AND user_email = ? AND emoji = ?");
+        $existing->bind_param('iss', $commentId, $userEmail, $emoji);
+        $existing->execute();
+        $row = $existing->get_result()->fetch_assoc();
+        $existing->close();
+
+        if ($row) {
+            $del = $con->prepare("DELETE FROM tbl_comment_reactions WHERE id = ?");
+            $del->bind_param('i', $row['id']);
+            $del->execute();
+            $del->close();
+        } else {
+            $now = date('Y-m-d H:i:s');
+            $ins = $con->prepare("INSERT INTO tbl_comment_reactions (comment_id, user_type, user_email, emoji, created_at) VALUES (?, ?, ?, ?, ?)");
+            $ins->bind_param('issss', $commentId, $userType, $userEmail, $emoji, $now);
+            $ins->execute();
+            $ins->close();
+        }
+
+        return get_comment_reaction_summary($con, [$commentId], $userEmail)[$commentId] ?? [];
+    }
+}
+
+if (!function_exists('get_comment_reaction_summary')) {
+    // Batched: pass every comment id on the page in one call rather than
+    // one request per comment.
+    function get_comment_reaction_summary($con, array $commentIds, $viewerEmail) {
+        $summary = [];
+        if (empty($commentIds)) {
+            return $summary;
+        }
+        $placeholders = implode(',', array_fill(0, count($commentIds), '?'));
+        $types = str_repeat('i', count($commentIds));
+        $stmt = $con->prepare("SELECT comment_id, emoji, COUNT(*) as cnt, GROUP_CONCAT(user_email) as reactors FROM tbl_comment_reactions WHERE comment_id IN ($placeholders) GROUP BY comment_id, emoji");
+        $stmt->bind_param($types, ...$commentIds);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $reactors = explode(',', $row['reactors']);
+            $summary[(int) $row['comment_id']][] = [
+                'emoji' => $row['emoji'],
+                'count' => (int) $row['cnt'],
+                'reacted_by_me' => in_array($viewerEmail, $reactors, true),
+            ];
+        }
+        $stmt->close();
+        return $summary;
+    }
+}
+
+// ---- Web Push broadcast to every admin who opted in ----
+// There's no single "admin inbox" the way ADMIN_EMAIL's BCC works for
+// email - push subscriptions are per-admin-account, so an admin-facing
+// event (a writer submitted, an extension was requested) fans out to
+// every distinct admin who has a saved subscription.
+if (!function_exists('send_push_to_admins')) {
+    function send_push_to_admins($con, $title, $body, $url = '/sudo/') {
+        try {
+            $result = mysqli_query($con, "SELECT DISTINCT user_email FROM tbl_push_subscriptions WHERE user_type = 'admin'");
+        } catch (\mysqli_sql_exception $e) {
+            return;
+        }
+        if (!$result) {
+            return;
+        }
+        while ($row = mysqli_fetch_assoc($result)) {
+            send_push_notification($con, 'admin', $row['user_email'], $title, $body, $url);
+        }
+    }
+}
+
+// ---- Feature flags (admin-toggled writer-facing features) ----
+// Backs sudo/bonus-settings.php's on/off switch for the writer bonus
+// progress meter, and is written to be reusable for future flags too. See
+// db-migrations/2026_09_15_add_interactive_features.sql.
+if (!function_exists('is_feature_enabled')) {
+    function is_feature_enabled($con, $flagName, $default = false) {
+        // Guarded like get_current_version() - PHP 8.1+ mysqli throws on a
+        // missing table (migration not run yet) rather than returning false.
+        try {
+            $stmt = $con->prepare("SELECT is_enabled FROM tbl_feature_flags WHERE flag_name = ?");
+            if (!$stmt) {
+                return $default;
+            }
+            $stmt->bind_param('s', $flagName);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return $row ? (bool) $row['is_enabled'] : $default;
+        } catch (\mysqli_sql_exception $e) {
+            return $default;
+        }
+    }
+}
+
+// ---- Monthly bonus projection (writer-facing progress meter) ----
+// Mirrors the math in sudo/writer-performance-functions.php's
+// calculateMonthlyBonus() (kept as a separate copy rather than reused
+// directly, per this project's root/sudo split convention - see README
+// "Files with the same name..."), but for the CURRENT, still-in-progress
+// month, so a writer can see where they stand before month-end instead of
+// only after sudo/bonus-settings.php runs its monthly calculation.
+if (!function_exists('calculate_monthly_bonus_projection')) {
+    function calculate_monthly_bonus_projection($con, $writerEmail, $month, $year) {
+        $settingsResult = mysqli_query($con, "SELECT setting_name, setting_value FROM tbl_bonus_settings WHERE is_active = 1");
+        $settings = [];
+        if ($settingsResult) {
+            while ($row = mysqli_fetch_assoc($settingsResult)) {
+                $settings[$row['setting_name']] = floatval($row['setting_value']);
+            }
+        }
+
+        $stmt = $con->prepare("SELECT
+            COUNT(*) as total_completed,
+            SUM(CASE WHEN submitted_on > due_date THEN 1 ELSE 0 END) as late_completions,
+            SUM(pages * cpp) as total_earnings,
+            SUM(CASE WHEN submitted_on < due_date THEN (pages * cpp) ELSE 0 END) as early_earnings
+            FROM tbltasks
+            WHERE email = ?
+            AND status IN ('Completed', 'Submitted')
+            AND MONTH(submitted_on) = ?
+            AND YEAR(submitted_on) = ?
+            AND is_deleted = 0");
+        $stmt->bind_param('sii', $writerEmail, $month, $year);
+        $stmt->execute();
+        $data = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $totalCompleted = (int) ($data['total_completed'] ?? 0);
+        $lateCompletions = (int) ($data['late_completions'] ?? 0);
+        $totalEarnings = (float) ($data['total_earnings'] ?? 0);
+        $earlyEarnings = (float) ($data['early_earnings'] ?? 0);
+
+        $basePct = $settings['base_bonus_percentage'] ?? 5.0;
+        $earlyPct = $settings['early_completion_bonus'] ?? 2.5;
+        $perfectPct = $settings['perfect_month_bonus'] ?? 10.0;
+
+        $baseBonus = ($totalEarnings * $basePct) / 100;
+        $earlyBonus = ($earlyEarnings * $earlyPct) / 100;
+        // The perfect-month bonus is only "at risk", not yet earned, until the
+        // month closes - shown separately so the meter can say how close the
+        // writer is, rather than claiming it's already secured.
+        $perfectMonthBonusIfEarned = $totalEarnings * $perfectPct / 100;
+        $onTrackForPerfectMonth = $totalCompleted > 0 && $lateCompletions == 0;
+
+        return [
+            'total_completed' => $totalCompleted,
+            'late_completions' => $lateCompletions,
+            'total_earnings' => $totalEarnings,
+            'guaranteed_bonus' => round($baseBonus + $earlyBonus, 2),
+            'perfect_month_bonus_amount' => round($perfectMonthBonusIfEarned, 2),
+            'on_track_for_perfect_month' => $onTrackForPerfectMonth,
+            'perfect_month_percentage' => $perfectPct,
+        ];
+    }
+}
+
+if (!function_exists('set_feature_enabled')) {
+    function set_feature_enabled($con, $flagName, $enabled, $updatedBy) {
+        $now = date('Y-m-d H:i:s');
+        $enabledInt = $enabled ? 1 : 0;
+        $stmt = $con->prepare("INSERT INTO tbl_feature_flags (flag_name, is_enabled, updated_at, updated_by)
+                                VALUES (?, ?, ?, ?)
+                                ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), updated_at = VALUES(updated_at), updated_by = VALUES(updated_by)");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param('siss', $flagName, $enabledInt, $now, $updatedBy);
+        $ok = $stmt->execute();
+        $stmt->close();
+        return $ok;
     }
 }

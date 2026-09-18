@@ -56,6 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->execute()) {
         $response['success'] = true;
         $response['message'] = 'Task marked as paid successfully.';
+
+        if (function_exists('log_activity')) {
+            $paymentDetail = $paymentMethod === 'transaction_code'
+                ? "via transaction code $transactionCode"
+                : 'via overdraft';
+            log_activity($con, 'admin', $_SESSION['odmsaid'] ?? '', 'task_paid', "Task #$taskId: marked as paid $paymentDetail", $taskId);
+        }
     } else {
         $response['message'] = 'Error updating task payment: ' . safe_db_error($stmt->error);
     }

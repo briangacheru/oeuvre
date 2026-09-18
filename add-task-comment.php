@@ -376,6 +376,21 @@ if (count($uploadedFiles) > 1) {
     }
 }
 
+// @mentions - parse, notify, and store the matched usernames. Best-effort:
+// a failure here (e.g. migration not run yet) must not block the comment
+// itself, which is already saved.
+try {
+    $mentionsList = parse_and_notify_mentions($con, $comment, $taskId, $userName, $userType);
+    if ($mentionsList) {
+        $mentionUpdateStmt = mysqli_prepare($con, "UPDATE tbl_task_comments SET mentions = ? WHERE id = ?");
+        mysqli_stmt_bind_param($mentionUpdateStmt, 'si', $mentionsList, $commentId);
+        mysqli_stmt_execute($mentionUpdateStmt);
+        mysqli_stmt_close($mentionUpdateStmt);
+    }
+} catch (\mysqli_sql_exception $e) {
+    // tbl_task_comments.mentions column not added yet - migration pending.
+}
+
 // Get the inserted comment details for response
 if ($hasFileUrlColumn) {
     $selectQuery = 'SELECT id, task_id, user_id, user_type, username, comment, file_url, parent_id, created_at FROM tbl_task_comments WHERE id = ?';
