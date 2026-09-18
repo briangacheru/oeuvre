@@ -92,8 +92,8 @@ if ($query->rowCount() > 0) {
         // Keep the same writer-performance/level tables the admin side reads from in sync.
         updateWriterPerformance($con, $rowProfile->id, $rowProfile->email);
         $performance = calculateWriterPerformance($con, $rowProfile->email);
-        $currentLevel = getWriterLevel($con, $performance['completed_tasks']);
-        $levelProgress = calculateLevelProgress($con, $performance['completed_tasks']);
+        $currentLevel = getWriterLevel($con, $performance['completed_tasks'], $performance['average_quality_rating']);
+        $levelProgress = calculateLevelProgress($con, $performance['completed_tasks'], $performance['average_quality_rating']);
 
         // Recent bonus (last calendar month, if one was ever calculated for it).
         $currentMonth = date('n');
@@ -293,6 +293,25 @@ if ($query->rowCount() > 0) {
                                 </small>
                             </div>
                         <?php endif; ?>
+                        <?php if (($bonusProjection['quality_bonus_amount'] ?? 0) > 0): ?>
+                            <div class="mb-1 mt-2">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Quality bonus (<?php echo rtrim(rtrim(number_format($bonusProjection['quality_bonus_percentage'], 2), '0'), '.'); ?>%, needs a <?php echo rtrim(rtrim(number_format($bonusProjection['quality_bonus_threshold'], 2), '0'), '.'); ?>% quality score)</small>
+                                    <small class="fw-semibold <?php echo $bonusProjection['on_track_for_quality_bonus'] ? 'text-success' : 'text-warning'; ?>">
+                                        Ksh. <?php echo number_format($bonusProjection['quality_bonus_amount'], 2); ?>
+                                    </small>
+                                </div>
+                                <small class="<?php echo $bonusProjection['on_track_for_quality_bonus'] ? 'text-success' : 'text-warning'; ?>">
+                                    <?php if ($bonusProjection['quality_score'] === null): ?>
+                                        <i class="fas fa-info-circle me-1"></i>No tasks rated yet this month.
+                                    <?php elseif ($bonusProjection['on_track_for_quality_bonus']): ?>
+                                        <i class="fas fa-check-circle me-1"></i>On track - average rating <?php echo number_format($bonusProjection['average_quality_rating'], 2); ?>/5 (<?php echo $bonusProjection['quality_score']; ?>%).
+                                    <?php else: ?>
+                                        <i class="fas fa-star-half-alt me-1"></i>Average rating <?php echo number_format($bonusProjection['average_quality_rating'], 2); ?>/5 (<?php echo $bonusProjection['quality_score']; ?>%) - below the threshold so far.
+                                    <?php endif; ?>
+                                </small>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -332,6 +351,13 @@ if ($query->rowCount() > 0) {
                         <div>
                             <div class="pf-stat-value text-primary" style="font-size:1.1rem;"><?php echo $totalUnpaidFormatted; ?></div>
                             <div class="pf-stat-label text-700">Awaiting payment</div>
+                        </div>
+                    </div>
+                    <div class="pf-stat">
+                        <span class="pf-stat-icon bg-warning-subtle text-warning"><span class="fas fa-star"></span></span>
+                        <div>
+                            <div class="pf-stat-value text-primary" style="font-size:1.1rem;"><?php echo isset($performance['average_quality_rating']) && $performance['average_quality_rating'] !== null ? number_format($performance['average_quality_rating'], 2) . ' / 5' : '&mdash;'; ?></div>
+                            <div class="pf-stat-label text-700">Avg quality rating<?php echo !empty($performance['rated_tasks']) ? ' (' . (int) $performance['rated_tasks'] . ' rated)' : ''; ?></div>
                         </div>
                     </div>
                     <div class="pf-stat">

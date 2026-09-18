@@ -28,6 +28,10 @@ while ($row = mysqli_fetch_assoc($query)) {
 }
 
 $tasksJson = json_encode($tasks);
+
+// iCalendar subscription link (per-writer token, see calendar-feed.php)
+$calendarFeedToken = get_calendar_feed_token($con, 'tblwriters', $aid);
+$calendarFeedUrl = $calendarFeedToken ? build_calendar_feed_url('/calendar-feed', $calendarFeedToken) : null;
 ?>
 
 <title>Tasks Calendar | iTasker</title>
@@ -43,6 +47,7 @@ $tasksJson = json_encode($tasks);
             <div class="col-lg-auto pt-3 pt-lg-0">
                 <form class="row flex-lg-column flex-xxl-row gx-3 gy-2 align-items-center align-items-lg-start align-items-xxl-center">
                     <div class="col-auto">
+                        <button class="btn btn-falcon-default btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#calendarSubscribeModal" title="Subscribe to this calendar in Google/Apple/Outlook"><i class="fas fa-calendar-plus me-1"></i>Subscribe</button>
                     </div>
                     <div class="col-md-auto position-relative">
                         <h6 class="mb-1 badge rounded-pill badge-subtle-info"><?php echo date("jS F Y"); ?> | <span id="timeDisplay"></span></h6>
@@ -78,6 +83,86 @@ $tasksJson = json_encode($tasks);
         </div>
     </div>
 </div>
+
+
+<!-- Subscribe (.ics feed) - see calendar-feed.php / get_calendar_feed_token() -->
+<div class="modal fade" id="calendarSubscribeModal" tabindex="-1" aria-labelledby="calendarSubscribeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-body-tertiary">
+                <h5 class="modal-title" id="calendarSubscribeLabel"><i class="fas fa-calendar-plus me-2 text-primary"></i>Subscribe in your calendar app</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body fs-9">
+                <?php if ($calendarFeedUrl): ?>
+                <p class="mb-2">Task due dates as a live iCalendar feed. Google Calendar, Apple Calendar and Outlook refresh it automatically (roughly hourly).</p>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control form-control-sm font-monospace" id="calendarFeedUrl" value="<?php echo htmlspecialchars($calendarFeedUrl, ENT_QUOTES, 'UTF-8'); ?>" readonly onclick="this.select()">
+                    <button class="btn btn-falcon-default btn-sm" type="button" id="copyCalendarFeedBtn"><i class="fas fa-copy me-1"></i>Copy</button>
+                </div>
+                <div class="accordion accordion-flush mb-3" id="calendarHowTo">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed py-2 fs-10" type="button" data-bs-toggle="collapse" data-bs-target="#howGoogle">Google Calendar</button></h2>
+                        <div id="howGoogle" class="accordion-collapse collapse" data-bs-parent="#calendarHowTo"><div class="accordion-body py-2">Other calendars <i class="fas fa-plus mx-1"></i> <strong>From URL</strong>, paste the link, then <strong>Add calendar</strong>.</div></div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed py-2 fs-10" type="button" data-bs-toggle="collapse" data-bs-target="#howApple">Apple Calendar (Mac / iPhone)</button></h2>
+                        <div id="howApple" class="accordion-collapse collapse" data-bs-parent="#calendarHowTo"><div class="accordion-body py-2">Mac: File &rsaquo; <strong>New Calendar Subscription</strong>, paste the link. iPhone: Settings &rsaquo; Calendar &rsaquo; Accounts &rsaquo; Add Account &rsaquo; Other &rsaquo; <strong>Add Subscribed Calendar</strong>.</div></div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed py-2 fs-10" type="button" data-bs-toggle="collapse" data-bs-target="#howOutlook">Outlook</button></h2>
+                        <div id="howOutlook" class="accordion-collapse collapse" data-bs-parent="#calendarHowTo"><div class="accordion-body py-2">Add calendar &rsaquo; <strong>Subscribe from web</strong>, paste the link.</div></div>
+                    </div>
+                </div>
+                <div class="alert alert-warning py-2 fs-10 mb-0">
+                    <i class="fas fa-shield-alt me-1"></i>Anyone with this link can read these due dates. If it leaks, regenerate it - the old link stops working immediately and you'll need to re-subscribe.
+                </div>
+                <?php else: ?>
+                <p class="mb-0 text-muted">Calendar subscriptions are not available yet (database migration pending).</p>
+                <?php endif; ?>
+            </div>
+            <div class="modal-footer">
+                <?php if ($calendarFeedUrl): ?>
+                <button type="button" class="btn btn-outline-danger btn-sm me-auto" id="regenerateCalendarFeedBtn"><i class="fas fa-sync-alt me-1"></i>Regenerate link</button>
+                <?php endif; ?>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        function toast(msg, type) { if (typeof showToast === 'function') { showToast(msg, type); } else { alert(msg); } }
+        var copyBtn = document.getElementById('copyCalendarFeedBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function () {
+                var input = document.getElementById('calendarFeedUrl');
+                var done = function () { toast('Link copied to clipboard.', 'success'); };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(input.value).then(done).catch(function () { input.select(); document.execCommand('copy'); done(); });
+                } else { input.select(); document.execCommand('copy'); done(); }
+            });
+        }
+        var regenBtn = document.getElementById('regenerateCalendarFeedBtn');
+        if (regenBtn) {
+            regenBtn.addEventListener('click', function () {
+                if (!confirm('Regenerate the subscription link? Calendars using the current link will stop updating until you re-subscribe with the new one.')) { return; }
+                regenBtn.disabled = true;
+                var fd = new FormData();
+                fd.append('csrf_token', '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, "UTF-8"); ?>');
+                fetch('regenerate-calendar-token', { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        regenBtn.disabled = false;
+                        if (!data.success) { toast(data.message || 'Could not regenerate the link.', 'danger'); return; }
+                        document.getElementById('calendarFeedUrl').value = data.url;
+                        toast('New subscription link generated.', 'success');
+                    })
+                    .catch(function () { regenBtn.disabled = false; toast('Something went wrong.', 'danger'); });
+            });
+        }
+    })();
+</script>
 
 <?php
 include "footer.php";

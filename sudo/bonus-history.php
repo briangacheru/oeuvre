@@ -376,6 +376,12 @@ $totalPages = ceil($totalCount / $limit);
                                                 <i class="fas fa-crown ms-1"></i>
                                             </small>
                                         <?php endif; ?>
+                                        <?php if (($bonus['quality_bonus'] ?? 0) > 0): ?>
+                                            <small class="d-block text-success">
+                                                Quality: Ksh. <?php echo number_format($bonus['quality_bonus'], 2); ?>
+                                                <i class="fas fa-star ms-1"></i>
+                                            </small>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <h6 class="text-success mb-0">
@@ -630,6 +636,14 @@ $totalPages = ceil($totalCount / $limit);
                         `0% (has ${bonus.tasks_completed_late || 0} late tasks)`}</small>
                                 </td>
                                 <td class="text-end">Ksh. ${parseFloat(bonus.perfect_month_bonus).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            </tr>
+                            <tr>
+                                <td>Quality Bonus
+                                    <small class="text-muted d-block">${parseFloat(bonus.quality_bonus || 0) > 0 ?
+                        `${bonusSettings.quality_bonus_percentage || 3}% × total earnings (avg rating ${parseFloat(bonus.average_quality_rating || 0).toFixed(2)}/5)` :
+                        (bonus.average_quality_rating ? `0% (avg rating ${parseFloat(bonus.average_quality_rating).toFixed(2)}/5, below the ${bonusSettings.quality_bonus_threshold || 95}% threshold)` : '0% (no rated tasks that month)')}</small>
+                                </td>
+                                <td class="text-end">Ksh. ${parseFloat(bonus.quality_bonus || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             </tr>
                             <tr class="table-success">
                                 <td><strong>Total ${new Date(bonus.year, bonus.month - 1).toLocaleDateString('en-US', {month: 'long', year: 'numeric'})} Bonus</strong></td>

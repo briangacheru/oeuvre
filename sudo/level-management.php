@@ -28,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $iconColor = trim($_POST['icon_color']);
         $minTasks = intval($_POST['min_completed_tasks']);
         $maxTasks = $_POST['max_completed_tasks'] ? intval($_POST['max_completed_tasks']) : null;
+        // Optional quality gate (1.00-5.00 average admin rating); empty = none
+        $minQuality = ($_POST['min_quality_rating'] ?? '') !== '' ? max(1, min(5, round(floatval($_POST['min_quality_rating']), 2))) : null;
 
         // Check if level number already exists
         $checkQuery = "SELECT id FROM tbl_writer_levels WHERE level_number = ?";
@@ -39,11 +41,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         if ($checkResult->num_rows > 0) {
             $errorMessage = "Level number {$levelNumber} already exists!";
         } else {
-            $insertQuery = "INSERT INTO tbl_writer_levels 
-                           (level_number, level_name, level_description, icon_class, icon_color, min_completed_tasks, max_completed_tasks) 
-                           VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $con->prepare($insertQuery);
-            $stmt->bind_param("issssii", $levelNumber, $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks);
+// min_quality_rating column arrives with db-migrations/2026_09_18_add_task_quality_rating.sql
+            try {
+                $stmt = $con->prepare("INSERT INTO tbl_writer_levels
+                           (level_number, level_name, level_description, icon_class, icon_color, min_completed_tasks, max_completed_tasks, min_quality_rating)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("issssiid", $levelNumber, $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks, $minQuality);
+            } catch (\mysqli_sql_exception $e) {
+                $stmt = $con->prepare("INSERT INTO tbl_writer_levels
+                           (level_number, level_name, level_description, icon_class, icon_color, min_completed_tasks, max_completed_tasks)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("issssii", $levelNumber, $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks);
+            }
 
             if ($stmt->execute()) {
                 $successMessage = "New level added successfully!";
@@ -80,13 +89,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $iconColor = trim($_POST['icon_color']);
         $minTasks = intval($_POST['min_completed_tasks']);
         $maxTasks = $_POST['max_completed_tasks'] ? intval($_POST['max_completed_tasks']) : null;
+        // Optional quality gate (1.00-5.00 average admin rating); empty = none
+        $minQuality = ($_POST['min_quality_rating'] ?? '') !== '' ? max(1, min(5, round(floatval($_POST['min_quality_rating']), 2))) : null;
 
-        $updateQuery = "UPDATE tbl_writer_levels SET 
-                        level_name = ?, level_description = ?, icon_class = ?, 
+        try {
+            $stmt = $con->prepare("UPDATE tbl_writer_levels SET
+                        level_name = ?, level_description = ?, icon_class = ?,
+                        icon_color = ?, min_completed_tasks = ?, max_completed_tasks = ?, min_quality_rating = ?
+                        WHERE id = ?");
+            $stmt->bind_param("ssssiids", $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks, $minQuality, $levelId);
+        } catch (\mysqli_sql_exception $e) {
+            $stmt = $con->prepare("UPDATE tbl_writer_levels SET
+                        level_name = ?, level_description = ?, icon_class = ?,
                         icon_color = ?, min_completed_tasks = ?, max_completed_tasks = ?
-                        WHERE id = ?";
-        $stmt = $con->prepare($updateQuery);
-        $stmt->bind_param("ssssiis", $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks, $levelId);
+                        WHERE id = ?");
+            $stmt->bind_param("ssssiis", $levelName, $levelDescription, $iconClass, $iconColor, $minTasks, $maxTasks, $levelId);
+        }
 
         if ($stmt->execute()) {
             $successMessage = "Level updated successfully!";
@@ -208,6 +226,9 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                             <td>
                                 <?php echo $level['min_completed_tasks']; ?> -
                                 <?php echo $level['max_completed_tasks'] ? $level['max_completed_tasks'] : '∞'; ?> tasks
+                                <?php if (isset($level['min_quality_rating']) && $level['min_quality_rating'] !== null): ?>
+                                    <br><small class="text-warning"><i class="fas fa-star me-1"></i>avg rating &ge; <?php echo number_format($level['min_quality_rating'], 2); ?></small>
+                                <?php endif; ?>
                             </td>
                             <td class="text-muted">
                                 <?php echo htmlspecialchars($level['level_description']); ?>
@@ -344,6 +365,19 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="add_min_quality" class="form-label">Minimum Avg. Quality Rating</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-star text-warning"></i></span>
+                                        <input type="number" class="form-control" name="min_quality_rating" id="add_min_quality" min="1" max="5" step="0.05" placeholder="e.g. 4.00">
+                                    </div>
+                                    <small class="text-muted">Optional. Writers with rated tasks must average at least this (1-5) to hold the level.</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="add_level_description" class="form-label">Description</label>
                             <textarea class="form-control" name="level_description" id="add_level_description" rows="3"></textarea>
@@ -419,6 +453,19 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                                     <label for="edit_max_tasks" class="form-label">Maximum Completed Tasks</label>
                                     <input type="number" class="form-control" name="max_completed_tasks" id="edit_max_tasks" min="0">
                                     <small class="text-muted">Leave empty for unlimited</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_min_quality" class="form-label">Minimum Avg. Quality Rating</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-star text-warning"></i></span>
+                                        <input type="number" class="form-control" name="min_quality_rating" id="edit_min_quality" min="1" max="5" step="0.05" placeholder="e.g. 4.00">
+                                    </div>
+                                    <small class="text-muted">Optional. Writers with rated tasks must average at least this (1-5) to hold the level.</small>
                                 </div>
                             </div>
                         </div>
@@ -696,6 +743,7 @@ $levelsResult = mysqli_query($con, $levelsQuery);
                 document.getElementById('edit_icon_class').value = iconClass;
                 document.getElementById('edit_min_tasks').value = level.min_completed_tasks || 0;
                 document.getElementById('edit_max_tasks').value = level.max_completed_tasks || '';
+                document.getElementById('edit_min_quality').value = level.min_quality_rating !== null && level.min_quality_rating !== undefined ? level.min_quality_rating : '';
                 document.getElementById('edit_icon_color').value = level.icon_color || '#ffc107';
                 document.getElementById('edit_icon_color_text').value = level.icon_color || '#ffc107';
                 document.getElementById('edit_level_description').value = level.level_description || '';

@@ -18,6 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (function_exists('log_activity')) {
             log_activity($con, 'admin', $_SESSION['odmsaid'] ?? '', 'task_completed', "Task #$taskId: marked as completed", $taskId);
         }
+        // Optional quality rating picked in the Complete Task modal on
+        // sudo/view-task.php (can also be set/changed later via rate-task.php).
+        $qualityRating = intval($_POST['quality_rating'] ?? 0);
+        if ($qualityRating >= 1 && $qualityRating <= 5) {
+            include_once('writer-performance-functions.php');
+            saveTaskQualityRating($con, $taskId, $qualityRating, (string) ($_POST['quality_note'] ?? ''), $_SESSION['odmsaid'] ?? '');
+        }
         $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show" role="alert">
                                 Task completed successfully.
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

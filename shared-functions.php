@@ -1380,17 +1380,26 @@ if (!function_exists('calculate_monthly_bonus_projection')) {
             }
         }
 
-        $stmt = $con->prepare("SELECT
-            COUNT(*) as total_completed,
+        // quality_rating columns arrive with db-migrations/2026_09_18_add_task_quality_rating.sql;
+        // fall back to the pre-rating query until it's run.
+        $baseSelect = "COUNT(*) as total_completed,
             SUM(CASE WHEN submitted_on > due_date THEN 1 ELSE 0 END) as late_completions,
             SUM(pages * cpp) as total_earnings,
-            SUM(CASE WHEN submitted_on < due_date THEN (pages * cpp) ELSE 0 END) as early_earnings
-            FROM tbltasks
+            SUM(CASE WHEN submitted_on < due_date THEN (pages * cpp) ELSE 0 END) as early_earnings";
+        $where = "FROM tbltasks
             WHERE email = ?
             AND status IN ('Completed', 'Submitted')
             AND MONTH(submitted_on) = ?
             AND YEAR(submitted_on) = ?
-            AND is_deleted = 0");
+            AND is_deleted = 0";
+        try {
+            $stmt = $con->prepare("SELECT $baseSelect,
+                AVG(quality_rating) as avg_quality_rating,
+                COUNT(quality_rating) as rated_tasks
+                $where");
+        } catch (\mysqli_sql_exception $e) {
+            $stmt = $con->prepare("SELECT $baseSelect, NULL as avg_quality_rating, 0 as rated_tasks $where");
+        }
         $stmt->bind_param('sii', $writerEmail, $month, $year);
         $stmt->execute();
         $data = $stmt->get_result()->fetch_assoc();
@@ -1413,6 +1422,18 @@ if (!function_exists('calculate_monthly_bonus_projection')) {
         $perfectMonthBonusIfEarned = $totalEarnings * $perfectPct / 100;
         $onTrackForPerfectMonth = $totalCompleted > 0 && $lateCompletions == 0;
 
+        // Quality bonus (same rule as calculateMonthlyBonus() in
+        // sudo/writer-performance-functions.php): the month's average admin
+        // rating, scaled to a 0-100 score, must reach quality_bonus_threshold.
+        // Like the perfect-month bonus it stays "at risk" until month-end.
+        $ratedTasks = (int) ($data['rated_tasks'] ?? 0);
+        $avgQuality = $ratedTasks > 0 && $data['avg_quality_rating'] !== null ? round((float) $data['avg_quality_rating'], 2) : null;
+        $qualityThreshold = $settings['quality_bonus_threshold'] ?? 95.0;
+        $qualityPct = $settings['quality_bonus_percentage'] ?? 3.0;
+        $qualityScore = $avgQuality !== null ? round($avgQuality / 5 * 100, 1) : null;
+        $qualityBonusIfEarned = $totalEarnings * $qualityPct / 100;
+        $onTrackForQualityBonus = $qualityScore !== null && $qualityScore >= $qualityThreshold;
+
         return [
             'total_completed' => $totalCompleted,
             'late_completions' => $lateCompletions,
@@ -1421,6 +1442,13 @@ if (!function_exists('calculate_monthly_bonus_projection')) {
             'perfect_month_bonus_amount' => round($perfectMonthBonusIfEarned, 2),
             'on_track_for_perfect_month' => $onTrackForPerfectMonth,
             'perfect_month_percentage' => $perfectPct,
+            'rated_tasks' => $ratedTasks,
+            'average_quality_rating' => $avgQuality,
+            'quality_score' => $qualityScore,
+            'quality_bonus_threshold' => $qualityThreshold,
+            'quality_bonus_percentage' => $qualityPct,
+            'quality_bonus_amount' => round($qualityBonusIfEarned, 2),
+            'on_track_for_quality_bonus' => $onTrackForQualityBonus,
         ];
     }
 }
@@ -1439,5 +1467,212 @@ if (!function_exists('set_feature_enabled')) {
         $ok = $stmt->execute();
         $stmt->close();
         return $ok;
+    }
+}
+
+// ---- Task quality rating (admin-set, 1-5 stars) ----
+// Written by sudo/complete-task.php / sudo/rate-task.php via
+// saveTaskQualityRating() in sudo/writer-performance-functions.php. These
+// two read-only helpers are shared because BOTH interfaces display the
+// rating (sudo/view-task.php card, writer's view-task.php card,
+// sudo/completed-tasks.php column). Schema: db-migrations/
+// 2026_09_18_add_task_quality_rating.sql - until it's run these return
+// null / '' rather than fataling.
+if (!function_exists('get_task_quality_rating')) {
+    function get_task_quality_rating($con, $taskId) {
+        try {
+            $stmt = $con->prepare("SELECT quality_rating, quality_rating_note, quality_rated_by, quality_rated_at
+                                    FROM tbltasks WHERE id = ? LIMIT 1");
+            $stmt->bind_param('i', $taskId);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+        } catch (\mysqli_sql_exception $e) {
+            return null; // migration pending
+        }
+        if (!$row || $row['quality_rating'] === null) {
+            return null;
+        }
+        return [
+            'rating' => (int) $row['quality_rating'],
+            'note' => (string) ($row['quality_rating_note'] ?? ''),
+            'rated_by' => (string) ($row['quality_rated_by'] ?? ''),
+            'rated_at' => $row['quality_rated_at'],
+        ];
+    }
+}
+
+if (!function_exists('render_quality_stars')) {
+    // $rating may be fractional (an average); stars are filled to the
+    // nearest half using a half-star for .25-.74.
+    function render_quality_stars($rating, $extraClass = '') {
+        $rating = max(0, min(5, (float) $rating));
+        $full = (int) floor($rating + 0.25);
+        $half = ($rating - floor($rating)) >= 0.25 && ($rating - floor($rating)) < 0.75 ? 1 : 0;
+        if ($full > 5) { $full = 5; $half = 0; }
+        $html = '<span class="quality-stars text-nowrap ' . htmlspecialchars($extraClass, ENT_QUOTES, 'UTF-8') . '" title="' . number_format($rating, 1) . ' / 5">';
+        for ($i = 1; $i <= 5; $i++) {
+            if ($i <= $full) {
+                $html .= '<i class="fas fa-star text-warning"></i>';
+            } elseif ($half && $i === $full + 1) {
+                $html .= '<i class="fas fa-star-half-alt text-warning"></i>';
+            } else {
+                $html .= '<i class="fas fa-star text-300"></i>';
+            }
+        }
+        return $html . '</span>';
+    }
+}
+
+// ---- iCalendar (.ics) subscription feed ----
+// calendar.php / sudo/calendar.php show a "Subscribe" dialog whose URL
+// carries a per-user secret token (tblwriters.calendar_token /
+// tbladmin.calendar_token, db-migrations/2026_09_18_add_calendar_feed_tokens.sql).
+// calendar-feed.php / sudo/calendar-feed.php resolve the token WITHOUT a
+// session because Google/Apple/Outlook fetch feeds anonymously.
+if (!function_exists('get_calendar_feed_token')) {
+    // $table is 'tblwriters' or 'tbladmin' (whitelisted, never user input).
+    // Returns the existing token, minting one on first use or when
+    // $regenerate is true. null when the migration hasn't been run.
+    function get_calendar_feed_token($con, $table, $email, $regenerate = false) {
+        if (!in_array($table, ['tblwriters', 'tbladmin'], true)) {
+            return null;
+        }
+        try {
+            if (!$regenerate) {
+                $stmt = $con->prepare("SELECT calendar_token FROM `$table` WHERE email = ? LIMIT 1");
+                $stmt->bind_param('s', $email);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if ($row && !empty($row['calendar_token'])) {
+                    return $row['calendar_token'];
+                }
+            }
+            $token = bin2hex(random_bytes(24)); // 48 hex chars
+            $stmt = $con->prepare("UPDATE `$table` SET calendar_token = ? WHERE email = ?");
+            $stmt->bind_param('ss', $token, $email);
+            $stmt->execute();
+            $affected = $stmt->affected_rows;
+            $stmt->close();
+            return $affected > 0 ? $token : null;
+        } catch (\mysqli_sql_exception $e) {
+            return null; // migration pending
+        }
+    }
+}
+
+if (!function_exists('build_calendar_feed_url')) {
+    // $path is '/calendar-feed' (writer) or '/sudo/calendar-feed' (admin).
+    function build_calendar_feed_url($path, $token) {
+        return rtrim(env('APP_URL', ''), '/') . $path . '?token=' . rawurlencode($token);
+    }
+}
+
+if (!function_exists('ics_escape_text')) {
+    function ics_escape_text($text) {
+        $text = str_replace(["\r\n", "\r"], "\n", (string) $text);
+        $text = str_replace(['\\', ';', ',', "\n"], ['\\\\', '\;', '\,', '\n'], $text);
+        return $text;
+    }
+}
+
+if (!function_exists('ics_fold_line')) {
+    // RFC 5545 3.1: lines longer than 75 octets are folded with CRLF + space.
+    function ics_fold_line($line) {
+        $out = '';
+        $first = true;
+        while (strlen($line) > 0) {
+            $limit = $first ? 75 : 74;
+            $chunk = mb_strcut($line, 0, $limit, 'UTF-8');
+            $out .= ($first ? '' : "\r\n ") . $chunk;
+            $line = substr($line, strlen($chunk));
+            $first = false;
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('render_ics_calendar')) {
+    // $events: list of ['uid','summary','description','start'(DateTime),'end'(DateTime),'url','status']
+    // Due dates in tbltasks are Nairobi-local wall-clock values, so callers
+    // build the DateTimes in Africa/Nairobi; everything is emitted in UTC.
+    function render_ics_calendar($calendarName, array $events) {
+        $utc = new DateTimeZone('UTC');
+        $now = (new DateTime('now', $utc))->format('Ymd\THis\Z');
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//iTasker//Task Calendar//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'X-WR-CALNAME:' . ics_escape_text($calendarName),
+            'X-WR-TIMEZONE:Africa/Nairobi',
+            'X-PUBLISHED-TTL:PT1H',
+            'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
+        ];
+        foreach ($events as $ev) {
+            $start = (clone $ev['start'])->setTimezone($utc);
+            $end = (clone $ev['end'])->setTimezone($utc);
+            $lines[] = 'BEGIN:VEVENT';
+            $lines[] = 'UID:' . ics_escape_text($ev['uid']);
+            $lines[] = 'DTSTAMP:' . $now;
+            $lines[] = 'DTSTART:' . $start->format('Ymd\THis\Z');
+            $lines[] = 'DTEND:' . $end->format('Ymd\THis\Z');
+            $lines[] = 'SUMMARY:' . ics_escape_text($ev['summary']);
+            if (!empty($ev['description'])) {
+                $lines[] = 'DESCRIPTION:' . ics_escape_text($ev['description']);
+            }
+            if (!empty($ev['url'])) {
+                $lines[] = 'URL:' . ics_escape_text($ev['url']);
+            }
+            $lines[] = 'STATUS:' . (($ev['status'] ?? '') === 'Cancelled' ? 'CANCELLED' : 'CONFIRMED');
+            $lines[] = 'END:VEVENT';
+        }
+        $lines[] = 'END:VCALENDAR';
+        return implode("\r\n", array_map('ics_fold_line', $lines)) . "\r\n";
+    }
+}
+
+if (!function_exists('build_task_calendar_events')) {
+    // Turns tbltasks rows (id, topic, due_date, status, optional account /
+    // writer) into render_ics_calendar() events. $viewBase is the absolute
+    // URL of the interface's view-task page, e.g. https://x/sudo/view-task
+    function build_task_calendar_events(array $rows, $viewBase, $includeAccount = false) {
+        $nairobi = new DateTimeZone('Africa/Nairobi');
+        $events = [];
+        foreach ($rows as $row) {
+            if (empty($row['due_date']) || $row['due_date'] === '0000-00-00 00:00:00') {
+                continue;
+            }
+            try {
+                $start = new DateTime($row['due_date'], $nairobi);
+            } catch (Exception $e) {
+                continue;
+            }
+            $end = (clone $start)->modify('+1 hour');
+            $label = '#' . (int) $row['id'];
+            if ($includeAccount && !empty($row['account'])) {
+                $label .= ' ' . $row['account'];
+            }
+            $summary = $label . ' due: ' . ($row['topic'] ?? '');
+            $descParts = ['Status: ' . ($row['status'] ?? '')];
+            if (!empty($row['writer'])) {
+                $descParts[] = 'Writer: ' . $row['writer'];
+            }
+            if (isset($row['pages'])) {
+                $descParts[] = 'Pages: ' . (int) $row['pages'];
+            }
+            $events[] = [
+                'uid' => 'task-' . (int) $row['id'] . '@itasker',
+                'summary' => $summary,
+                'description' => implode("\n", $descParts),
+                'start' => $start,
+                'end' => $end,
+                'url' => $viewBase . '?task_id=' . rawurlencode(encode_task_id($row['id'])),
+                'status' => $row['status'] ?? '',
+            ];
+        }
+        return $events;
     }
 }

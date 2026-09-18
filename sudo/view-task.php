@@ -859,6 +859,16 @@ if (isset($_SESSION['alert'])) {
                                     <p class="mb-1">Are you sure you want to mark this task as completed?</p>
                                     <p class="fw-bold text-primary mb-0">Task ID: #<?php echo $taskId; ?></p>
                                     <p class="text-muted small mb-0"><?php echo htmlspecialchars($taskTopic); ?></p>
+                                                                    <div class="mt-3 pt-3 border-top">
+                                        <label class="form-label fw-semibold mb-1">Quality rating <span class="text-muted fw-normal">(optional)</span></label>
+                                        <div class="d-flex align-items-center">
+                                            <div class="star-picker" data-star-picker data-target="completeQualityRating" data-label="completeQualityLabel"><i class="fas fa-star" data-value="1"></i><i class="fas fa-star" data-value="2"></i><i class="fas fa-star" data-value="3"></i><i class="fas fa-star" data-value="4"></i><i class="fas fa-star" data-value="5"></i></div>
+                                            <small class="text-muted ms-2" id="completeQualityLabel"></small>
+                                        </div>
+                                        <input type="hidden" id="completeQualityRating" value="">
+                                        <textarea class="form-control form-control-sm mt-2" id="completeQualityNote" rows="2" maxlength="500" placeholder="Note for the writer (optional)"></textarea>
+                                        <small class="text-muted">Feeds the writer's level (quality gate) and the monthly quality bonus.</small>
+                                    </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1085,7 +1095,7 @@ if (isset($_SESSION['alert'])) {
                         $writerEmail = $writerData['email'];
                         include_once('writer-performance-functions.php');
                         $writerPerf = calculateWriterPerformance($con, $writerEmail);
-                        $writerLevel = getWriterLevel($con, $writerPerf['completed_tasks']);
+                        $writerLevel = getWriterLevel($con, $writerPerf['completed_tasks'], $writerPerf['average_quality_rating'] ?? null);
                         $encodedWriterId = encode_writer_id($writerId);
 
                         // Online status logic
@@ -1947,6 +1957,98 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             <?php endif; ?>
             <?php endif; ?>
 
+            <!-- Quality Rating (admin, 1-5 stars) - see saveTaskQualityRating() -->
+            <?php
+            $taskQuality = function_exists('get_task_quality_rating') ? get_task_quality_rating($con, $taskId) : null;
+            $canRateTask = function_exists('adminCan') && adminCan($currentAdminRole, 'operate_tasks');
+            ?>
+            <?php if ($taskStatus === 'Completed' || $taskQuality): ?>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-body-tertiary d-flex align-items-center">
+                            <i class="fas fa-star me-2 text-warning"></i>
+                            <h6 class="mb-0">Quality Rating</h6>
+                            <?php if ($canRateTask && $taskStatus === 'Completed'): ?>
+                            <button type="button" class="btn btn-falcon-default btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#rateTaskModal">
+                                <i class="fas fa-star me-1"></i><?php echo $taskQuality ? 'Change rating' : 'Rate this task'; ?>
+                            </button>
+                            <?php endif; ?>
+                        </div>
+                        <div class="card-body py-3 fs-9" id="qualityRatingBody">
+                            <?php if ($taskQuality): ?>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="fs-7"><?php echo render_quality_stars($taskQuality['rating']); ?></span>
+                                    <strong><?php echo $taskQuality['rating']; ?>/5</strong>
+                                    <small class="text-muted">rated by <?php echo htmlspecialchars($taskQuality['rated_by'], ENT_QUOTES, 'UTF-8'); ?>
+                                        <?php if ($taskQuality['rated_at']): ?>on <?php echo date('d M Y, g:i A', strtotime($taskQuality['rated_at'])); ?><?php endif; ?></small>
+                                </div>
+                                <?php if ($taskQuality['note'] !== ''): ?>
+                                    <p class="mb-0 mt-2 text-700"><i class="fas fa-quote-left me-1 text-300"></i><?php echo nl2br(htmlspecialchars($taskQuality['note'], ENT_QUOTES, 'UTF-8')); ?></p>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="text-muted">Not rated yet. The average rating feeds the writer's level and monthly quality bonus.</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php if ($canRateTask && $taskStatus === 'Completed'): ?>
+            <div class="modal fade" id="rateTaskModal" tabindex="-1" aria-labelledby="rateTaskModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-body-tertiary">
+                            <h5 class="modal-title" id="rateTaskModalLabel"><i class="fas fa-star me-2 text-warning"></i>Rate Task #<?php echo $taskId; ?></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small mb-0"><?php echo htmlspecialchars($taskTopic); ?></p>
+
+                                    <div class="mt-3 pt-3 border-top">
+                                        <label class="form-label fw-semibold mb-1">Quality rating <span class="text-muted fw-normal">(optional)</span></label>
+                                        <div class="d-flex align-items-center">
+                                            <div class="star-picker" data-star-picker data-target="rateQualityRating" data-label="rateQualityLabel"><i class="fas fa-star" data-value="1"></i><i class="fas fa-star" data-value="2"></i><i class="fas fa-star" data-value="3"></i><i class="fas fa-star" data-value="4"></i><i class="fas fa-star" data-value="5"></i></div>
+                                            <small class="text-muted ms-2" id="rateQualityLabel"></small>
+                                        </div>
+                                        <input type="hidden" id="rateQualityRating" value="<?php echo $taskQuality ? (int) $taskQuality['rating'] : ''; ?>">
+                                        <textarea class="form-control form-control-sm mt-2" id="rateQualityNote" rows="2" maxlength="500" placeholder="Note for the writer (optional)"><?php echo $taskQuality ? htmlspecialchars($taskQuality['note'], ENT_QUOTES, 'UTF-8') : ''; ?></textarea>
+                                        <small class="text-muted">Feeds the writer's level (quality gate) and the monthly quality bonus.</small>
+                                    </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-warning" id="saveTaskRatingBtn"><i class="fas fa-save me-1"></i>Save rating</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                document.getElementById('saveTaskRatingBtn').addEventListener('click', function () {
+                    var btn = this;
+                    var rating = parseInt(document.getElementById('rateQualityRating').value || '0', 10);
+                    if (!rating) { showToast('Pick a star rating first.', 'warning'); return; }
+                    var fd = new FormData();
+                    fd.append('task_id', '<?php echo $encodedId; ?>');
+                    fd.append('rating', rating);
+                    fd.append('note', document.getElementById('rateQualityNote').value);
+                    fd.append('csrf_token', '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, "UTF-8"); ?>');
+                    btn.disabled = true;
+                    fetch('rate-task', { method: 'POST', body: fd })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            btn.disabled = false;
+                            if (!data.success) { showToast(data.message || 'Could not save the rating.', 'danger'); return; }
+                            showToast('Rating saved.', 'success');
+                            var modal = bootstrap.Modal.getInstance(document.getElementById('rateTaskModal'));
+                            if (modal) { modal.hide(); }
+                            setTimeout(function () { window.location.reload(); }, 800);
+                        })
+                        .catch(function () { btn.disabled = false; showToast('Something went wrong.', 'danger'); });
+                });
+            </script>
+            <?php endif; ?>
+            <?php endif; ?>
+
             <!-- Task Activity Timeline -->
             <?php $activityTimeline = get_task_activity_timeline($con, $taskId, 20); ?>
             <?php if (!empty($activityTimeline)): ?>
@@ -1970,6 +2072,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                         'task_accept' => ['fa-check-circle', 'text-success'],
                                         'task_decline' => ['fa-times-circle', 'text-danger'],
                                         'task_completed' => ['fa-check-double', 'text-success'],
+                                        'task_rated' => ['fa-star', 'text-warning'],
                                         'task_paid' => ['fa-money-bill-wave', 'text-success'],
                                         'task_unpaid' => ['fa-money-bill-wave', 'text-warning'],
                                         'writer_reassigned' => ['fa-user-edit', 'text-warning'],
@@ -3489,7 +3592,12 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             $.ajax({
                 url: 'complete-task',
                 type: 'POST',
-                data: { task_id: encodedId, csrf_token: '<?php echo csrf_token(); ?>' },
+                data: {
+                    task_id: encodedId,
+                    csrf_token: '<?php echo csrf_token(); ?>',
+                    quality_rating: (document.getElementById('completeQualityRating') || {}).value || '',
+                    quality_note: (document.getElementById('completeQualityNote') || {}).value || ''
+                },
                 success: function() {
                     // Hide modal
                     var modalEl = document.getElementById('completeTaskModal');
@@ -3517,6 +3625,47 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         // showToast() is now defined in the shared assets/js/toast.js (loaded via sudo/footer.php)
 
     </script>
+    <style>
+        .star-picker { font-size: 1.6rem; cursor: pointer; user-select: none; }
+        .star-picker i { color: var(--falcon-300, #d8e2ef); transition: color .1s, transform .1s; margin-right: 2px; }
+        .star-picker i.active, .star-picker i.hover { color: #f5803e; }
+        .star-picker i:hover { transform: scale(1.15); }
+        .quality-stars i { margin-right: 1px; }
+    </style>
+    <script>
+        // Shared 1-5 star picker used by the Complete Task modal and the
+        // Quality Rating card's modal. Writes to the hidden input named in
+        // data-target and keeps the label in data-label in sync.
+        (function () {
+            var labels = { 1: 'Poor', 2: 'Below expectations', 3: 'Acceptable', 4: 'Good', 5: 'Excellent' };
+            function paint(picker, value, cls) {
+                picker.querySelectorAll('i').forEach(function (star) {
+                    star.classList.toggle(cls, parseInt(star.dataset.value, 10) <= value);
+                });
+            }
+            function init(picker) {
+                var target = document.getElementById(picker.dataset.target);
+                var label = picker.dataset.label ? document.getElementById(picker.dataset.label) : null;
+                var current = parseInt(target && target.value ? target.value : 0, 10) || 0;
+                paint(picker, current, 'active');
+                if (label && current) { label.textContent = labels[current]; }
+                picker.querySelectorAll('i').forEach(function (star) {
+                    star.addEventListener('mouseenter', function () { paint(picker, parseInt(star.dataset.value, 10), 'hover'); });
+                    star.addEventListener('mouseleave', function () { paint(picker, 0, 'hover'); });
+                    star.addEventListener('click', function () {
+                        var v = parseInt(star.dataset.value, 10);
+                        if (target) { target.value = v; }
+                        paint(picker, v, 'active');
+                        if (label) { label.textContent = labels[v]; }
+                    });
+                });
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-star-picker]').forEach(init);
+            });
+        })();
+    </script>
+
     <script>
         function toggleMarkPaidFields() {
             const checked = document.querySelector('input[name="markPaidMethod"]:checked');

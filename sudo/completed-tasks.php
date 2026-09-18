@@ -82,6 +82,7 @@ if (isset($_SESSION['alert'])) {
                                             <th class="text-900 sort pe-1 align-middle white-space-nowrap">Task #</th>
                                             <th class="text-900 sort pe-1 align-middle white-space-nowrap">Topic</th>
                                             <th class="text-900 sort pe-1 align-middle white-space-nowrap">Status</th>
+                                            <th class="text-900 sort pe-1 align-middle white-space-nowrap">Quality</th>
                                             <th class="text-900 sort pe-1 align-middle white-space-nowrap">Account</th>
                                             <th class="text-900 sort pe-1 align-middle white-space-nowrap">Amount</th>
                                             <th class="text-900 no-sort pe-1 align-middle data-table-row-action"></th>
@@ -194,6 +195,13 @@ if (isset($_SESSION['alert'])) {
                                                             </p>
                                                         </div>
                                                     </div>
+                                                </td>
+                                                <td class="align-middle white-space-nowrap" data-order="<?php echo (int) ($row['quality_rating'] ?? 0); ?>">
+                                                    <?php if (!empty($row['quality_rating'])): ?>
+                                                        <?php echo render_quality_stars($row['quality_rating']); ?>
+                                                    <?php else: ?>
+                                                        <span class="text-400" title="Not rated yet">&mdash;</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td class="align-middle white-space-nowrap text-900">
                                                     <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo htmlspecialchars($row["account"], ENT_QUOTES, 'UTF-8'); ?></h6>

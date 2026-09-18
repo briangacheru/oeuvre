@@ -308,7 +308,7 @@ while ($row = mysqli_fetch_assoc($settingsResult)) {
                                                id="quality_bonus_threshold" value="<?php echo $settings['quality_bonus_threshold']['setting_value'] ?? 95.0; ?>" required>
                                         <span class="input-group-text">%</span>
                                     </div>
-                                    <small class="text-muted">Quality score threshold for bonus eligibility</small>
+                                    <small class="text-muted">Quality score = the month's average admin star rating &divide; 5 &times; 100 (95% = 4.75 stars). Months with no rated tasks never qualify.</small>
                                 </div>
 
                                 <div class="mb-3">
@@ -318,7 +318,7 @@ while ($row = mysqli_fetch_assoc($settingsResult)) {
                                                id="quality_bonus_percentage" value="<?php echo $settings['quality_bonus_percentage']['setting_value'] ?? 3.0; ?>" required>
                                         <span class="input-group-text">%</span>
                                     </div>
-                                    <small class="text-muted">Additional bonus for high-quality work</small>
+                                    <small class="text-muted">Added on top of total earnings when the quality score meets the threshold</small>
                                 </div>
                             </div>
                         </div>

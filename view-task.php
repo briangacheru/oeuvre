@@ -1328,6 +1328,32 @@ foreach ($comments as $comment) {
 }
 ?>
 
+    <!-- Quality Rating (set by admin on completion) -->
+    <?php $taskQuality = function_exists('get_task_quality_rating') ? get_task_quality_rating($con, $taskId) : null; ?>
+    <?php if ($taskQuality): ?>
+    <div class="row">
+        <div class="col-md-12 mb-3">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-header bg-body-tertiary d-flex align-items-center">
+                    <i class="fas fa-star me-2 text-warning"></i>
+                    <h6 class="mb-0">Quality Rating</h6>
+                </div>
+                <div class="card-body py-3 fs-9">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <span class="fs-7"><?php echo render_quality_stars($taskQuality['rating']); ?></span>
+                        <strong><?php echo $taskQuality['rating']; ?>/5</strong>
+                        <?php if ($taskQuality['rated_at']): ?><small class="text-muted">rated on <?php echo date('d M Y', strtotime($taskQuality['rated_at'])); ?></small><?php endif; ?>
+                    </div>
+                    <?php if ($taskQuality['note'] !== ''): ?>
+                        <p class="mb-0 mt-2 text-700"><i class="fas fa-quote-left me-1 text-300"></i><?php echo nl2br(htmlspecialchars($taskQuality['note'], ENT_QUOTES, 'UTF-8')); ?></p>
+                    <?php endif; ?>
+                    <small class="text-muted d-block mt-2">Your average rating counts towards your writer level and the monthly quality bonus.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Task Activity Timeline -->
     <?php $activityTimeline = get_task_activity_timeline($con, $taskId, 20, ['task_view']); ?>
     <?php if (!empty($activityTimeline)): ?>
@@ -1351,6 +1377,7 @@ foreach ($comments as $comment) {
                                 'task_accept' => ['fa-check-circle', 'text-success'],
                                 'task_decline' => ['fa-times-circle', 'text-danger'],
                                 'task_completed' => ['fa-check-double', 'text-success'],
+                                'task_rated' => ['fa-star', 'text-warning'],
                                 'task_paid' => ['fa-money-bill-wave', 'text-success'],
                                 'task_unpaid' => ['fa-money-bill-wave', 'text-warning'],
                                 'writer_reassigned' => ['fa-user-edit', 'text-warning'],

@@ -19,8 +19,8 @@ if ($writerID) {
 
         // Get comprehensive performance data
         $performance = calculateWriterPerformance($con, $rowWriter['email']);
-        $currentLevel = getWriterLevel($con, $performance['completed_tasks']);
-        $levelProgress = calculateLevelProgress($con, $performance['completed_tasks']);
+        $currentLevel = getWriterLevel($con, $performance['completed_tasks'], $performance['average_quality_rating']);
+        $levelProgress = calculateLevelProgress($con, $performance['completed_tasks'], $performance['average_quality_rating']);
 
         // Get recent monthly bonus
         $currentMonth = date('n');
@@ -300,6 +300,28 @@ if ($writerID) {
                                             <small class="text-muted">On-Time Rate</small>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-warning-subtle h-100">
+                                <div class="card-body text-center py-3">
+                                    <div class="d-flex align-items-center justify-content-center mb-2">
+                                        <i class="fas fa-star fa-2x text-warning me-2"></i>
+                                        <div>
+                                            <?php if ($performance['average_quality_rating'] !== null): ?>
+                                                <h4 class="mb-0 text-warning"><?php echo number_format($performance['average_quality_rating'], 2); ?><small class="fs-10 text-muted"> / 5</small></h4>
+                                                <small class="text-muted">Avg Quality (<?php echo $performance['rated_tasks']; ?> rated)</small>
+                                            <?php else: ?>
+                                                <h4 class="mb-0 text-warning">&mdash;</h4>
+                                                <small class="text-muted">Avg Quality (not rated yet)</small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($levelProgress['quality_required']) && !$levelProgress['quality_met']): ?>
+                                        <small class="text-danger d-block"><i class="fas fa-exclamation-circle me-1"></i>Next level needs an average of <?php echo number_format($levelProgress['quality_required'], 2); ?>+</small>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
