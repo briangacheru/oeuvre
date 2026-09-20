@@ -862,7 +862,7 @@ if (isset($_SESSION['alert'])) {
                                                                     <div class="mt-3 pt-3 border-top">
                                         <label class="form-label fw-semibold mb-1">Quality rating <span class="text-muted fw-normal">(optional)</span></label>
                                         <div class="d-flex align-items-center">
-                                            <div class="star-picker" data-star-picker data-target="completeQualityRating" data-label="completeQualityLabel"><i class="fas fa-star" data-value="1"></i><i class="fas fa-star" data-value="2"></i><i class="fas fa-star" data-value="3"></i><i class="fas fa-star" data-value="4"></i><i class="fas fa-star" data-value="5"></i></div>
+                                            <div class="star-picker" data-star-picker data-target="completeQualityRating" data-label="completeQualityLabel"><span class="star" data-value="1"><i class="fas fa-star"></i></span><span class="star" data-value="2"><i class="fas fa-star"></i></span><span class="star" data-value="3"><i class="fas fa-star"></i></span><span class="star" data-value="4"><i class="fas fa-star"></i></span><span class="star" data-value="5"><i class="fas fa-star"></i></span></div>
                                             <small class="text-muted ms-2" id="completeQualityLabel"></small>
                                         </div>
                                         <input type="hidden" id="completeQualityRating" value="">
@@ -2007,7 +2007,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                                     <div class="mt-3 pt-3 border-top">
                                         <label class="form-label fw-semibold mb-1">Quality rating <span class="text-muted fw-normal">(optional)</span></label>
                                         <div class="d-flex align-items-center">
-                                            <div class="star-picker" data-star-picker data-target="rateQualityRating" data-label="rateQualityLabel"><i class="fas fa-star" data-value="1"></i><i class="fas fa-star" data-value="2"></i><i class="fas fa-star" data-value="3"></i><i class="fas fa-star" data-value="4"></i><i class="fas fa-star" data-value="5"></i></div>
+                                            <div class="star-picker" data-star-picker data-target="rateQualityRating" data-label="rateQualityLabel"><span class="star" data-value="1"><i class="fas fa-star"></i></span><span class="star" data-value="2"><i class="fas fa-star"></i></span><span class="star" data-value="3"><i class="fas fa-star"></i></span><span class="star" data-value="4"><i class="fas fa-star"></i></span><span class="star" data-value="5"><i class="fas fa-star"></i></span></div>
                                             <small class="text-muted ms-2" id="rateQualityLabel"></small>
                                         </div>
                                         <input type="hidden" id="rateQualityRating" value="<?php echo $taskQuality ? (int) $taskQuality['rating'] : ''; ?>">
@@ -3627,9 +3627,10 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
     </script>
     <style>
         .star-picker { font-size: 1.6rem; cursor: pointer; user-select: none; }
-        .star-picker i { color: var(--falcon-300, #d8e2ef); transition: color .1s, transform .1s; margin-right: 2px; }
-        .star-picker i.active, .star-picker i.hover { color: #f5803e; }
-        .star-picker i:hover { transform: scale(1.15); }
+        .star-picker .star { display: inline-block; color: var(--falcon-300, #d8e2ef); transition: color .1s, transform .1s; margin-right: 2px; }
+        .star-picker .star.active, .star-picker .star.hover { color: #f5803e; }
+        .star-picker .star:hover { transform: scale(1.15); }
+        .star-picker .star svg, .star-picker .star i { pointer-events: none; }
         .quality-stars i { margin-right: 1px; }
     </style>
     <script>
@@ -3639,7 +3640,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         (function () {
             var labels = { 1: 'Poor', 2: 'Below expectations', 3: 'Acceptable', 4: 'Good', 5: 'Excellent' };
             function paint(picker, value, cls) {
-                picker.querySelectorAll('i').forEach(function (star) {
+                picker.querySelectorAll('.star').forEach(function (star) {
                     star.classList.toggle(cls, parseInt(star.dataset.value, 10) <= value);
                 });
             }
@@ -3649,7 +3650,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 var current = parseInt(target && target.value ? target.value : 0, 10) || 0;
                 paint(picker, current, 'active');
                 if (label && current) { label.textContent = labels[current]; }
-                picker.querySelectorAll('i').forEach(function (star) {
+                picker.querySelectorAll('.star').forEach(function (star) {
                     star.addEventListener('mouseenter', function () { paint(picker, parseInt(star.dataset.value, 10), 'hover'); });
                     star.addEventListener('mouseleave', function () { paint(picker, 0, 'hover'); });
                     star.addEventListener('click', function () {
@@ -3660,9 +3661,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     });
                 });
             }
-            document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('[data-star-picker]').forEach(init);
-            });
+            function initAll() { document.querySelectorAll('[data-star-picker]').forEach(init); }
+            if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initAll); } else { initAll(); }
         })();
     </script>
 
