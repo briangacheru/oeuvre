@@ -764,7 +764,81 @@ if (isset($_SESSION['alert'])) {
     </script>
 <?php endif; ?>
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
-    <div class="card mb-3">
+    <script>
+        // Apply the saved "Improved view" preference before the page renders to avoid a flash of the classic layout.
+        try { if (localStorage.getItem('tvModernView') === '1') document.documentElement.classList.add('tv-modern'); } catch (e) {}
+    </script>
+    <style>
+        /* ===== Improved view (html.tv-modern) - pure re-layout/restyle of the existing DOM, so every
+           handler, modal and polling script keeps working. Classic view is untouched. ===== */
+        .tv-only { display: none !important; }
+        html.tv-modern .tv-only { display: inline-flex !important; }
+        .tv-side { display: contents; }
+
+        html.tv-modern .tv-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+        html.tv-modern .tv-actions > .btn { margin: 0 !important; border-radius: 999px; padding-inline: 14px; font-weight: 600; }
+
+        /* Header: merge the two top cards into a single hero panel */
+        html.tv-modern .tv-topbar,
+        html.tv-modern .tv-hero { border-radius: 18px; border: 1px solid var(--falcon-border-color); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -16px rgba(0,0,0,.18); }
+        html.tv-modern .tv-topbar { margin-bottom: 0 !important; border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: none; position: relative; overflow: hidden; }
+        html.tv-modern .tv-topbar::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, var(--falcon-primary), var(--falcon-info), var(--falcon-success)); }
+        html.tv-modern .tv-hero { border-top: 1px dashed var(--falcon-border-color); border-top-left-radius: 0; border-top-right-radius: 0; box-shadow: 0 12px 32px -16px rgba(0,0,0,.18); }
+        html.tv-modern .tv-hero .task-metric-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+        html.tv-modern .tv-hero .task-metric { border-radius: 14px; padding: 14px 16px; background: transparent; transition: transform .15s ease, box-shadow .15s ease; }
+        html.tv-modern .tv-hero .task-metric:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -12px rgba(0,0,0,.25); }
+        html.tv-modern .tv-hero .task-metric-icon { width: 42px; height: 42px; border-radius: 12px; font-size: 17px; }
+        html.tv-modern .tv-hero .task-metric-value { font-size: 18px; }
+        html.tv-modern .tv-hero .task-metric-total { background: linear-gradient(135deg, rgba(34,197,94,.14) 0%, rgba(16,185,129,.06) 100%); }
+
+        /* Tabs become a segmented control */
+        html.tv-modern #taskViewTabs { border: 0; display: inline-flex; gap: 4px; padding: 4px; margin-top: 16px; border-radius: 999px; background: var(--falcon-body-bg-tertiary, rgba(127,127,127,.08)); }
+        html.tv-modern #taskViewTabs .nav-link { border: 0; border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 13px; color: var(--falcon-secondary-color); }
+        html.tv-modern #taskViewTabs .nav-link.active { background: var(--falcon-card-bg, #fff); color: var(--falcon-emphasis-color); box-shadow: 0 2px 8px -2px rgba(0,0,0,.2); }
+
+        /* Admin pane: main column (description + discussion) beside a sidebar (files, extension, rating, activity) */
+        @media (min-width: 1200px) {
+            html.tv-modern #admin-view-pane.active { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto 1fr; gap: 16px; align-items: start; }
+            html.tv-modern #admin-view-pane > .row:first-child { grid-column: 1; grid-row: 1; }
+            html.tv-modern #admin-view-pane > .tv-side { grid-column: 2; grid-row: 1 / span 2; }
+            html.tv-modern #admin-view-pane > .tv-discussion { grid-column: 1; grid-row: 2; }
+        }
+        html.tv-modern #admin-view-pane > .tv-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        @media (max-width: 1199.98px) {
+            html.tv-modern #admin-view-pane.active > .row { margin-bottom: 16px; }
+            html.tv-modern #admin-view-pane > .tv-side { margin-bottom: 16px; }
+        }
+        html.tv-modern #admin-view-pane .row,
+        html.tv-modern .tv-side .row { --falcon-gutter-x: 0; margin-left: 0; margin-right: 0; margin-top: 0; }
+        html.tv-modern #admin-view-pane .row > [class*="col"] { padding-left: 0; padding-right: 0; margin-bottom: 0 !important; }
+        html.tv-modern .tv-side > .col,
+        html.tv-modern .tv-side > .row { margin: 0 !important; width: 100%; }
+        html.tv-modern .tv-side .card { margin-top: 0 !important; }
+
+        html.tv-modern #admin-view-pane .card { border-radius: 16px; border: 1px solid var(--falcon-border-color); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 28px -18px rgba(0,0,0,.2) !important; overflow: hidden; }
+        html.tv-modern #admin-view-pane .card-header { background: transparent !important; border-bottom: 1px solid var(--falcon-border-color); padding: 14px 18px; }
+        html.tv-modern #admin-view-pane .card-header h6 { font-weight: 700; letter-spacing: .2px; }
+        html.tv-modern #admin-view-pane .card-header > i:first-child,
+        html.tv-modern #admin-view-pane .card-header > .fas:first-child,
+        html.tv-modern #admin-view-pane .card-header .tv-head-icon {
+            width: 30px; height: 30px; border-radius: 9px; display: inline-flex !important; align-items: center; justify-content: center;
+            background: rgba(var(--falcon-primary-rgb), .12); font-size: 13px; margin-right: 10px !important;
+        }
+        html.tv-modern #admin-view-pane .task-description-content { font-size: 14.5px; line-height: 1.75; }
+
+        /* Chevron toggle buttons (discussion / activity / extension) */
+        .tv-chev-btn { align-items: center; justify-content: center; border: 0; background: transparent; color: var(--falcon-secondary-color); padding: 0; }
+        html.tv-modern .tv-chev-btn { width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--falcon-border-color); transition: background .15s, color .15s; }
+        html.tv-modern .tv-chev-btn:hover { background: rgba(var(--falcon-primary-rgb), .1); color: var(--falcon-primary); }
+        .tv-chev-btn i { transition: transform .25s ease; font-size: 12px; }
+        .tv-chev-btn[aria-expanded="true"] i,
+        [aria-expanded="true"] > .tv-chev-btn i { transform: rotate(180deg); }
+        html.tv-modern #discussionChevron { display: none; }
+        html.tv-modern .tv-discussion .card-body { height: clamp(440px, 72vh, 720px) !important; }
+        html.tv-modern .tv-discussion { margin-bottom: 0 !important; }
+        html.tv-modern #activityTimelineBody .card-body { max-height: 420px; overflow-y: auto; }
+    </style>
+    <div class="card mb-3 tv-topbar">
         <div class="card-body">
             <div class="row justify-content-between align-items-center">
                 <div class="col">
@@ -810,7 +884,11 @@ if (isset($_SESSION['alert'])) {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-auto mt-4 mt-md-0">
+                <div class="col-md-auto mt-4 mt-md-0 tv-actions">
+                    <button type="button" id="tvViewToggle" class="btn btn-sm btn-primary me-2" aria-pressed="false" title="Switch between the classic and improved layout">
+                        <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+                        <span class="ms-1" id="tvViewToggleText">Improved view</span>
+                    </button>
                     <a class="btn btn-sm btn-outline-primary me-2" type="button" href="edit-task?task_id=<?php  echo $encodedId; ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Task">
                         <i class="fas fa-edit" aria-hidden="true"></i>
                         <span class="ms-1 d-none d-sm-inline-block">Edit Task</span>
@@ -1004,7 +1082,7 @@ if (isset($_SESSION['alert'])) {
         @keyframes admin-metric-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         .admin-metric-pulse { animation: admin-metric-pulse 1.4s ease-in-out infinite; }
     </style>
-    <div class="card border overflow-hidden mb-3">
+    <div class="card border overflow-hidden mb-3 tv-hero">
         <div class="card-body p-0">
 
             <!-- Header Section -->
@@ -1362,6 +1440,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     </div>
                 </div>
             </div>
+            <div class="tv-side"><!-- sidebar column in the improved view; display:contents (no effect) in the classic view -->
             <!-- Task Files card section -->
             <div class='col mb-3'>
                 <div class='row g-3'>
@@ -1851,11 +1930,11 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             <div class="row">
                 <div class="col-md-12 mb-3" id="extensionRequestBody">
                     <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#extensionRequestCollapse">
+                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#extensionRequestCollapse" aria-expanded="<?php echo $vteStatus === 'pending' ? 'true' : 'false'; ?>" aria-controls="extensionRequestCollapse">
                             <i class="fas fa-calendar-plus me-2 text-warning"></i>
                             <h6 class="mb-0">Extension Request</h6>
                             <span class="badge rounded-pill <?php echo $vteBadgeClass; ?> ms-2"><?php echo ucfirst($vteStatus); ?></span>
-                            <i class="fas fa-chevron-down ms-auto text-secondary"></i>
+                            <span class="tv-chev-btn d-inline-flex ms-auto" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
                         </div>
                         <div class="collapse <?php echo $vteStatus === 'pending' ? 'show' : ''; ?>" id="extensionRequestCollapse">
                             <div class="card-body py-3 fs-9">
@@ -2055,11 +2134,11 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
             <div class="row">
                 <div class="col-md-12 mb-3">
                     <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#activityTimelineBody">
+                        <div class="card-header bg-body-tertiary d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#activityTimelineBody" aria-expanded="false" aria-controls="activityTimelineBody">
                             <i class="fas fa-history me-2 text-primary"></i>
                             <h6 class="mb-0">Activity Timeline</h6>
                             <span class="badge badge-subtle-secondary rounded-pill ms-2"><?php echo count($activityTimeline); ?></span>
-                            <i class="fas fa-chevron-down ms-auto text-secondary"></i>
+                            <span class="tv-chev-btn d-inline-flex ms-auto" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
                         </div>
                         <div class="collapse" id="activityTimelineBody">
                             <div class="card-body py-3">
@@ -2107,9 +2186,10 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 </div>
             </div>
             <?php endif; ?>
+            </div><!-- /.tv-side -->
 
             <!-- Task Discussion Card -->
-            <div class='row'>
+            <div class='row tv-discussion'>
                 <div class='col-md-12 col-xxl-12 mb-3'>
                     <div class='card shadow-sm border-0 overflow-hidden h-100' style='border-radius: 15px;'>
                         <div class='card-header text-white position-relative overflow-hidden bg-body-tertiary'
@@ -2148,6 +2228,10 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                             </span>
                                     <?php endif; ?>
 
+                                    <!-- Improved-view chevron: collapses/expands the discussion whether or not there are messages -->
+                                    <button type="button" id="tvDiscussionToggle" class="tv-only tv-chev-btn" aria-controls="discussionBody" aria-expanded="<?php echo empty($comments) ? 'false' : 'true'; ?>" title="Show / hide discussion">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
                                     <!-- Collapse chevron — only shown when empty -->
                                     <?php if (empty($comments)): ?>
                                         <span class="text-muted" id="discussionChevron">
@@ -2159,7 +2243,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                         </div>
 
                         <!-- Card Body with Comments -->
-                        <div id="discussionBody" class="<?php echo empty($comments) ? 'collapse' : ''; ?>">
+                        <div id="discussionBody" class="collapse<?php echo empty($comments) ? '' : ' show'; ?>">
                             <div class='card-body p-0 d-flex flex-column' style='height: 650px;'>
                                 <!-- Comments Container (Scrollable) -->
                                 <div id="commentsContainer" class="flex-grow-1 px-3 py-3" style='overflow-y: auto; overflow-x: hidden;'>
@@ -5675,7 +5759,44 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
     </script>
 <?php echo getShareLinkJavaScript(); ?>
 
-    <script>window.iTaskerTaskId = <?php echo (int) $taskId; ?>;</script>
+    <script>
+        // Improved-view toggle + discussion chevron
+        document.addEventListener('DOMContentLoaded', function () {
+            var root = document.documentElement;
+            var toggleBtn = document.getElementById('tvViewToggle');
+            var toggleText = document.getElementById('tvViewToggleText');
+
+            function syncToggle() {
+                var on = root.classList.contains('tv-modern');
+                if (toggleBtn) {
+                    toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    toggleBtn.classList.toggle('btn-primary', !on);
+                    toggleBtn.classList.toggle('btn-outline-primary', on);
+                }
+                if (toggleText) toggleText.textContent = on ? 'Classic view' : 'Improved view';
+            }
+            syncToggle();
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function () {
+                    var on = root.classList.toggle('tv-modern');
+                    try { localStorage.setItem('tvModernView', on ? '1' : '0'); } catch (e) {}
+                    syncToggle();
+                });
+            }
+
+            var chevBtn = document.getElementById('tvDiscussionToggle');
+            var body = document.getElementById('discussionBody');
+            if (chevBtn && body && window.bootstrap) {
+                chevBtn.addEventListener('click', function (e) {
+                    e.stopPropagation(); // the card header itself also toggles when the discussion is empty
+                    bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).toggle();
+                });
+                body.addEventListener('show.bs.collapse', function (e) { if (e.target === body) chevBtn.setAttribute('aria-expanded', 'true'); });
+                body.addEventListener('hide.bs.collapse', function (e) { if (e.target === body) chevBtn.setAttribute('aria-expanded', 'false'); });
+            }
+        });
+    </script>
+    <script>window.iTaskerTaskId =<?php echo (int) $taskId; ?>;</script>
     <script src="../assets/js/comment-reactions.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/comment-reactions.js') ?: time(); ?>"></script>
 
 <?php
