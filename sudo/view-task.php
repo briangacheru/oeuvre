@@ -771,6 +771,9 @@ if (isset($_SESSION['alert'])) {
     <style>
         /* ===== Improved view (html.tv-modern) - pure re-layout/restyle of the existing DOM, so every
            handler, modal and polling script keeps working. Classic view is untouched. ===== */
+        .tv-ico-classic { display: none; }
+        html.tv-modern .tv-ico-classic { display: inline-flex; }
+        html.tv-modern .tv-ico-improved { display: none; }
         .tv-only { display: none !important; }
         html.tv-modern .tv-only { display: inline-flex !important; }
         .tv-side { display: contents; }
@@ -791,17 +794,45 @@ if (isset($_SESSION['alert'])) {
         html.tv-modern .tv-hero .task-metric-value { font-size: 18px; }
         html.tv-modern .tv-hero .task-metric-total { background: linear-gradient(135deg, rgba(34,197,94,.14) 0%, rgba(16,185,129,.06) 100%); }
 
+        /* Hero: title block + due/payment on top, metric tiles below, people band at the bottom */
+        html.tv-modern .tv-hero-head { padding: 24px 28px 8px !important; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; row-gap: 4px; align-items: center;
+            background: radial-gradient(120% 140% at 0% 0%, rgba(var(--falcon-primary-rgb), .09) 0%, transparent 60%); }
+        html.tv-modern .tv-hero-head > * { grid-column: 1 / -1; }
+        html.tv-modern .tv-hero-subject { grid-column: 1; display: inline-flex; align-self: start; width: fit-content; padding: 4px 12px; border-radius: 999px; background: rgba(var(--falcon-primary-rgb), .12); color: var(--falcon-primary); letter-spacing: 1.5px; margin-bottom: 8px !important; }
+        html.tv-modern .tv-hero-head .task-meta-title { grid-column: 1; grid-row: 2; font-size: clamp(1.5rem, 2.6vw, 2.1rem); margin-bottom: 0 !important; }
+        html.tv-modern .tv-hero-due { grid-column: 2; grid-row: 1 / span 2; justify-content: flex-end; align-self: center; flex-direction: column; align-items: flex-end !important; gap: 8px !important; }
+        html.tv-modern .tv-hero-head .task-metric-strip { grid-row: 3; margin: 20px 0 0 !important; }
+        html.tv-modern .tv-hero-due .task-due-chip { border-radius: 12px; padding: 9px 16px; font-weight: 700; }
+        html.tv-modern .tv-hero .task-metric { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; overflow: hidden; }
+        html.tv-modern .tv-hero .task-metric::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--falcon-primary); opacity: .55; }
+        html.tv-modern .tv-hero .task-metric:nth-child(2)::after { background: var(--falcon-info); }
+        html.tv-modern .tv-hero .task-metric:nth-child(4)::after { background: var(--falcon-success); opacity: 1; }
+        html.tv-modern .tv-hero .task-metric-value { font-size: 22px; letter-spacing: -.3px; }
+        html.tv-modern .tv-hero .task-metric-label { font-size: 10.5px; margin-bottom: 6px; }
+        html.tv-modern .tv-hero-hr { display: none; }
+        html.tv-modern .tv-hero-foot { margin-top: 20px; padding: 14px 28px !important; background: var(--falcon-body-bg-tertiary, rgba(127,127,127,.06)); border-top: 1px solid var(--falcon-border-color); gap: 10px !important; }
+        html.tv-modern .tv-hero-foot::before { content: "Assigned to"; font-size: 10.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--falcon-secondary-color); margin-right: 4px; }
+        html.tv-modern .tv-hero-foot > div:last-child::before { content: "Account"; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--falcon-secondary-color); margin-right: 6px; }
+        html.tv-modern .tv-hero-foot > div:last-child { margin-left: auto; }
+        html.tv-modern .tv-hero-foot > div { background: var(--falcon-card-bg, #fff) !important; }
+        @media (max-width: 767.98px) {
+            html.tv-modern .tv-hero-head { grid-template-columns: 1fr; padding: 20px 18px 6px !important; }
+            html.tv-modern .tv-hero-due { grid-column: 1; grid-row: auto; flex-direction: row; justify-content: flex-start; align-items: center !important; margin-top: 12px; }
+            html.tv-modern .tv-hero-head .task-metric-strip { grid-row: auto; }
+            html.tv-modern .tv-hero-foot { padding: 12px 18px !important; }
+        }
+
         /* Tabs become a segmented control */
         html.tv-modern #taskViewTabs { border: 0; display: inline-flex; gap: 4px; padding: 4px; margin-top: 16px; border-radius: 999px; background: var(--falcon-body-bg-tertiary, rgba(127,127,127,.08)); }
         html.tv-modern #taskViewTabs .nav-link { border: 0; border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 13px; color: var(--falcon-secondary-color); }
         html.tv-modern #taskViewTabs .nav-link.active { background: var(--falcon-card-bg, #fff); color: var(--falcon-emphasis-color); box-shadow: 0 2px 8px -2px rgba(0,0,0,.2); }
 
-        /* Admin pane: main column (description + discussion) beside a sidebar (files, extension, rating, activity) */
+        /* Admin pane: reference column on the left (description, files, extension, rating, activity), discussion on the right */
         @media (min-width: 1200px) {
-            html.tv-modern #admin-view-pane.active { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto 1fr; gap: 16px; align-items: start; }
+            html.tv-modern #admin-view-pane.active { display: grid; grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 16px; align-items: start; }
             html.tv-modern #admin-view-pane > .row:first-child { grid-column: 1; grid-row: 1; }
-            html.tv-modern #admin-view-pane > .tv-side { grid-column: 2; grid-row: 1 / span 2; }
-            html.tv-modern #admin-view-pane > .tv-discussion { grid-column: 1; grid-row: 2; }
+            html.tv-modern #admin-view-pane > .tv-side { grid-column: 1; grid-row: 2; }
+            html.tv-modern #admin-view-pane > .tv-discussion { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 76px; }
         }
         html.tv-modern #admin-view-pane > .tv-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
         @media (max-width: 1199.98px) {
@@ -886,7 +917,7 @@ if (isset($_SESSION['alert'])) {
                 </div>
                 <div class="col-md-auto mt-4 mt-md-0 tv-actions">
                     <button type="button" id="tvViewToggle" class="btn btn-sm btn-primary me-2" aria-pressed="false" title="Switch between the classic and improved layout">
-                        <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+                        <span class="tv-ico-improved"><i class="fas fa-magic" aria-hidden="true"></i></span><span class="tv-ico-classic"><i class="fas fa-list-alt" aria-hidden="true"></i></span>
                         <span class="ms-1" id="tvViewToggleText">Improved view</span>
                     </button>
                     <a class="btn btn-sm btn-outline-primary me-2" type="button" href="edit-task?task_id=<?php  echo $encodedId; ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Task">
@@ -1086,8 +1117,8 @@ if (isset($_SESSION['alert'])) {
         <div class="card-body p-0">
 
             <!-- Header Section -->
-            <div class="p-4 pb-0">
-                <p class="task-meta-label mb-1"><i class="fas fa-book me-1"></i><?php echo htmlspecialchars($taskSubject); ?></p>
+            <div class="p-4 pb-0 tv-hero-head">
+                <p class="task-meta-label mb-1 tv-hero-subject"><i class="fas fa-book me-1"></i><?php echo htmlspecialchars($taskSubject); ?></p>
                 <h2 class="task-meta-title mb-3"><?php echo htmlspecialchars($taskTopic); ?></h2>
 
                 <div class="task-metric-strip mb-3">
@@ -1123,7 +1154,7 @@ if (isset($_SESSION['alert'])) {
                     </div>
                 </div>
 
-                <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2 tv-hero-due">
                     <span class="task-due-chip"><i class="far fa-calendar-alt me-1"></i>Due <?php echo date("D, d M Y, g:i A", strtotime($taskDueDate)); ?></span>
                     <?php if ($isLate && !$isFinalStatus_admin): ?>
                         <span class="badge rounded-pill badge-subtle-danger fs-10">OVERDUE</span>
@@ -1154,10 +1185,10 @@ if (isset($_SESSION['alert'])) {
                 </div>
             </div>
 
-            <hr class="my-3 opacity-10">
+            <hr class="my-3 opacity-10 tv-hero-hr">
 
             <!-- Footer Chips -->
-            <div class="px-4 pb-4 d-flex flex-wrap gap-2 align-items-center">
+            <div class="px-4 pb-4 d-flex flex-wrap gap-2 align-items-center tv-hero-foot">
 
                 <!-- Writer chip -->
                 <?php if ($taskWriter):
