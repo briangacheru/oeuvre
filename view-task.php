@@ -421,7 +421,7 @@ if (isset($_GET['message'])) {
                 </div>
             </div>
 
-            <?php if (in_array($taskStatus, ['In Progress', 'In Revision']) && !($extensionRequest && $extensionRequest['status'] == 'pending')): ?>
+            <?php if (in_array($taskStatus, ['In Progress', 'In Revision']) && !$extensionRequest): ?>
             <div class="modal fade" id="requestExtensionModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
@@ -434,7 +434,9 @@ if (isset($_GET['message'])) {
                                 <p class="fs-9 text-secondary">Current due date: <strong><?php echo date('d M Y, g:i A', strtotime($taskDueDate)); ?></strong></p>
                                 <div class="mb-3">
                                     <label class="form-label fs-9" for="requestedDueDate">New requested due date</label>
-                                    <input type="datetime-local" class="form-control" id="requestedDueDate" name="requested_due_date" required>
+                                    <input type="datetime-local" class="form-control" id="requestedDueDate" name="requested_due_date"
+                                           min="<?php echo date('Y-m-d\TH:i', strtotime($taskDueDate)); ?>" required>
+                                    <div class="form-text fs-10">Must be after the current due date.</div>
                                 </div>
                                 <div class="mb-1">
                                     <label class="form-label fs-9" for="extensionReason">Reason</label>
@@ -454,6 +456,14 @@ if (isset($_GET['message'])) {
             <script>
             document.getElementById('requestExtensionForm')?.addEventListener('submit', function (e) {
                 e.preventDefault();
+
+                const dueInput = document.getElementById('requestedDueDate');
+                if (dueInput.value && dueInput.min && dueInput.value <= dueInput.min) {
+                    showToast('The requested due date must be after the current due date.', 'warning');
+                    dueInput.focus();
+                    return;
+                }
+
                 const btn = document.getElementById('submitExtensionBtn');
                 btn.disabled = true;
                 const original = btn.innerHTML;
@@ -719,8 +729,8 @@ if ($rowTask['status'] == 'Completed') {
                         <?php endif; ?>
                     </div>
 
-                    <!-- Request extension -->
-                    <?php if (in_array($taskStatus, ['In Progress', 'In Revision'])): ?>
+                    <!-- Request extension - hidden once a request has been resolved (approved/denied) -->
+                    <?php if (in_array($taskStatus, ['In Progress', 'In Revision']) && (!$extensionRequest || $extensionRequest['status'] == 'pending')): ?>
                         <div class="mb-3">
                             <?php if ($extensionRequest && $extensionRequest['status'] == 'pending'): ?>
                                 <button class="btn btn-outline-secondary btn-sm fs-10" disabled>
