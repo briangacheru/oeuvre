@@ -149,6 +149,37 @@ if (isset($_GET['del'])) {
         unset($_SESSION['alert']); // Clear the alert message
     }
     ?>
+    <?php
+    // Resolved = tasks that went through at least one revision cycle (revision_count > 0,
+    // bumped in update-task.php whenever status transitions into 'In Revision') and are no
+    // longer sitting in that status - i.e. the writer resubmitted and it moved on. There's no
+    // dedicated resolution table/timestamp like tbl_task_extension_requests, so we key off
+    // tbltasks itself, mirroring the Pending/Resolved tab split in sudo/extension-requests.php.
+    // Wrapped like the extension-requests query in view-task.php: PHP 8.1+'s mysqli throws by
+    // default, and revision_count is a migration-added column ([[oeuvre-pending-db-migrations]])
+    // that may not exist yet on every environment - don't let that fatal the whole page.
+    $revisionResolvedResult = null;
+    try {
+        $revisionResolvedResult = mysqli_query($con, "SELECT * FROM tbltasks WHERE is_deleted = 0 AND status != 'In Revision' AND revision_count > 0 ORDER BY id DESC LIMIT 100");
+    } catch (\mysqli_sql_exception $e) {
+        // migration pending - revision_count column doesn't exist yet
+    }
+    $revisionResolvedCount = $revisionResolvedResult ? mysqli_num_rows($revisionResolvedResult) : 0;
+    ?>
+    <ul class="nav nav-tabs mb-3" id="revisionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pendingRevisionTab" type="button" role="tab">
+                <i class="fas fa-flag me-1 text-warning"></i>In Revision
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#resolvedRevisionTab" type="button" role="tab">
+                <i class="fas fa-check-circle me-1 text-success"></i>Resolved <span class="badge badge-subtle-secondary rounded-pill ms-1"><?php echo $revisionResolvedCount; ?></span>
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="revisionTabsContent">
+    <div class="tab-pane fade show active" id="pendingRevisionTab" role="tabpanel">
     <div class="row  g-3 mb-3">
         <div class="col">
             <div class="card mb-3">
@@ -352,6 +383,96 @@ if (isset($_GET['del'])) {
                 </div>
             </div>
         </div>
+    </div><!-- /.row --></div><!-- /#pendingRevisionTab -->
+
+    <div class="tab-pane fade" id="resolvedRevisionTab" role="tabpanel">
+        <div class="row g-3 mb-3">
+            <div class="col">
+                <div class="card mb-3">
+                    <div class="card-body px-0 pt-0">
+                        <?php if ($revisionResolvedResult === null): ?>
+                        <div class="alert alert-warning mx-3 mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle me-1"></i> Resolved revisions aren't available yet - a pending database update is needed.
+                        </div>
+                        <?php elseif ($revisionResolvedCount === 0): ?>
+                        <div class="text-center text-secondary py-5">
+                            <i class="fas fa-check-circle fa-2x mb-2"></i>
+                            <p class="mb-0">No resolved revisions yet. Tasks appear here once a writer resubmits after a revision.</p>
+                        </div>
+                        <?php else: ?>
+                        <table class="table table-sm mb-0 overflow-hidden data-table fs-10" data-datatables='{"order": []}'>
+                            <thead class="bg-200">
+                            <tr>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Task #</th>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Topic</th>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Status</th>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Account</th>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Revisions</th>
+                                <th class="text-900 sort pe-1 align-middle white-space-nowrap">Amount</th>
+                                <th class="text-900 no-sort pe-1 align-middle data-table-row-action"></th>
+                            </tr>
+                            </thead>
+                            <tbody class="list">
+                            <?php while ($rr = mysqli_fetch_array($revisionResolvedResult)): ?>
+                                <?php
+                                $rrEncodedId = encode_task_id($rr['id']);
+                                $rrTotalPrice = $rr['cpp'] * $rr['pages'];
+
+                                $rrStatusBadge = '';
+                                switch ($rr['status']) {
+                                    case 'In Progress':
+                                        $rrStatusBadge = '<span class="badge badge rounded-pill badge-subtle-warning">In Progress<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>';
+                                        break;
+                                    case 'Cancelled':
+                                        $rrStatusBadge = '<span class="badge badge rounded-pill badge-subtle-danger">Cancelled<span class="ms-1 fas fa-ban" data-fa-transform="shrink-2"></span></span>';
+                                        break;
+                                    case 'Submitted':
+                                        $rrStatusBadge = '<span class="badge badge rounded-pill badge-subtle-info">Submitted<span class="ms-1 fas fa-file" data-fa-transform="shrink-2"></span></span>';
+                                        break;
+                                    case 'Completed':
+                                        $rrStatusBadge = '<span class="badge badge rounded-pill badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>';
+                                        break;
+                                    default:
+                                        $rrStatusBadge = '<span class="badge badge rounded-pill badge-subtle-secondary">' . htmlspecialchars($rr['status'], ENT_QUOTES, 'UTF-8') . '</span>';
+                                }
+
+                                $rrIsPaidClass = ($rr['is_paid'] == 1) ? 'badge-subtle-success' : 'badge-subtle-warning';
+                                $rrIsPaidText = ($rr['is_paid'] == 1) ? 'Paid' : 'Unpaid';
+                                ?>
+                                <tr class="hover-actions-trigger btn-reveal-trigger hover-bg-100">
+                                    <td class="align-middle white-space-nowrap fw-semi-bold text-900"><?php echo (int) $rr['id']; ?></td>
+                                    <td>
+                                        <h6 class="mb-1 fw-semi-bold text-nowrap"><a class="text-900" href="view-task?task_id=<?php echo $rrEncodedId; ?>"><?php echo htmlspecialchars($rr['topic'], ENT_QUOTES, 'UTF-8'); ?></a></h6>
+                                        <p class="fw-semi-bold mb-0 text-500"><?php echo (int) $rr['pages']; ?> Page(s) | CPP: <?php echo $rr['cpp']; ?></p>
+                                    </td>
+                                    <td class="align-middle white-space-nowrap"><?php echo $rrStatusBadge; ?></td>
+                                    <td class="align-middle white-space-nowrap">
+                                        <h6 class="mb-1 fw-semi-bold text-nowrap"><?php echo htmlspecialchars($rr['account'], ENT_QUOTES, 'UTF-8'); ?></h6>
+                                        <p class="fw-semi-bold mb-0 text-500"><?php echo htmlspecialchars($rr['writer'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                    </td>
+                                    <td class="align-middle white-space-nowrap">
+                                        <span class="badge badge-subtle-warning rounded-pill"><i class="fas fa-history me-1"></i><?php echo (int) $rr['revision_count']; ?></span>
+                                    </td>
+                                    <td class="align-middle">
+                                        <h6 class="mb-0"><?php echo number_format($rrTotalPrice, 2); ?></h6>
+                                        <p class="fs-11 mb-0"><span class="badge badge rounded-pill <?php echo $rrIsPaidClass; ?>"><?php echo $rrIsPaidText; ?></span></p>
+                                    </td>
+                                    <td class="align-middle white-space-nowrap text-end position-relative">
+                                        <div class="hover-actions bg-100">
+                                            <a class="btn bg-primary-subtle icon-item rounded-3 fs-11 icon-item-sm" href="view-task?task_id=<?php echo $rrEncodedId; ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="View task"><span class="far fa-eye"></span></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /#resolvedRevisionTab -->
+    </div><!-- /#revisionTabsContent -->
 
         <!-- Duplicate Confirmation Modal -->
         <div class="modal fade" id="duplicateTaskModal" tabindex="-1" aria-labelledby="duplicateTaskModalLabel" aria-hidden="true">
@@ -532,6 +653,34 @@ if (isset($_GET['del'])) {
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // The Resolved tab's DataTable auto-initializes on page load while its
+            // tab-pane is still display:none (assets/js/theme.js's dataTablesInit()
+            // runs over every [data-datatables] unconditionally). With autoWidth on
+            // by default, DataTables measures a zero-width container at that point
+            // and bakes 0px column/table widths in - a plain columns.adjust().draw()
+            // afterwards doesn't undo that, it only recalculates from the already-
+            // corrupted stored widths, so the table renders with nothing visible
+            // even though the rows are in the DOM. Destroying and re-initializing it
+            // once the pane is actually visible measures it correctly from scratch.
+            // See [[oeuvre-datatables-gotcha]].
+            const resolvedRevisionTabBtn = document.querySelector('[data-bs-target="#resolvedRevisionTab"]');
+            if (resolvedRevisionTabBtn && typeof jQuery !== 'undefined') {
+                resolvedRevisionTabBtn.addEventListener('shown.bs.tab', function () {
+                    const $table = jQuery('#resolvedRevisionTab table.data-table');
+                    if (!jQuery.fn.DataTable || !$table.length) return;
+
+                    const existingOptions = $table.data('datatables');
+                    if (jQuery.fn.DataTable.isDataTable($table)) {
+                        $table.DataTable().destroy();
+                    }
+                    $table.DataTable(jQuery.extend({
+                        dom: "<'row mx-0'<'col-md-6'l><'col-md-6'f>>" +
+                             "<'table-responsive scrollbar'tr>" +
+                             "<'row g-0 align-items-center justify-content-center justify-content-sm-between'<'col-auto mb-2 mb-sm-0 px-3'i><'col-auto px-3'p>>"
+                    }, existingOptions));
+                });
+            }
+
             const duplicateButtons = document.querySelectorAll('.duplicate-task-btn');
             const duplicateModal = new bootstrap.Modal(document.getElementById('duplicateTaskModal'));
             const confirmDuplicateBtn = document.getElementById('confirmDuplicateBtn');
