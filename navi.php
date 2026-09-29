@@ -855,7 +855,27 @@
                             foreach($results as $row)
                             {
                             ?>
-                            <div class="avatar avatar-xl status-online">
+                            <?php
+                            // Shown to admins picking a writer on sudo/create-task.php. See
+                            // update-availability.php and
+                            // db-migrations/2026_09_15_add_interactive_features.sql.
+                            $availOptions = [
+                                'available' => ['label' => 'Available', 'color' => 'success'],
+                                'busy' => ['label' => 'Busy', 'color' => 'warning'],
+                                'away' => ['label' => 'Away', 'color' => 'secondary'],
+                            ];
+                            $currentAvail = $row->availability_status ?? 'available';
+                            if (!isset($availOptions[$currentAvail])) { $currentAvail = 'available'; }
+                            // Reuse the theme's own status-dot classes (avatar[class*="status-"]:before)
+                            // for the dot shape/position, picking whichever one's built-in color matches
+                            // this availability state's color above - not a literal online/offline mapping.
+                            $availDotClass = [
+                                'available' => 'status-online',   // success/green
+                                'busy' => 'status-away',          // warning/orange
+                                'away' => 'status-offline',       // secondary/gray
+                            ][$currentAvail];
+                            ?>
+                            <div class="avatar avatar-xl <?php echo $availDotClass; ?>" data-bs-toggle="tooltip" data-bs-placement="bottom" title="<?php echo $availOptions[$currentAvail]['label']; ?>">
                                 <?php
                                 if($row->Photo=="avatar.png")
                                 {
@@ -876,18 +896,6 @@
                                 <div class="dropdown-divider"></div>
                                 <div class="px-3 py-1">
                                     <small class="text-muted d-block mb-1">Availability</small>
-                                    <?php
-                                    // Shown to admins picking a writer on sudo/create-task.php. See
-                                    // update-availability.php and
-                                    // db-migrations/2026_09_15_add_interactive_features.sql.
-                                    $availOptions = [
-                                        'available' => ['label' => 'Available', 'color' => 'success'],
-                                        'busy' => ['label' => 'Busy', 'color' => 'warning'],
-                                        'away' => ['label' => 'Away', 'color' => 'secondary'],
-                                    ];
-                                    $currentAvail = $row->availability_status ?? 'available';
-                                    if (!isset($availOptions[$currentAvail])) { $currentAvail = 'available'; }
-                                    ?>
                                     <div class="btn-group btn-group-sm w-100" role="group" id="availabilityToggleGroup">
                                         <?php foreach ($availOptions as $key => $opt): ?>
                                             <button type="button" class="btn btn-outline-<?php echo $opt['color']; ?> availability-btn <?php echo $currentAvail === $key ? 'active' : ''; ?>" data-status="<?php echo $key; ?>">
@@ -1388,6 +1396,17 @@
                                 if (data.success) {
                                     group.querySelectorAll('.availability-btn').forEach(b => b.classList.remove('active'));
                                     this.classList.add('active');
+
+                                    // Keep the navbar avatar's status dot in sync - same
+                                    // status-* class mapping used server-side above.
+                                    const dotClassByStatus = { available: 'status-online', busy: 'status-away', away: 'status-offline' };
+                                    const avatar = document.querySelector('#navbarDropdownUser .avatar');
+                                    if (avatar) {
+                                        Object.values(dotClassByStatus).forEach(c => avatar.classList.remove(c));
+                                        avatar.classList.add(dotClassByStatus[status] || 'status-online');
+                                        avatar.title = this.textContent.trim();
+                                    }
+
                                     if (typeof showToast === 'function') showToast('Availability set to ' + status + '.', 'success');
                                 } else if (typeof showToast === 'function') {
                                     showToast(data.message || 'Could not update availability.', 'error');
