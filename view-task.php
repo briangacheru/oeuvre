@@ -399,17 +399,6 @@ if (isset($_GET['message'])) {
                                 }
                             }
                             ?>
-                            <?php if (in_array($taskStatus, ['In Progress', 'In Revision'])): ?>
-                                <?php if ($extensionRequest && $extensionRequest['status'] == 'pending'): ?>
-                                    <button class="btn btn-outline-secondary btn-sm fs-10" disabled>
-                                        <i class="fas fa-clock me-1"></i> Extension Pending
-                                    </button>
-                                <?php else: ?>
-                                    <button type="button" class="btn btn-outline-warning btn-sm fs-10" data-bs-toggle="modal" data-bs-target="#requestExtensionModal">
-                                        <i class="fas fa-calendar-plus me-1"></i> Request Extension
-                                    </button>
-                                <?php endif; ?>
-                            <?php endif; ?>
                         </div>
                     </div>
                     <?php if ($extensionRequest && $extensionRequest['status'] != 'pending'): ?>
@@ -729,6 +718,21 @@ if ($rowTask['status'] == 'Completed') {
                             <span class="badge rounded-pill badge-subtle-danger fs-10">OVERDUE</span>
                         <?php endif; ?>
                     </div>
+
+                    <!-- Request extension -->
+                    <?php if (in_array($taskStatus, ['In Progress', 'In Revision'])): ?>
+                        <div class="mb-3">
+                            <?php if ($extensionRequest && $extensionRequest['status'] == 'pending'): ?>
+                                <button class="btn btn-outline-secondary btn-sm fs-10" disabled>
+                                    <i class="fas fa-clock me-1"></i> Extension Pending
+                                </button>
+                            <?php else: ?>
+                                <button type="button" class="btn btn-outline-warning btn-sm fs-10" data-bs-toggle="modal" data-bs-target="#requestExtensionModal">
+                                    <i class="fas fa-calendar-plus me-1"></i> Request Extension
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Payment status -->
                     <?php if ($taskStatus == 'Completed'): ?>
