@@ -576,85 +576,62 @@ if (isset($_GET['task_id'])) {
 }
 ?>
 
+<?php
+// If this task is a duplicate, look up the original so the header card can link to it
+$originalTaskId = null;
+$encodedOriginalId = '';
+if (!empty($rowTask['is_duplicate']) && !empty($rowTask['original_task_id'])) {
+    $originalStmt = mysqli_prepare($con, "SELECT id FROM tbltasks WHERE id = ?");
+    mysqli_stmt_bind_param($originalStmt, 'i', $rowTask['original_task_id']);
+    mysqli_stmt_execute($originalStmt);
+    if ($originalTaskData = mysqli_fetch_assoc(mysqli_stmt_get_result($originalStmt))) {
+        $originalTaskId = (int) $originalTaskData['id'];
+        $encodedOriginalId = encode_task_id($originalTaskId);
+    }
+    mysqli_stmt_close($originalStmt);
+}
+?>
     <div class="card shadow-none border mb-3">
         <div class="bg-holder bg-card d-none d-md-block" style="background-image:url(../assets/img/illustrations/corner-6.png);">
         </div>
         <!--/.bg-holder-->
 
         <div class="card-header z-1">
-            <div class="row flex-between-center gx-0">
-                <div class="col-lg-auto d-flex align-items-center">
+            <div class="tv-nav-row">
+                <?php if ($prevTaskId): ?>
+                    <a class="btn btn-falcon-default tv-nav-btn tv-prev" href="view-task?task_id=<?php echo encode_task_id($prevTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Previous Task (#<?php echo $prevTaskId; ?>)">
+                        <i class="fas fa-chevron-left"></i>
+                        <span class="tv-nav-text"><small>Previous</small><span>#<?php echo $prevTaskId; ?></span></span>
+                    </a>
+                <?php else: ?>
+                    <button class="btn btn-falcon-default tv-nav-btn tv-prev disabled" type="button" title="No previous task" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                        <span class="tv-nav-text"><small>Previous</small><span>None</span></span>
+                    </button>
+                <?php endif; ?>
+
+                <div class="tv-nav-center">
                     <h4 class="mb-0 text-primary fw-bold">View <span class="text-info fw-medium">Task Details</span></h4>
-                    <div class="btn-group btn-group-sm ms-3" role="group" aria-label="Task navigation">
-                        <?php if ($prevTaskId): ?>
-                            <a class="btn btn-outline-primary" href="view-task?task_id=<?php echo encode_task_id($prevTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Previous Task (#<?php echo $prevTaskId; ?>)">
-                                <i class="fas fa-chevron-left"></i>
-                            </a>
-                        <?php else: ?>
-                            <button class="btn btn-outline-primary disabled" type="button" title="No previous task" disabled>
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                        <?php endif; ?>
-                        <?php if ($nextTaskId): ?>
-                            <a class="btn btn-outline-primary" href="view-task?task_id=<?php echo encode_task_id($nextTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Next Task (#<?php echo $nextTaskId; ?>)">
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        <?php else: ?>
-                            <button class="btn btn-outline-primary disabled" type="button" title="No next task" disabled>
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        <?php endif; ?>
-                    </div>
+                    <h6 class="mb-0 badge rounded-pill badge-subtle-info"><i class="far fa-calendar-alt me-1"></i><?php echo date("jS F Y"); ?> | <span id="timeDisplay"></span></h6>
+                    <?php if ($originalTaskId): ?>
+                        <a href="view-task?task_id=<?php echo $encodedOriginalId; ?>" target="_blank" rel="noopener" class="tv-id-badge ms-0" data-bs-toggle="tooltip" title="This task is a duplicate. Open the original task in a new tab"><i class="fas fa-copy"></i>Duplicate of <i class="fas fa-hashtag"></i><?php echo $originalTaskId; ?><i class="fas fa-external-link-alt"></i></a>
+                    <?php endif; ?>
                 </div>
-                <div class="col-lg-auto pt-3 pt-lg-0">
-                    <form class="$rowTask flex-lg-column flex-xxl-$rowTask gx-3 gy-2 align-items-center align-items-lg-start align-items-xxl-center">
-                        <div class="col-auto">
-                        </div>
-                        <div class="col-md-auto position-relative">
-                            <h6 class="mb-1 badge rounded-pill badge-subtle-info"><?php echo date("jS F Y"); ?> | <span id="timeDisplay"></span></h6>
-                        </div>
-                    </form>
-                </div>
+
+                <?php if ($nextTaskId): ?>
+                    <a class="btn btn-falcon-default tv-nav-btn tv-next" href="view-task?task_id=<?php echo encode_task_id($nextTaskId); ?>" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Next Task (#<?php echo $nextTaskId; ?>)">
+                        <span class="tv-nav-text"><small>Next</small><span>#<?php echo $nextTaskId; ?></span></span>
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                <?php else: ?>
+                    <button class="btn btn-falcon-default tv-nav-btn tv-next disabled" type="button" title="No next task" disabled>
+                        <span class="tv-nav-text"><small>Next</small><span>None</span></span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-<?php
-// Show duplicate task notice with link to original
-if (isset($rowTask['is_duplicate']) && $rowTask['is_duplicate'] == 1 && isset($rowTask['original_task_id']) && !empty($rowTask['original_task_id'])) {
-    $originalTaskId = $rowTask['original_task_id'];
-
-    // Fetch original task topic
-    $originalTaskQuery = "SELECT topic FROM tbltasks WHERE id = ?";
-    $originalStmt = mysqli_prepare($con, $originalTaskQuery);
-    mysqli_stmt_bind_param($originalStmt, 'i', $originalTaskId);
-    mysqli_stmt_execute($originalStmt);
-    $originalTaskResult = mysqli_stmt_get_result($originalStmt);
-
-    if ($originalTaskData = mysqli_fetch_assoc($originalTaskResult)) {
-        $encodedOriginalId = encode_task_id($originalTaskId);
-        $originalTaskTopic = htmlspecialchars($originalTaskData['topic']);
-        ?>
-        <div class="bg-info-subtle border-start border-info border-3 rounded-3 py-2 ps-3 pe-2 mb-3">
-            <div class="d-flex align-items-center">
-                <span class="fas fa-copy text-info me-2"></span>
-                <div>
-                    <strong class="text-info">Duplicate Task</strong>
-                    <p class="mb-0 small">
-                        This is a duplicate of task ID:
-                        <a href="view-task?task_id=<?php echo $encodedOriginalId; ?>" class="fw-semibold text-decoration-none">
-                            #<?php echo $originalTaskId; ?> - <?php echo $originalTaskTopic; ?>
-                        </a>
-                    </p>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
-
-    mysqli_stmt_close($originalStmt);
-}
-?>
-
     <!-- Display Bootstrap Alerts -->
 <?php
 if (isset($_GET['message'])) {
@@ -776,7 +753,22 @@ if (isset($_SESSION['alert'])) {
         html.tv-modern .tv-ico-improved { display: none; }
         .tv-only { display: none !important; }
         html.tv-modern .tv-only { display: inline-flex !important; }
-        .tv-side { display: contents; }
+        .tv-left, .tv-right { display: contents; }
+        .tv-id-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; text-decoration: none; vertical-align: middle;
+            background: rgba(var(--falcon-info-rgb), .12); color: var(--falcon-info); border: 1px solid rgba(var(--falcon-info-rgb), .3); transition: background .15s; }
+        .tv-id-badge:hover { background: rgba(var(--falcon-info-rgb), .22); color: var(--falcon-info); }
+        .tv-id-badge i { font-size: 9px; }
+        .tv-id-badge i:last-child { opacity: .7; margin-left: 2px; }
+
+        /* Task navigation card: prev far left, next far right, title + date centred */
+        .tv-nav-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .tv-nav-center { flex: 1 1 auto; min-width: 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .tv-nav-btn { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 12px; min-width: 44px; justify-content: center; font-weight: 600; }
+        .tv-nav-btn .tv-nav-text { display: none; flex-direction: column; text-align: left; line-height: 1.15; }
+        .tv-nav-btn.tv-next .tv-nav-text { text-align: right; }
+        .tv-nav-btn .tv-nav-text small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: .65; font-weight: 700; }
+        .tv-nav-btn.disabled, .tv-nav-btn:disabled { opacity: .4; }
+        @media (min-width: 576px) { .tv-nav-btn .tv-nav-text { display: flex; } }
 
         html.tv-modern .tv-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
         html.tv-modern .tv-actions > .btn { margin: 0 !important; border-radius: 999px; padding-inline: 14px; font-weight: 600; }
@@ -827,24 +819,22 @@ if (isset($_SESSION['alert'])) {
         html.tv-modern #taskViewTabs .nav-link { border: 0; border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 13px; color: var(--falcon-secondary-color); }
         html.tv-modern #taskViewTabs .nav-link.active { background: var(--falcon-card-bg, #fff); color: var(--falcon-emphasis-color); box-shadow: 0 2px 8px -2px rgba(0,0,0,.2); }
 
-        /* Admin pane: reference column on the left (description, files, extension, rating, activity), discussion on the right */
+        /* Admin pane: reference column on the left (description, files), activity column on the right (extension, rating, timeline, discussion) */
+        html.tv-modern #admin-view-pane > .tv-left,
+        html.tv-modern #admin-view-pane > .tv-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
         @media (min-width: 1200px) {
-            html.tv-modern #admin-view-pane.active { display: grid; grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 16px; align-items: start; }
-            html.tv-modern #admin-view-pane > .row:first-child { grid-column: 1; grid-row: 1; }
-            html.tv-modern #admin-view-pane > .tv-side { grid-column: 1; grid-row: 2; }
-            html.tv-modern #admin-view-pane > .tv-discussion { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 76px; }
+            html.tv-modern #admin-view-pane.active { display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); gap: 16px; align-items: start; }
         }
-        html.tv-modern #admin-view-pane > .tv-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
         @media (max-width: 1199.98px) {
-            html.tv-modern #admin-view-pane.active > .row { margin-bottom: 16px; }
-            html.tv-modern #admin-view-pane > .tv-side { margin-bottom: 16px; }
+            html.tv-modern #admin-view-pane > .tv-left { margin-bottom: 16px; }
         }
         html.tv-modern #admin-view-pane .row,
-        html.tv-modern .tv-side .row { --falcon-gutter-x: 0; margin-left: 0; margin-right: 0; margin-top: 0; }
+        html.tv-modern .tv-left .row,
+        html.tv-modern .tv-right .row { --falcon-gutter-x: 0; margin-left: 0; margin-right: 0; margin-top: 0; }
         html.tv-modern #admin-view-pane .row > [class*="col"] { padding-left: 0; padding-right: 0; margin-bottom: 0 !important; }
-        html.tv-modern .tv-side > .col,
-        html.tv-modern .tv-side > .row { margin: 0 !important; width: 100%; }
-        html.tv-modern .tv-side .card { margin-top: 0 !important; }
+        html.tv-modern .tv-left > .col, html.tv-modern .tv-left > .row,
+        html.tv-modern .tv-right > .col, html.tv-modern .tv-right > .row { margin: 0 !important; width: 100%; }
+        html.tv-modern .tv-left .card, html.tv-modern .tv-right .card { margin-top: 0 !important; }
 
         html.tv-modern #admin-view-pane .card { border-radius: 16px; border: 1px solid var(--falcon-border-color); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 28px -18px rgba(0,0,0,.2) !important; overflow: hidden; }
         html.tv-modern #admin-view-pane .card-header { background: transparent !important; border-bottom: 1px solid var(--falcon-border-color); padding: 14px 18px; }
@@ -1364,6 +1354,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
         <!-- ===== ADMIN VIEW TAB PANE ===== -->
         <div class="tab-pane fade show active" id="admin-view-pane" role="tabpanel" aria-labelledby="admin-view-tab">
 
+            <div class="tv-left"><!-- left column in the improved view (description + files); display:contents in the classic view -->
             <div class="row">
                 <div class="col-lg-12 order-1 order-lg-0">
                     <div class="card mb-3">
@@ -1471,7 +1462,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     </div>
                 </div>
             </div>
-            <div class="tv-side"><!-- sidebar column in the improved view; display:contents (no effect) in the classic view -->
             <!-- Task Files card section -->
             <div class='col mb-3'>
                 <div class='row g-3'>
@@ -1765,6 +1755,8 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     </div>
                 </div>
             </div>
+            </div><!-- /.tv-left -->
+            <div class="tv-right"><!-- right column in the improved view (extension, rating, activity, discussion) -->
             <?php
             // Fetch all comments for this task
             $commentsQuery = 'SELECT * FROM tbl_task_comments WHERE task_id = ? ORDER BY created_at ASC';
@@ -2217,7 +2209,6 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                 </div>
             </div>
             <?php endif; ?>
-            </div><!-- /.tv-side -->
 
             <!-- Task Discussion Card -->
             <div class='row tv-discussion'>
@@ -2709,6 +2700,7 @@ while ($vw = mysqli_fetch_assoc($verifiedWritersResult)) {
                     </div>
                 </div>
             </div>
+            </div><!-- /.tv-right -->
             <!-- File Preview Modal -->
             <div class='modal fade' id='filePreviewModal' tabindex='-1' aria-labelledby='filePreviewModalLabel' aria-hidden='true'>
                 <div class='modal-dialog modal-xl modal-dialog-centered' style='max-width: 1100px;'>
